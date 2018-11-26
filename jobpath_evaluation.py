@@ -236,10 +236,26 @@ ax.plot()
 
 # %%
 f, ax = plt.subplots(dpi=1000)
+ax = sns.barplot(x="Group1", y="w_sw_pay_mean_1315", data=df)
+# ax.set_yscale('symlog')
+fig = ax.get_figure()
+fig.savefig('images/sw_pay_1315_by_group.png')
+ax.plot()
+
+# %%
+f, ax = plt.subplots(dpi=1000)
 ax = sns.barplot(x="Group1", y="earn_tot_mean_1315", data=df)
 # ax.set_yscale('symlog')
 fig = ax.get_figure()
 fig.savefig('images/unweighted_earn_1315_by_group.png')
+ax.plot()
+
+# %%
+f, ax = plt.subplots(dpi=1000)
+ax = sns.barplot(x="Group1", y="sw_pay_mean_1315", data=df)
+# ax.set_yscale('symlog')
+fig = ax.get_figure()
+fig.savefig('images/unweighted_sw_pay_1315_by_group.png')
 ax.plot()
 
 # %%
