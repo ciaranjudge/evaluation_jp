@@ -144,6 +144,15 @@ df["w_impact_income_diff"] = df["w_income_diff"] - df["income_diff"]
 # %% [markdown]
 # ## Descriptive statistics
 
+# # %%
+# import sklearn.cross_validation.Bootstrap as bootstrap
+# import scipy
+# for col in w_numeric_cols:
+#     print(col, 
+#     df.groupby('Group1')[col].apply(
+#         lambda x:bootstrap.ci(data=x, statfunction=scipy.mean)))
+
+
 # %%
 df[["w_impact_sw_pay_mean_1315", "w_impact_earn_tot_mean_1315"]].hist(
     bins=100, log=True
@@ -181,18 +190,73 @@ df.groupby(["cluster", "Group1"])["w_earn_tot_2017"].describe()
 df.groupby(["cluster", "Group1"])["sw_pay_diff"].describe()
 
 # %%
+df['w_income_1315'] = df['w_earn_tot_mean_1315'] + df['w_sw_pay_mean_1315']
+df['w_income_2017'] = df['w_earn_tot_2017'] + df['w_sw_pay_2017']
+df['income_1315'] = df['earn_tot_mean_1315'] + df['sw_pay_mean_1315']
+df['w_income_percentage'] = df['w_income_diff'] / df['w_income_1315']
+
+
+# %%
+mean_income_1315 = df.groupby("Group1")["w_income_1315"].describe()
+mean_income_1315
+
+# %%
+mean_income_2017 = df.groupby("Group1")["w_income_2017"].describe()
+mean_income_2017
+
+# %%
+mean_income_change = mean_income_2017['mean'] / mean_income_1315['mean']
+mean_income_change
+
+# %%
+mean_income_diff = mean_income_2017['mean'] - mean_income_1315['mean']
+mean_income_diff
+
+# %%
+mean_income_cl_1315 = df.groupby(['cluster', "Group1"])["w_income_1315"].describe()
+mean_income_cl_1315
+
+# %%
+mean_income_cl_2017 = df.groupby(['cluster', "Group1"])["w_income_2017"].describe()
+mean_income_cl_2017
+
+# %%
+mean_income_cl_change = mean_income_cl_2017['mean'] / mean_income_cl_1315['mean']
+mean_income_cl_change
+
+# %%
+mean_earn_tot_1315 = df.groupby("Group1")["w_earn_tot_mean_1315"].describe()
+mean_earn_tot_1315
+
+# %%
+mean_earn_tot_2017 = df.groupby("Group1")["w_earn_tot_2017"].describe()
+mean_earn_tot_2017
+
+# %%
+mean_earn_change = mean_earn_tot_2017['mean'] / mean_earn_tot_1315['mean']
+mean_earn_change
+
+# %%
 df.groupby("Group1")["w_income_diff"].describe()
 
+# %%
 df.groupby("Group1")["w_earn_tot_diff"].describe()
 
 
 # %%
 f, ax = plt.subplots(dpi=1000)
 ax = sns.boxplot(
-    x="Group1", y="w_earn_tot_diff", data=df, showmeans=True, palette="Set3"
+    x="Group1", y="w_income_diff", data=df, showmeans=True, palette="Set3"
 )
 ax.set_yscale("symlog")
 
+# %%
+f, ax = plt.subplots(dpi=1000)
+ax = sns.boxplot(x="Group1", y="w_income_diff", data=df, showmeans=True, palette="Set3")
+ax.set_yscale('symlog')
+fig = ax.get_figure()
+fig.savefig('images/box_income_diff_by_cluster_group.png')
+ax.plot()
 
 # %%
 f, ax = plt.subplots(dpi=1000)
