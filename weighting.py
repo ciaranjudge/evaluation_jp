@@ -1,14 +1,17 @@
 
+
 # %%
-import pandas as pd
-import numpy as np
+from datetime import datetime
 
 import matplotlib.pyplot as plt
+import numpy as np
+
+import pandas as pd
 import seaborn as sns  # package for plotting
+from IPython.display import HTML, display  # Make tables pretty
 
+sns.set()
 
-from IPython.display import display, HTML  # Make tables pretty
-from datetime import datetime
 
 # %% [markdown]
 # ## Import outcomes dataset and tidy up
@@ -24,22 +27,29 @@ for col in df.select_dtypes(include=numerics).columns:
     if df[col].isnull().sum() == 0:
         # print(col)
         df[col] = df[col].astype("int")
-for col in df.columns:
-    print(col)
-
-
-# %% 
-df['test_p'] = df['Group1'].to_string().
-df['test_p']
+# for col in df.columns:
+#     print(col)
 
 # %%
 # Tidy up T and C columns to make processing easier
+periods = []
 for i in range(1, 9):
-    df['period_'+str(i)] = df['Group'+str(i)].str.split([0])
+    this_period = 'period_'+str(i)
+    df[this_period] = df['Group'+str(i)].str[:1]
+    periods.append(this_period)
 
-    
+# Eliminate earlier T people from later period C
+for i in range(1, 9):
+    for j in range(i+1, 9):
+        df['period_'+str(j)].loc[df['period_'+str(i)] == 'T'] = 0
 
-df.groupby('period_3')['period_4'].sum()
+# %% [markdown]
+# ## Look - a group triangle!
+
+# %%
+grouped = df.groupby(periods)['id'].count()
+grouped.sort_index(ascending=False, inplace=True)
+grouped
 
 
 # %% [markdown]
@@ -270,3 +280,41 @@ ax = sns.barplot(x="Group1", y="sw_pay_mean_1315", data=df)
 fig = ax.get_figure()
 fig.savefig("images/unweighted_sw_pay_1315_by_group.png")
 ax.plot()
+
+# %%
+f, ax = plt.subplots(dpi=1000)
+ax = sns.barplot(x="cluster", y="w_sw_pay_mean_1315", hue="Group1", data=df)
+# ax.set_yscale('symlog')
+fig = ax.get_figure()
+fig.savefig("images/sw_pay_1315_by_cluster_group.png")
+ax.plot()
+
+# %%
+f, ax = plt.subplots(dpi=1000)
+ax = sns.barplot(x="cluster", y="sw_pay_mean_1315", hue="Group1", data=df)
+# ax.set_yscale('symlog')
+fig = ax.get_figure()
+fig.savefig("images/sw_pay_1315_by_cluster_group.png")
+ax.plot()
+
+
+# %%
+
+f, ax = plt.subplots(dpi=1000)
+sns.scatterplot(x="sw_pay_mean_1315", y="earn_tot_mean_1315", hue="Group1", data=df)
+ax.set_yscale("symlog")
+fig = ax.get_figure()
+fig.savefig("images/earnings_vs_sw_pay.png")
+ax.plot()
+
+# %%
+
+f, ax = plt.subplots(dpi=1000)
+sns.scatterplot(x="w_sw_pay_mean_1315", y="w_earn_tot_mean_1315", hue="Group1", data=df)
+ax.set_yscale("symlog")
+fig = ax.get_figure()
+fig.savefig("images/w_earnings_vs_sw_pay.png")
+ax.plot()
+
+
+#%%
