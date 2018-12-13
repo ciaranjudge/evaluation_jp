@@ -18,6 +18,17 @@
 - Creates weighted outcomes based on weighting algorithm [need to do this differently depending on selected outcome]
 - Produces tables and graphs describing outputs [need to tidy code, add CIs, fix styling]
 
+## WeeklyStatus.ipynb
+ - ingests the zipped csv WeeklyStatus.csv
+ - sorts labels chronologically
+ - assigns weekly status values to one of five categories 
+      • those in employment (0 or 1)
+      •	those in receipt of weekly labour force Social Welfare Payments (0 or 1)
+      •	those in receipt of weekly Social Welfare Payments (0 or 1)
+      •	those taking part in education or training (0 or 1)
+      •	those in receipt of Other social welfare payments (Child Benefit, Household Benefit Package, etc.) (0 or 1)
+- calculates share of all weeks in each of these categories for T and C
+
 ### /images
 - Save folder for graphical outputs of analysis code
-- Need to fix and standardise graph formatting
+- Need to fix and standardise graph formatting (see KW work)
