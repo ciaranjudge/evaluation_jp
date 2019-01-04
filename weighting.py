@@ -301,7 +301,8 @@ ax.plot()
 # %%
 
 f, ax = plt.subplots(dpi=1000)
-sns.scatterplot(x="sw_pay_mean_1315", y="earn_tot_mean_1315", hue="Group1", data=df)
+sns.scatterplot(x="sw_pay_mean_1315", y="earn_tot_mean_1315",
+                hue="Group1", data=df)
 ax.set_yscale("symlog")
 fig = ax.get_figure()
 fig.savefig("images/earnings_vs_sw_pay.png")
@@ -310,11 +311,12 @@ ax.plot()
 # %%
 
 f, ax = plt.subplots(dpi=1000)
-sns.scatterplot(x="w_sw_pay_mean_1315", y="w_earn_tot_mean_1315", hue="Group1", data=df)
+sns.scatterplot(x="w_sw_pay_mean_1315",
+                y="w_earn_tot_mean_1315", hue="Group1", data=df)
 ax.set_yscale("symlog")
 fig = ax.get_figure()
 fig.savefig("images/w_earnings_vs_sw_pay.png")
 ax.plot()
 
 
-#%%
+# %%
