@@ -5,8 +5,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 import pandas as pd
-import seaborn as sns  # package for plotting
-from IPython.display import HTML, display  # Make tables pretty
+import seaborn as sns
+from IPython.display import HTML, display
 
 from scipy import stats
 
@@ -33,19 +33,36 @@ for col in df.select_dtypes(include=numerics).columns:
 # %%
 # Tidy up T and C columns to make processing easier
 # Need to use multiindex!
-periods = []
-for i in range(1, 9):
-    this_period = "period_" + str(i)
-    df[this_period] = df["Group" + str(i)].str[:1]
-    periods.append(this_period)
+periods = {i: "period_"+ str(i) for i in range(1, 9)}
 
-# Eliminate earlier T people from later period C
-for i in range(1, 9):
-    for j in range(i + 1, 9):
-        df["period_" + str(j)].loc[df["period_" + str(i)] == "T"] = 0
+for i, period in periods.items():
+    df[period] = df["Group" + str(i)].str[:1]
+    cat_map = {'T': 1, 'C': 0, '0': np.NaN}
+    df[period] = df[period].map(cat_map)
+    # df[period] = df[period].astype('int')
+    previous_periods = list(periods.values())[:i-1]
+    df[period].loc[(df[period] == 1) & df[previous_periods].any()] = 0
+    df[period] = df[period].fillna(-1)
+    
+
+
+#     print(i+2, period)
+#     print(df[period].value_counts())
+#     # Eliminate earlier T people from later period C   
+#     for j in range(i + 2, max_period):
+#         later_period = "period_" + str(j)
+#         df[later_period].loc[df[this_period] == "T"] = '0'
+
 
 # %%
-df.head()
+
+
+# %%
+df.info(verbose=True)
+
+# %%
+period_list = list(periods.values())
+df[period_list].describe()
 
 # %%
 # Remove outliers
@@ -57,11 +74,6 @@ numeric_cols = [
 
 # %% [markdown]
 # ## Look - a group triangle!
-
-# %%
-grouped = df.groupby(periods)["id"].count()
-grouped.sort_index(ascending=False, inplace=True)
-grouped
 
 
 # %% [markdown]
@@ -127,19 +139,20 @@ def add_weights(df, period):
     # Have to reset and then set index to avoid losing it!
     df_C = df_C.reset_index()
     df_C = df_C.merge(bin_counts[["abs_weight", "weight"]], how="inner", on="bin")
-    df_C = df_C.set_index('id')
+    df_C = df_C.set_index("id")
 
     # Append T and C dataframes together
     out_df = df_T.append(df_C)
-    out_df = out_df[["weight", "abs_weight"]]
+    out_df = out_df[["weight", "abs_weight", 'bin']]
 
     return out_df
+
 
 # %%
 for period in periods:
     w_df = add_weights(df, period)
-    w_df.columns = [period + '__' + str(col) for col in w_df.columns]
-    df = pd.concat([df, w_df], axis='columns')
+    w_df.columns = [period + "__" + str(col) for col in w_df.columns]
+    df = pd.concat([df, w_df], axis="columns")
 
 df.info(verbose=True)
 
@@ -150,8 +163,16 @@ grouped
 
 # %%
 for period in periods:
-    aw_col = period + '__abs_weight'
+    aw_col = period + "__abs_weight"
     print(df.groupby(period)[aw_col].sum())
+
+
+# %%
+df[periods].any(axis='columns').head()
+# %%
+
+
+
 
 # %% [markdown]
 # ## Create weighted versions of background and outcome columns
