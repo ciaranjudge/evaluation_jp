@@ -31,49 +31,30 @@ for col in df.select_dtypes(include=numerics).columns:
 #     print(col)
 
 # %%
-# Tidy up T and C columns to make processing easier
-# Need to use multiindex!
-periods = {i: "period_"+ str(i) for i in range(1, 9)}
+periods = pd.PeriodIndex(start='2016Q1', end='2017Q4', freq='Q')
+period_list = list(periods.strftime('%YQ%q'))
+periods_len = len(period_list)
 
-for i, period in periods.items():
-    df[period] = df["Group" + str(i)].str[:1]
-    cat_map = {'T': 1, 'C': 0, '0': np.NaN}
-    df[period] = df[period].map(cat_map)
-    # df[period] = df[period].astype('int')
-    previous_periods = list(periods.values())[:i-1]
-    df[period].loc[(df[period] == 1) & df[previous_periods].any()] = 0
-    df[period] = df[period].fillna(-1)
+for i, period in enumerate(reversed(period_list)):
     
-
-
-#     print(i+2, period)
-#     print(df[period].value_counts())
-#     # Eliminate earlier T people from later period C   
-#     for j in range(i + 2, max_period):
-#         later_period = "period_" + str(j)
-#         df[later_period].loc[df[this_period] == "T"] = '0'
-
-
+    df[period] = df["Group" + str(periods_len - i)].str[:1]
+    cat_map = {'T': 1, 'C': 0, '0': -1}
+    df[period] = df[period].map(cat_map)
+    if i > 0:
+        later_periods = period_list[-i:]
+        df.loc[df[period] == 1, later_periods] = -2
+    #df[period] = df[period].fillna(-1)
+    #df[period] = df[period].astype('int')
 # %%
-
-
-# %%
-df.info(verbose=True)
-
-# %%
-period_list = list(periods.values())
-df[period_list].describe()
-
-# %%
-# Remove outliers
 numeric_cols = [
     col for col in df.columns.tolist() if col.startswith(("earn_", "sw_pay_"))
 ]
 
-# df1 = df[(np.abs(stats.zscore(df[numeric_cols])) < 5).all(axis=1)]
+# %%
+grouped = df.groupby(period_list)["id"].count()
+grouped.sort_index(ascending=False, inplace=True)
+grouped
 
-# %% [markdown]
-# ## Look - a group triangle!
 
 
 # %% [markdown]
@@ -106,8 +87,8 @@ def add_weights(df, period):
 
     # 2. Create bins based on scores
     # Create a temporary df for T and C groups
-    df_T = df.loc[df[period] == "T"].copy()
-    df_C = df.loc[df[period] == "C"].copy()
+    df_T = df.loc[df[period] == 1].copy()
+    df_C = df.loc[df[period] == 0].copy()
 
     # Split T group into equal sized bins
     df_T["bin"], bins = pd.qcut(df_T["rank"], 100, retbins=True, labels=False)
@@ -147,17 +128,18 @@ def add_weights(df, period):
 
     return out_df
 
-
 # %%
-for period in periods:
+for period in period_list:
     w_df = add_weights(df, period)
     w_df.columns = [period + "__" + str(col) for col in w_df.columns]
     df = pd.concat([df, w_df], axis="columns")
 
-df.info(verbose=True)
+
+# %% [markdown]
+# ## Look - a group triangle!
 
 # %%
-grouped = df.groupby(periods)["rank"].count()
+grouped = df.groupby(period_list)["rank"].count()
 grouped.sort_index(ascending=False, inplace=True)
 grouped
 
