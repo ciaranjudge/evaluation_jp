@@ -17,7 +17,7 @@ sns.set()
 # ## Import outcomes dataset and tidy up
 
 # %%
-df = pd.read_csv("data/jp_outcomes.zip")
+df = pd.read_csv("data/jp_outcomes.csv")
 
 
 # %%
@@ -31,20 +31,20 @@ for col in df.select_dtypes(include=numerics).columns:
 #     print(col)
 
 # %%
-periods = pd.PeriodIndex(start='2016Q1', end='2017Q4', freq='Q')
-period_list = list(periods.strftime('%YQ%q'))
+periods = pd.PeriodIndex(start="2016Q1", end="2017Q4", freq="Q")
+period_list = list(periods.strftime("%YQ%q"))
 periods_len = len(period_list)
 
 for i, period in enumerate(reversed(period_list)):
-    
+
     df[period] = df["Group" + str(periods_len - i)].str[:1]
-    cat_map = {'T': 1, 'C': 0, '0': -1}
+    cat_map = {"T": 1, "C": 0, "0": -1}
     df[period] = df[period].map(cat_map)
     if i > 0:
         later_periods = period_list[-i:]
         df.loc[df[period] == 1, later_periods] = -2
-    #df[period] = df[period].fillna(-1)
-    #df[period] = df[period].astype('int')
+    # df[period] = df[period].fillna(-1)
+    # df[period] = df[period].astype('int')
 # %%
 numeric_cols = [
     col for col in df.columns.tolist() if col.startswith(("earn_", "sw_pay_"))
@@ -54,7 +54,6 @@ numeric_cols = [
 grouped = df.groupby(period_list)["id"].count()
 grouped.sort_index(ascending=False, inplace=True)
 grouped
-
 
 
 # %% [markdown]
@@ -79,6 +78,9 @@ df.index.name = "rank"
 # # np.sum(df1.index.duplicated())
 df.reset_index(inplace=True)
 df.set_index("id", inplace=True)
+
+# %%
+
 
 # %%
 def add_weights(df, period):
@@ -107,32 +109,105 @@ def add_weights(df, period):
     bin_counts = pd.concat([t_bin_counts, c_bin_counts], axis="columns")
 
     # Divide T by C to get weights for C group
-    bin_counts["abs_weight"] = bin_counts["t_bin_counts"] / bin_counts["c_bin_counts"]
-    c_total = df_C.shape[0]
-    t_total = df_T.shape[0]
-    bin_counts["weight"] = bin_counts["abs_weight"] * c_total / t_total
+    bin_counts["weight"] = bin_counts["t_bin_counts"] / bin_counts["c_bin_counts"]
+    # c_total = df_C.shape[0]
+    # t_total = df_T.shape[0]
+    # bin_counts["weight"] = bin_counts["abs_weight"] * c_total / t_total
 
     # All Ts have weight = 1
     df_T["weight"] = 1
-    df_T["abs_weight"] = 1
 
     # Assign C weights based on weights in bin_counts dataframe
     # Have to reset and then set index to avoid losing it!
     df_C = df_C.reset_index()
-    df_C = df_C.merge(bin_counts[["abs_weight", "weight"]], how="inner", on="bin")
+    df_C = df_C.merge(bin_counts[["weight"]], how="inner", on="bin")
     df_C = df_C.set_index("id")
 
     # Append T and C dataframes together
     out_df = df_T.append(df_C)
-    out_df = out_df[["weight", "abs_weight", 'bin']]
 
+    # Select columns to return
+    return_cols = ["weight", "bin"]
+    out_df = out_df[return_cols]
+
+    # Create multiindex for consistency with groups and counterfactuals
+    columns = pd.MultiIndex.from_product(
+        [[period], return_cols, ["_"], ["_"]],
+        names=["period", "data_type", "cf_cutoff", "cf_period"],
+    )
+    out_df.columns = columns
+
+    # Finally ready!
+    print(f"\n------------------\nPeriod: {period}")
+    print(f"T group size:     {df_T['weight'].sum()}")
+    print(f"Sum of C weights: {df_C['weight'].sum()}")
     return out_df
 
+
 # %%
-for period in period_list:
-    w_df = add_weights(df, period)
-    w_df.columns = [period + "__" + str(col) for col in w_df.columns]
-    df = pd.concat([df, w_df], axis="columns")
+# Create dedicated dataframe for groups, weights, bins, counterfactuals
+# Start with periods...
+w_df = df[period_list]
+
+# Add multiindex...
+columns = pd.MultiIndex.from_product(
+    [list(w_df.columns), ["group"], ["_"], ["_"]],
+    names=["period", "data_type", "cf_cutoff", "cf_period"],
+)
+w_df.columns = columns
+
+# Then add weights and bins...
+for i, period in enumerate(period_list):
+    w_df = pd.concat([w_df, add_weights(df, period)], axis="columns", sort=False)
+
+# %%
+
+
+# %%
+# Create counterfactual weights
+# As the ox ploughs!
+# First, go forwards, adding CF weight columns for each period
+for i, this_period in enumerate(period_list[:-1]):
+
+    this_group = (this_period, "group", "_", "_")
+    this_bin = (this_period, "bin", "_", "_")
+    this_real_weight = (this_period, "weight", "_", "_")
+
+    later_period_list = period_list[i + 1 :]
+    print(f"\n---------\nThis period: {this_period}")
+    for j, later_period in enumerate(later_period_list):
+        later_group = (later_period, "group", "_", "_")
+        later_bin = (later_period, "bin", "_", "_")
+        later_real_weight = (later_period, "weight", "_", "_")
+
+        this_later_df = pd.DataFrame(
+            w_df[
+                (w_df[this_group] == 0)
+                & (w_df[later_group].isin([1, 0]))
+            ]
+        )
+        this_later_df = this_later_df[[this_period, later_period]]
+        g_this_later_df = this_later_df.groupby([later_group])
+        print(f"Later period: {later_period}")
+        for name, group in g_this_later_df:
+            print(f"Group name: {name}", group[later_real_weight].sum())
+
+        # g_later_group_this_bin = this_later_df.groupby([later_group, this_bin])
+
+        # for name, group in g_later_group_this_bin:
+        #     print(name)
+
+
+# column_index = w_df.columns.get_loc(("2016Q2", "abs_weight", "_", "_"))
+
+# w_df.loc[
+#     (w_df[("2016Q1", "group", "_", "_")] == 0) & (w_df[("2016Q2", "group", "_", "_")]
+#     == 1)
+# ].describe()
+
+# .groupby(("2016Q1", "bin", "_", "_"))[column_index].sum()
+
+# %%
 
 
 # %% [markdown]
@@ -144,17 +219,10 @@ grouped.sort_index(ascending=False, inplace=True)
 grouped
 
 # %%
-for period in periods:
+
+for period in period_list:
     aw_col = period + "__abs_weight"
     print(df.groupby(period)[aw_col].sum())
-
-
-# %%
-df[periods].any(axis='columns').head()
-# %%
-
-
-
 
 # %% [markdown]
 # ## Create weighted versions of background and outcome columns
