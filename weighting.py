@@ -10,8 +10,29 @@ from IPython.display import HTML, display
 
 from scipy import stats
 
-sns.set()
+from scipy.stats import norm
+from sklearn.preprocessing import StandardScaler
+from scipy import stats
+from IPython.display import display, HTML  # Make tables pretty
+from datetime import datetime
+from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import roc_curve
+from sklearn.metrics import roc_auc_score
+from sklearn import preprocessing
+from sklearn.linear_model import Lasso
+from sklearn.model_selection import GridSearchCV
+from sklearn.model_selection import cross_val_score
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.metrics import classification_report
+from sklearn.metrics import confusion_matrix
+from sklearn.naive_bayes import GaussianNB
+from sklearn.calibration import CalibratedClassifierCV
+from sklearn.preprocessing import LabelEncoder
+from sklearn.model_selection import train_test_split
+import statsmodels.api as sm
 
+sns.set()
 
 # %% [markdown]
 # ## Import outcomes dataset and tidy up
@@ -45,6 +66,52 @@ for i, period in enumerate(reversed(period_list)):
         df.loc[df[period] == 1, later_periods] = -2
     # df[period] = df[period].fillna(-1)
     # df[period] = df[period].astype('int')
+
+# %%
+periods_len = len(period_list)
+
+# Create columns for future T cases for each period.
+# Should use multiindex as this is really ugly
+period_list_C_future_Ts = [period + "_C_future_Ts" for period in period_list[:periods_len-1]]
+print(period_list_C_future_Ts)
+for i, period in enumerate(period_list):
+    print(i, period)
+    earlier_periods = period_list_C_future_Ts[:i]
+    print(earlier_periods)
+    T_slice = df.loc[df[period] == 1]
+    for j, earlier_period in enumerate(earlier_periods):
+        df.loc[((df[period_list[j]] == 0) & (df[period] == 1)), earlier_period] = period
+        
+for period in period_list_C_future_Ts: 
+    print("---------------------")
+    print(df[period].value_counts())
+
+# %%
+current_c = (df["2016Q1"] == 0)
+slicey_thing = (current_c & (df["2016Q2"] == 1))
+print(slicey_thing.value_counts())
+print(current_c.value_counts())
+
+# %%
+for i, period in enumerate(period_list[:periods_len-1]):
+    current_c_test = df[period] == 0
+
+    future_periods = period_list[i+1:]
+    future_t_test = df[future_periods].any(axis='columns')
+
+    
+
+    print(future_t_test.value_counts())
+    
+print(df["2017Q4"].value_counts())
+
+# %%
+period_cols_df = df[period_list]
+for p in period_list:
+    period_cols_df[p] 
+
+
+
 # %%
 numeric_cols = [
     col for col in df.columns.tolist() if col.startswith(("earn_", "sw_pay_"))
@@ -61,8 +128,15 @@ grouped
 # This is just a global sort but needs to be replaced by a per-group classification function
 # called at the start of the binning/weighting code
 
+
+
+# %%
+df.head()
 # %%
 # Sort all records
+if df.index.name  == 'id':
+    df = df.reset_index()
+    print("reset index!")
 df = df.set_index(
     [
         # 'cluster',
@@ -72,15 +146,12 @@ df = df.set_index(
         "id",
     ]
 )
-df.sort_index(inplace=True)
-df.reset_index(inplace=True)
-df.index.name = "rank"
+df = df.sort_index()
+df = df.reset_index()
+df.index.name = 'rank'
 # # np.sum(df1.index.duplicated())
-df.reset_index(inplace=True)
-df.set_index("id", inplace=True)
-
-# %%
-
+df = df.reset_index()
+df = df.set_index("id")
 
 # %%
 def add_weights(df, period):
@@ -126,14 +197,16 @@ def add_weights(df, period):
     # Append T and C dataframes together
     out_df = df_T.append(df_C)
 
+    out_df["group"] = out_df[period]
+
     # Select columns to return
-    return_cols = ["weight", "bin"]
+    return_cols = ["group", "weight", "bin"]
     out_df = out_df[return_cols]
 
     # Create multiindex for consistency with groups and counterfactuals
     columns = pd.MultiIndex.from_product(
-        [[period], return_cols, ["_"], ["_"]],
-        names=["period", "data_type", "cf_cutoff", "cf_period"],
+        [[period], return_cols],
+        names=["period", "data_type"],
     )
     out_df.columns = columns
 
@@ -143,8 +216,80 @@ def add_weights(df, period):
     print(f"Sum of C weights: {df_C['weight'].sum()}")
     return out_df
 
+# %%
+
+
+# # %%
+
+# for period in reversed(period_list):
+#     print(period)
+
+
+# # %%
+# # Create counterfactual weights
+# # As the ox ploughs!
+# # First, go forwards, adding CF weight columns for each period
+# for i, this_period in enumerate(period_list):
+
+#     this_group = (this_period, "group", "_", "_")
+#     this_bin = (this_period, "bin", "_", "_")
+#     this_real_weight = (this_period, "weight", "_", "_")
+
+#     later_period_list = period_list[i + 1 :]
+#     print(f"\n---------\nThis period: {this_period}")
+#     for j, later_period in enumerate(later_period_list):
+#         later_group = (later_period, "group", "_", "_")
+#         later_bin = (later_period, "bin", "_", "_")
+#         later_real_weight = (later_period, "weight", "_", "_")
+
+#         this_later_df = pd.DataFrame(
+#             w_df[
+#                 (w_df[this_group] == 0)
+#                 & (w_df[later_group].isin([1, 0]))
+#             ]
+#         )
+#         this_later_df = this_later_df[[this_period, later_period]]
+#         g_this_later_df = this_later_df.groupby([later_group])
+#         print(f"Later period: {later_period}")
+#         for name, group in g_this_later_df:
+#             print(f"Group name: {name}", group[later_real_weight].sum())
+
+#         # g_later_group_this_bin = this_later_df.groupby([later_group, this_bin])
+
+#         # for name, group in g_later_group_this_bin:
+#         #     print(name)
+
+
+# # column_index = w_df.columns.get_loc(("2016Q2", "abs_weight", "_", "_"))
+
+# # w_df.loc[
+# #     (w_df[("2016Q1", "group", "_", "_")] == 0) & (w_df[("2016Q2", "group", "_", "_")]
+# #     == 1)
+# # ].describe()
+
+# # .groupby(("2016Q1", "bin", "_", "_"))[column_index].sum()
+
+# # %%
+# # Start with period list and stopping point
+# # Get chained weights for last T
+
+# Cs = [f"C{i}" for i in range(1, 8)]
+# Ts = [f"T{i}" for i in range(2, 9)]
+# Cs_Ts = {c: [t for t in Ts[i:]] for i, c in enumerate(Cs)}
+# Ts_Cs = {t: [c for c in Cs[:i+1]] for i, t in enumerate(Ts)}
+
+# # out_list = []
+# # for i, item in enumerate(test_list):
+# #     out_list = out_list + [[item]]
+
+
+# print(Cs_Ts)
+# print()
+# print(Ts_Cs)
 
 # %%
+class PopulationSlice():
+
 # Create dedicated dataframe for groups, weights, bins, counterfactuals
 # Start with periods...
 w_df = df[period_list]
@@ -161,53 +306,56 @@ for i, period in enumerate(period_list):
     w_df = pd.concat([w_df, add_weights(df, period)], axis="columns", sort=False)
 
 # %%
+class TreatmentPeriod():
+    """
+    ## Make it work before getting into columns etc!
+        Does not know about anything that happened before it
+        Knows about:
+            period (Period)
+            ## cutoff date? [one set of TreatmentPeriods per cutoff?]
+            TreatmentPeriod for each control group chunk
+            CF weights for each self.C_group
 
 
-# %%
-# Create counterfactual weights
-# As the ox ploughs!
-# First, go forwards, adding CF weight columns for each period
-for i, this_period in enumerate(period_list[:-1]):
+            lookup dataframe (pd.DataFrame):
+                T vs C group 
+                ## future T breakdown?
+        Methods:
+            Get self.CF_weights for each self.C_group
+            Flatten (sum) self.CF weights
 
-    this_group = (this_period, "group", "_", "_")
-    this_bin = (this_period, "bin", "_", "_")
-    this_real_weight = (this_period, "weight", "_", "_")
+    """
+    # Class variable to track TreatmentPeriod instances?
+    treatment_periods = []
+    # And the built-up dataframe with all info for all periods?
 
-    later_period_list = period_list[i + 1 :]
-    print(f"\n---------\nThis period: {this_period}")
-    for j, later_period in enumerate(later_period_list):
-        later_group = (later_period, "group", "_", "_")
-        later_bin = (later_period, "bin", "_", "_")
-        later_real_weight = (later_period, "weight", "_", "_")
+    # Don't keep in_df but rather use it to create weights then store only needed columns
+    def __init__(self, df, period):
+        self.df = add_weights(df, period)
+        self.period = period
+        # do some weight-getting logic here!!
+        # set up cf_cutoff tracking
 
-        this_later_df = pd.DataFrame(
-            w_df[
-                (w_df[this_group] == 0)
-                & (w_df[later_group].isin([1, 0]))
-            ]
-        )
-        this_later_df = this_later_df[[this_period, later_period]]
-        g_this_later_df = this_later_df.groupby([later_group])
-        print(f"Later period: {later_period}")
-        for name, group in g_this_later_df:
-            print(f"Group name: {name}", group[later_real_weight].sum())
+    # Should be in __init__?
+    def get_weights(self):
+        print("store weights in weights column")
 
-        # g_later_group_this_bin = this_later_df.groupby([later_group, this_bin])
+    # Can wait till called or in __init__?
+    def t_records(self):
+        print("return the T records for this TreatmentPeriod as Series")
 
-        # for name, group in g_later_group_this_bin:
-        #     print(name)
+    # Track CFCutoff instances?
+    def set_cf_cutoff(self, cutoff):
+        cf_cutoff = CFCutoff_Treatment_Period(self, cutoff)
+        self.cf_cutoff_list.append(cf_cutoff)
+
+    # Need getter function for cutoffs?
+    # Is cf_cutoff an inner class?
 
 
-# column_index = w_df.columns.get_loc(("2016Q2", "abs_weight", "_", "_"))
-
-# w_df.loc[
-#     (w_df[("2016Q1", "group", "_", "_")] == 0) & (w_df[("2016Q2", "group", "_", "_")]
-#     == 1)
-# ].describe()
-
-# .groupby(("2016Q1", "bin", "_", "_"))[column_index].sum()
-
-# %%
+tp = TreatmentPeriod(df, "2016Q1")
+# tp.get_weights()
+tp.df.describe()
 
 
 # %% [markdown]
