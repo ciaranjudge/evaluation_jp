@@ -214,7 +214,7 @@ query = """
     SELECT lr_date, ppsn, lr_code FROM ists_extracts 
     WHERE lr_flag = 1
 """
-%time df = pd.read_sql_query(query, engine)
+df = pd.read_sql_query(query, engine)
 
 df.groupby(["lr_date"])["ppsn"].count()
 
