@@ -5,6 +5,9 @@ import matplotlib.pyplot as plt
 from pandas.api.types import union_categoricals
 from datetime import datetime, timedelta
 
+from sqlalchemy import create_engine
+import sqlalchemy as sa
+
 pd.options.display.max_columns = None
 pd.options.display.max_rows = None
 
@@ -16,6 +19,9 @@ status_summary = (
     .astype("int8")
 )
 
+#%%
+engine = sa.create_engine("sqlite:///data/jobpath.db")
+metadata = sa.MetaData()
 
 # %%
 in_csv = "\\\\cskma0294\\F\\Evaluations\\JobPath\\\Quarterly_status\\WeeklyStatus.zip"
@@ -63,9 +69,12 @@ for chunk_index, df in enumerate(csv_parser):
     # Append current chunk to overall output
     if chunk_index == 0:
         out_df = df
+        df.to_sql("weekly_status", con=engine, if_exists="replace")
         in_df_so_far_shape = in_df_shape
+    # ...and otherwise add this extract to the end of out_df and the database table
     else:
         out_df = concat_categorical(out_df, df)
+        df.to_sql("weekly_status", con=engine, if_exists="append")
         in_df_so_far_shape = in_df_so_far_shape + in_df_shape
     end_time = datetime.now()
     chunk_time = end_time - start_time
