@@ -118,7 +118,7 @@ numeric_cols = [
 ]
 
 # %%
-grouped = df.groupby(period_list)["id"].count()
+grouped = df.groupby(period_list[:5])["id"].count()
 grouped.sort_index(ascending=False, inplace=True)
 grouped
 
@@ -288,7 +288,7 @@ def add_weights(df, period):
 # print(Ts_Cs)
 
 # %%
-class PopulationSlice():
+class PopulationSlice:
 
 # Create dedicated dataframe for groups, weights, bins, counterfactuals
 # Start with periods...
@@ -325,9 +325,6 @@ class TreatmentPeriod():
             Flatten (sum) self.CF weights
 
     """
-    # Class variable to track TreatmentPeriod instances?
-    treatment_periods = []
-    # And the built-up dataframe with all info for all periods?
 
     # Don't keep in_df but rather use it to create weights then store only needed columns
     def __init__(self, df, period):
