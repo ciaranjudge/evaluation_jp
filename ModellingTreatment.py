@@ -140,6 +140,7 @@ features =['sw_pay_2013',
             'LM_WSW_13_15share',
             'LR_13_15sum',
             'WSW_13_15share',
+            'JobPathHold'
           ]
 
 #%%
@@ -147,15 +148,15 @@ features =['sw_pay_2013',
 
 
 X=features 
-y='2016Q1'
+y=df['2016Q1']
 #%%
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.4, random_state=21, stratify=y)
+#X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.4, random_state=21, stratify=y)
 
 def assign_propensity (df, X, y):
     model_df=df[df[y].isin([0,1])]
     X=model_df[X].values
     y=model_df[y].values
-#    pipeline_optimizer = TPOTClassifier()
+#   pipeline_optimizer = TPOTClassifier()
 #   pipeline_optimizer = TPOTClassifier(generations=5, population_size=50, cv=5,
 #   random_state=42, verbosity=2)
     logreg = LogisticRegression(C=25.0, dual=False, penalty="l1")
