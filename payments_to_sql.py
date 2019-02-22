@@ -73,7 +73,7 @@ def sas_dates_to_datetimes(data):
     date_cols = [col for col in data.columns.to_list() if "date" in col.lower()]
     for col in date_cols:
         fixed_col = sas_date_to_datetime(data[col])
-        data[col] = fixed_col
+        data.loc[col] = fixed_col
     return data
 
 
