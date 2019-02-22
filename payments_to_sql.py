@@ -22,6 +22,23 @@ engine = sa.create_engine("sqlite:///data/jobpath.db")
 metadata = sa.MetaData()
 
 # %%
+def timeit(method):
+    def timed(*args, **kw):
+        ts = dt.datetime.now()
+        result = method(*args, **kw)
+        te = dt.datetime.now()
+        elapsed = te - ts
+
+        if 'log_time' in kw:
+            name = kw.get('log_name', method.__name__.upper())
+            kw['log_time'][name] = int((te - ts) * 1000)
+        else:
+            print(f"""{method.__name__}: {elapsed}""")
+        return result
+
+    return timed
+
+@timeit
 def load_sas(filepath, rows=False, cols=False):
     """
     Given a filepath corresponding to a .SAS7BDAT file, 
@@ -50,7 +67,13 @@ def load_sas(filepath, rows=False, cols=False):
 
     return data
 
+@timeit
+def bytestrings_to_categories(data):
+    for col in data.select_dtypes(include="object"):
+        data.loc[:, col] = data[col].str.decode("utf-8").astype("category")
+    return data
 
+@timeit
 def sas_date_to_datetime(in_col, max_date=dt.datetime.now()):
     """
     Converter function for dates in sas7bdat format.
@@ -62,32 +85,28 @@ def sas_date_to_datetime(in_col, max_date=dt.datetime.now()):
     out_col = pd.to_timedelta(in_col, unit="D") + pd.Timestamp("1960-01-01")
     return out_col
 
-
-def bytestrings_to_categories(data):
-    for col in data.select_dtypes(include="object"):
-        data[col] = data[col].str.decode("utf-8").astype("category")
-    return data
-
-
+@timeit
 def sas_dates_to_datetimes(data):
     date_cols = [col for col in data.columns.to_list() if "date" in col.lower()]
     for col in date_cols:
         fixed_col = sas_date_to_datetime(data[col])
-        data.loc[col] = fixed_col
+        data.loc[:, col] = fixed_col
     return data
 
-
-def data_to_sql(data, first=False):
+@timeit
+def data_to_sql(data, first=False, pieces=10):
     # Create or overwrite the database table if this is the first file to be processed
-    if first:
-        data.to_sql("payments", con=engine, if_exists="replace")
-        first = False
-    # ...and otherwise add this extract to the end of out_df and the database table
-    else:
-        data.to_sql("payments", con=engine, if_exists="append")
+    data_pieces = data.groupby(np.arange(len(data)) // pieces)
+    for _, data_piece in data_pieces:
+        if first:
+            data_piece.to_sql("payments", con=engine, if_exists="replace")
+            first = False
+        else:
+            data.to_sql("payments", con=engine, if_exists="append")
 
 
 # Categorical helper function for joining dataframes with different categories
+@timeit
 def concat_categorical(df_a, df_b, ignore_index=True):
     for cat_col in df_a.select_dtypes(["category"]):
         a = df_a[cat_col]
@@ -108,46 +127,45 @@ first=True
 for filepath in filepaths:
     start = dt.datetime.now()
     print(
-        f"""
-    \n
+        f"""\n
     ----------------------------------------
     File: {filepath}
     Start time: {start.strftime("%H:%M:%S")}
     """
     )
     print("Load the SAS dataset")
-    %time data = load_sas(filepath)
+
+    data = load_sas(filepath)
     
     print("Convert bytestring columns to categoricals")
-    %time data = bytestrings_to_categories(data)
+    data = bytestrings_to_categories(data)
 
     print("Convert SAS dates to datetimes")
-    %time data = sas_dates_to_datetimes(data)
+    data = sas_dates_to_datetimes(data)
     
     if first:
-        print("Save the cleaned dataset to SQL")
-        %time data_to_sql(data, first=True)
+        # print("Save the cleaned dataset to SQL")
+        #  data_to_sql(data, first=True)
 
         print("Create master dataframe for all periods")
-        %time all_data = data
+        all_data = data
         first=False
     else:
-        print("Save the cleaned dataset to SQL")
-        %time data_to_sql(data)
+        # print("Save the cleaned dataset to SQL")
+        #  data_to_sql(data)
         print("Append this dataframe to the full dataframe for all periods")
-        %time all_data = concat_categorical(all_data, data)
-        data.info(memory_usage="deep")
+        all_data = concat_categorical(all_data, data)
 
     print(f"""
-    Memory usage (this dataframe): {sys.getsizeof(data)}
-    Memory usage (full dataframe): {sys.getsizeof(all_data)})
-    end = dt.datetime.now()
+    Memory usage (this dataframe): {sys.getsizeof(data)/1024**2}
+    Memory usage (full dataframe): {sys.getsizeof(all_data)/1024**2})
     """)
+    end = dt.datetime.now()
     print(end)
 
 
 # %%
-all_data.info()
+# data_to_sql(data, first=True, pieces=100)
 
 # # %%
 # query = """
@@ -157,3 +175,7 @@ all_data.info()
 # df = pd.read_sql_query(query, engine)
 
 # df.groupby(["lr_date"])["ppsn"].count()
+
+
+
+#%%
