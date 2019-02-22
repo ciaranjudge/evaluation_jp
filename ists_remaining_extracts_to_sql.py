@@ -88,6 +88,7 @@ ists_files_df.index.name = "ists_file_date"
 ists_files_df = ists_files_df.reset_index()
 ists_files_df["lr_friday"] = ists_files_df["ists_file_date"] - dt.timedelta(days=2)
 ists_files_df = ists_files_df.set_index("lr_friday")
+ists_files_df = ists_files_df.sort_index()
 
 
 # %%
@@ -100,7 +101,8 @@ ists_files_df["is_lr_reporting_date"] = False
 ists_files_df.loc[lr_reporting_dates, "is_lr_reporting_date"] = True
 ists_files_df = ists_files_df[["is_lr_reporting_date", "ists_file_date", "filepath"]]
 # %%
-ists_files_df.dropna()
+
+ists_files_df.loc[ists_files_df["is_lr_reporting_date"] == False].dropna(axis="rows")
 
 # %%
 cso_lr = pd.read_json(
@@ -111,8 +113,7 @@ cso_lr = pd.read_json(
 cso_lr.info(verbose=True)
 
 # %%
-# @dask.delayed
-def load(filepath, cols):
+def load(filepath, cols=False):
     # Irritatingly, have to use SAS7BDATReader instead of more natural pd.read_sas()
     # ...because of an issue with converting SAS dates that causes the read to fail.
     # pd.read_sas() is just a thin wrapper that checks SAS datafile type from file extension.
@@ -124,11 +125,13 @@ def load(filepath, cols):
     # This creates a pd.DataFrame from the SAS7BDATReader object.
     # Can specify a number of rows inside read() - empty () means read all the rows!
     data = in_reader.read()
-    data = data[cols]
+
+    if cols:
+        data = data[cols]
+    # print(data.info())
 
     return data
 
-# @dask.delayed
 def sas_date_to_datetime(in_col):
     """
     Converter function for dates in sas7bdat format.
@@ -137,169 +140,95 @@ def sas_date_to_datetime(in_col):
     out_col = pd.to_timedelta(in_col, unit="D") + pd.Timestamp("1960-01-01")
     return out_col
 
-# @dask.delayed
 def decode_strings(in_col):
     # Decode SAS bytestrings (brrrrrr) as normal strings
     out_col = in_col.str.decode("utf-8")
     return out_col
 
-# @dask.delayed
-def process(data, lr_date, claim_cols, personal_cols):
+def process(data, lr_date, claim_cols, personal_cols, to_int_cols):
     # And small integers should be small integers...
     data[to_int_cols] = data[to_int_cols].fillna(0).astype("int8")
-
-    # Some ISTS extracts don't have these JobPath columns so need to check...
-    if "JobPath_Flag" not in data.columns.to_list():
-        data["JobPath_Flag"] = 0
-
-    if "JobPathHold" not in data.columns.to_list():
-        data["JobPathHold"] = 0
 
     # Add the date of the current ISTS extract to the dataframe
     data["lr_date"] = lr_date
 
-    personal_data = data["lr_date", personal_cols]
-    claim_data = data["ppsn", "lr_date", claim_cols]
+    # personal_data = data[["lr_date"] + personal_cols]
+    claim_data = data[["ppsn", "lr_date"] + claim_cols]
 
-    return personal_data, claim_data
+    return claim_data
+
 
 def f(lr_dates_filenames, first=False):
     claim_cols = [
-    "lr_code", "lr_flag", "lls_code", "clm_reg_date", "clm_comm_date", 
-    "location", "CLM_STATUS", "CLM_SUSP_DTL_REAS_CODE", 
-    "CDAS", "ada_code", "JobPath_Flag", "JobPathHold", 
-    "PERS_RATE", "ADA_AMT", "CDA_AMT", "MEANS", "EMEANS", "NEMEANS", "NET_FLAT", 
-    "FUEL", "RRA", "WEEKLY_RATE",
+        "lr_code",
+        "lr_flag",
+        "lls_code",
+        "clm_reg_date",
+        "clm_comm_date",
+        "location",
+        "CLM_STATUS",
+        "CLM_SUSP_DTL_REAS_CODE",
+        "CDAS",
+        "ada_code",
+        "JobPath_Flag",
+        "JobPathHold",
+        "PERS_RATE",
+        "ADA_AMT",
+        "CDA_AMT",
+        "MEANS",
+        "EMEANS",
+        "NEMEANS",
+        "NET_FLAT",
+        "FUEL",
+        "RRA",
+        "WEEKLY_RATE",
     ]
     personal_cols = [
-    'date_of_birth', "sex", "nat_code", "occupation", "ppsn", "RELATED_RSI_NO",
+        # "date_of_birth",
+        # "sex",
+        # "nat_code",
+        # "occupation",
+        "ppsn",
+        # "RELATED_RSI_NO",
     ]
-    byte_cols = ["sex", "lr_code", "lls_code", "ppsn"]
-    categorical_cols = ["sex", "lr_code", "lls_code"]
-    to_int_cols = ["age", "Recip_flag", "lr_flag", "JobPath_Flag", "JobPathHold"]
-    date_cols = ["clm_reg_date", "clm_comm_date", 'date_of_birth']
+    byte_cols = ["lr_code", "lls_code", "ppsn"]
+    # categorical_cols = ["sex", "lr_code", "lls_code"]
+    to_int_cols = ["lr_flag", "JobPath_Flag", "JobPathHold"]
+    date_cols = ["clm_reg_date", "clm_comm_date"]
 
-    personal_results = []
-    claim_results = []
-    cols = personal_cols.extend(claim_cols)
+    cols = personal_cols + claim_cols
     for lr_date, filepath in lr_dates_filenames.items():
+        start = dt.datetime.now().strftime("%H:%M:%S")
+        print(start)
+        print(lr_date)
+        print(filepath)
         data = load(filepath, cols)
         for col in date_cols:
             data[col] = sas_date_to_datetime(data[col])
         for col in byte_cols:
             data[col] = decode_strings(data[col])
-        personal_data, claim_data = process(data, lr_date, claim_cols, personal_cols)
-        personal_results.append(personal_data)
-        claim_results.append(claim_data)
-
-    # return personal_results, claim_results
-    if first:
-        personal_df.to_sql("ists_personal", con=engine, if_exists="replace")
-        claim_df.to_sql("ists_claims", con=engine, if_exists="replace")
-        first = False
-    # ...and otherwise add this extract to the end of out_df and the database table
-    else:
-        personal_df.to_sql("ists_personal", con=engine, if_exists="replace")
-        claim_df.to_sql("ists_claims", con=engine, if_exists="replace")
-        # out_df = concat_categorical(out_df, in_df)
-        in_df.to_sql("ists_extracts", con=engine, if_exists="append")
-
-lr_dates = list(ists_files_df.index)
-lr_filenames = list(ists_files_df["filepath"])
-lr_dates_filenames = dict(zip(lr_dates, lr_filenames))
-
-f(lr_dates_filenames)) 
-
-
-# %%
-
-@dask.delayed
-def save_personal(personal_data, first):
-    # Wow, got this far! Create new out_df and database table if it's the first extract
-    if first:
-        personal_df.to_sql("ists_personal", con=engine, if_exists="replace")
-        first = False
-    # ...and otherwise add this extract to the end of out_df and the database table
-    else:
-        # out_df = concat_categorical(out_df, in_df)
-        in_df.to_sql("ists_extracts", con=engine, if_exists="append")
-
-
-
-
-def import_sas_ists(files_df, personal_cols, claim_cols, byte_cols, to_int_cols, first=True):
-
-    for row in files_df.dropna().itertuples():
-        #####
-        print("-----------------------------")
-        start_time = dt.datetime.now()
-
-
-
-        
-
-        # # Mask ppsns as 'unique_id'
-        # in_df["unique_id"] = [hashlib.sha3_256(ppsn).hexdigest() for ppsn in in_df["ppsn"]]
-        # in_df = in_df.drop("ppsn", axis="columns")
-
-        # How's it going?
-        print(row.Index)
-        # print(in_df.groupby(["lr_date", "lr_flag"])["ppsn"].count())
-        end_time = dt.datetime.now()
-        import_time = end_time - start_time
-        print(f"Time taken: {import_time}")
-        print("-----------------------------")
-
-        personal_df = in_df[personal_cols]
-        claim_df = in_df["ppsn", claim_cols]
-
-        return personal_df, claim_df
-        
-
-# %%
-first = True
-claim_cols = [
-    "lr_code", "lr_flag", "lls_code", "clm_reg_date", "clm_comm_date", 
-    "location", "CLM_STATUS", "CLM_SUSP_DTL_REAS_CODE", 
-    "CDAS", "ada_code", "JobPath_Flag", "JobPathHold", 
-    "PERS_RATE", "ADA_AMT", "CDA_AMT", "MEANS", "EMEANS", "NEMEANS", "NET_FLAT", 
-    "FUEL", "RRA", "WEEKLY_RATE",
-    ]
-
-personal_cols = [
-'date_of_birth', "sex", "nat_code", "occupation", "ppsn", "RELATED_RSI_NO",
-]
-
-byte_cols = ["sex", "lr_code", "lls_code", "ppsn"]
-
-categorical_cols = ["sex", "lr_code", "lls_code"]
-
-to_int_cols = ["age", "Recip_flag", "lr_flag", "JobPath_Flag", "JobPathHold"]
-
-# Iterate through the dataframe that holds the list of LR dates and ISTS extract files
-# Only want to include weeks with a corresponding datafile so dropna() !
-files_df = ists_files_df.head(2)
-# print(ists_months_df.head())
-
-import_sas_ists(files_df, personal_cols, claim_cols, byte_cols, to_int_cols, first=True)
-
-dask.compute()
-
-# %%
-
-        # Wow, got this far! Create new out_df and database table if it's the first extract
+        claim_data = process(
+            data, lr_date, claim_cols, personal_cols, to_int_cols
+        )
         if first:
-            # out_df = in_df
-            personal_df = in_df[personal_cols]
-            claim_df = in_df["ppsn", claim_cols]
-            personal_df.to_sql("ists_extracts", con=engine, if_exists="replace")
+            claim_data.to_sql("test_ists_claims", con=engine, if_exists="replace")
             first = False
         # ...and otherwise add this extract to the end of out_df and the database table
         else:
+            claim_data.to_sql("test_ists_claims", con=engine, if_exists="append")
             # out_df = concat_categorical(out_df, in_df)
-            in_df.to_sql("ists_extracts", con=engine, if_exists="append")
+        end = dt.datetime.now().strftime("%H:%M:%S")
+        print(end)
 
 
+in_df = ists_files_df.loc[ists_files_df["is_lr_reporting_date"] == False].dropna(axis="rows").head(2)
+lr_dates = list(in_df.index)
+lr_filenames = list(in_df["filepath"])
+lr_dates_filenames = dict(zip(lr_dates, lr_filenames))
+
+f(lr_dates_filenames, first=True)
+
+# %%
 
 
 # %%
