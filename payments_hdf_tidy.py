@@ -67,8 +67,8 @@ with pd.HDFStore(store_filepath, mode="r") as store:
     %time master_df = store.get("/payments")
 
 # %%
-table_merge_list = ['/pmts2015', '/pmts2016', '/pmts2017', '/pmts2018']
-with pd.HDFStore(store_filepath, mode="r") as store:
+table_merge_list = ['/pmts2016', '/pmts2017', '/pmts2018']
+with pd.HDFStore(store_filepath, mode="r") as source_store:
     for key in table_merge_list:
         start = dt.datetime.now()
         print(
@@ -79,17 +79,21 @@ with pd.HDFStore(store_filepath, mode="r") as store:
         """
         )
         print("Load key")
-        %time df_to_merge = store.get(key)
+        %time df_to_merge = source_store.get(key)
 
         print("Append to master df and concat categoricals")
         %time master_df = concat_categorical(master_df, df_to_merge)
 
-        print("Save updated master df to store")
-        %time store.put("/payments", master_df, format="t", data_columns=True)
-
-        print(f"Memory usage (master df): {sys.getsizeof(master_df)//1024**2}")
         print(f"psutil memory usage before cleanup: {memory_usage_psutil()}")
         df_to_merge = None
+        gc.collect()    
+        print(f"psutil memory usage after cleanup: {memory_usage_psutil()}")
+
+        print("Save updated master df to store")
+        with pd.HDFStore("data/test_data_store.h5", mode="w") as target_store:
+            %time master_df.to_hdf(target_store, "payments", complib='blosc')
+
+        print(f"Memory usage (master df): {sys.getsizeof(master_df)//1024**2}")
         gc.collect()    
         print(f"psutil memory usage after cleanup: {memory_usage_psutil()}")
         end = dt.datetime.now()
