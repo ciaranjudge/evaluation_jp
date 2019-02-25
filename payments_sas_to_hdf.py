@@ -4,8 +4,6 @@ import pandas as pd
 from pandas.io.sas.sas7bdat import SAS7BDATReader
 from pandas.api.types import union_categoricals
 
-import sqlalchemy as sa
-
 import datetime as dt
 import time
 import calendar
@@ -16,10 +14,7 @@ import sys
 from pathlib import Path
 
 pd.options.display.max_columns = None
-
-#%%
-engine = sa.create_engine("sqlite:///data/jobpath.db")
-metadata = sa.MetaData()
+pd.set_option("io.hdf.default_format", "table")
 
 # %%
 def timeit(method):
@@ -70,10 +65,24 @@ def load_sas(filepath, rows=False, cols=False):
 
 
 @timeit
-def bytestrings_to_categories(data):
+def bytestrings_to_categories(data, running_categories=pd.Categorical([])):
     for col in data.select_dtypes(include="object"):
         data.loc[:, col] = data[col].str.decode("utf-8").astype("category")
-    return data
+        union_categories = union_categoricals([data[col], running_categories])
+        data[col] = data[col].cat.set_categories(union_categories.categories)
+    return data, union_categories
+
+
+# Categorical helper function for joining dataframes with different categories
+@timeit
+def concat_categorical(df_a, df_b, ignore_index=True):
+    for cat_col in df_a.select_dtypes(["category"]):
+        a = df_a[cat_col]
+        b = df_b[cat_col]
+        a_b = union_categoricals([a, b], ignore_order=True)
+        a.cat.set_categories(a_b.categories, inplace=True)
+        b.cat.set_categories(a_b.categories, inplace=True)
+    return pd.concat([df_a, df_b], axis="index", ignore_index=ignore_index)
 
 
 @timeit
@@ -99,39 +108,41 @@ def sas_dates_to_datetimes(data):
 
 
 @timeit
-def data_to_sql(data, first=False, pieces=10):
-    # Create or overwrite the database table if this is the first file to be processed
-    data_pieces = data.groupby(np.arange(len(data)) // pieces)
-    print(type(data_pieces))
-    for _, data_piece in data_pieces:
-        if first:
-            data_piece.to_sql("payments", con=engine, if_exists="replace")
-            first = False
-        else:
-            data.to_sql("payments", con=engine, if_exists="append")
+def running_index(data, offset_so_far=0):
+    if offset_so_far != 0:
+        data.index.name = "running_index"
+        data = data.reset_index()
+        data["running_index"] = data["running_index"] + offset_so_far
+        data = data.set_index("running_index")
+    new_offset = offset_so_far + data.shape[0]
+    return data, new_offset
 
 
-# Categorical helper function for joining dataframes with different categories
 @timeit
-def concat_categorical(df_a, df_b, ignore_index=True):
-    for cat_col in df_a.select_dtypes(["category"]):
-        a = df_a[cat_col]
-        b = df_b[cat_col]
-        a_b = union_categoricals([a, b], ignore_order=True)
-        a.cat.set_categories(a_b.categories, inplace=True)
-        b.cat.set_categories(a_b.categories, inplace=True)
-    return pd.concat([df_a, df_b], axis="index", ignore_index=ignore_index)
+def data_to_hdf(store_filepath, key, data, append=False):
+    # Create or overwrite the store if this is the first file to be processed
+    with pd.HDFStore(store_filepath) as store:
+        store.append(key, data, append=append, data_columns=True)
+    # if overwrite:
+    #     data.to_hdf(str(store_filepath), key, append=False, data_columns=True, complib="blosc")
+    # else:
+    #     data.to_hdf(str(store_filepath), key, append=True, data_columns=True, complib="blosc")
 
 
 # %%
-folder = Path("data/payments")
-filepaths = list(folder.glob("*.sas7bdat"))[:2]
-if type(filepaths) is not list:
-    filepaths = [filepaths]
+source_folder = Path("data/payments")
+source_filepaths = list(source_folder.glob("*.sas7bdat"))
+key_names = [f.name.split(".")[0] for f in source_filepaths]
+key__source_filepaths = dict(zip(key_names, source_filepaths))
 
 # %%
-first = True
-for filepath in filepaths:
+store_filepath = Path("data/datastore.h5")
+
+# %%
+append=False
+running_categories = pd.Categorical([])
+index_offset = 0
+for key, filepath in key__source_filepaths.items():
     start = dt.datetime.now()
     print(
         f"""\n
@@ -141,48 +152,63 @@ for filepath in filepaths:
     """
     )
     print("Load the SAS dataset")
-
-    data = load_sas(filepath, rows=10**5)
+    data = load_sas(filepath)
 
     print("Convert bytestring columns to categoricals")
-    data = bytestrings_to_categories(data)
+    data, running_categories = bytestrings_to_categories(
+        data, running_categories=running_categories
+    )
 
     print("Convert SAS dates to datetimes")
     data = sas_dates_to_datetimes(data)
 
-    # if first:
-    #     print("Save the cleaned dataset to SQL")
-    #     data_to_sql(data, first=True)
+    print("Fix running index")
+    data, index_offset = running_index(data, index_offset)
 
-    #     # print("Create master dataframe for all periods")
-    #     # all_data = data
-    #     first = False
-    # else:
-    #     print("Save the cleaned dataset to SQL")
-    #     data_to_sql(data)
-        # print("Append this dataframe to the full dataframe for all periods")
-        # all_data = concat_categorical(all_data, data)
+    
+    print("Save the cleaned dataset to HDF5")
+    data_to_hdf(store_filepath, key, data, append)
 
-    print(
-        f"""
-    Memory usage (this dataframe): {sys.getsizeof(data)/1024**2}
-    """
-    )
+    print(f"Memory usage (this dataframe): {sys.getsizeof(data)//1024**2}")
     end = dt.datetime.now()
     print(end)
 
-
-# %%
-# data_to_sql(data, first=True, pieces=100)
-
-# # %%
-# query = """
-#     SELECT lr_date, ppsn, lr_code FROM ists_extracts
-#     WHERE lr_flag = 1
-# """
-# df = pd.read_sql_query(query, engine)
-
-# df.groupby(["lr_date"])["ppsn"].count()
-
+#%%
+%time df = pd.read_hdf(store_filepath, key_names[1])
 
 #%%
+df
+
+#%%
+df.info()
+
+
+# %%
+old = set(df["scheme"].cat.categories)
+new = set(data["scheme"].cat.categories)
+
+# %%
+len(old)
+
+# %%
+len(new)
+
+# %%
+data.loc[data["scheme"] == "PRSI"]
+
+# %%
+import gc
+gc.collect()
+
+#%%
+"""
+    Get union_categorical of ppsn, scheme
+    Use them + weeks of covered periods to generate a single table
+    ppsn x scheme x week
+"""
+
+"""
+    For records where from_date and to_date exist:
+        Loop over weeks
+        Join on ppsn, scheme 
+        where week overlaps from_date, to_date
