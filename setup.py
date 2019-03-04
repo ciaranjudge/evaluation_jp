@@ -6,5 +6,5 @@ setup(
     version='0.1.0',
     description='JobPath Evaluation',
     author='Ciaran Judge',
-    license='MIT',
+    license='AGPL',
 )
