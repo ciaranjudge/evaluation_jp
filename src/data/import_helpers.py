@@ -15,8 +15,6 @@ import sqlalchemy as sa
 from src.features.metadata_helpers import nearest_lr_date
 
 
-
-
 def decode_bytestrings(series: pd.Series) -> pd.Series:
     """
     Given a pd.Series of dtype 'object', decode it as utf-8 if it's in bytecode format
@@ -53,6 +51,9 @@ def get_clusters(date: pd.Timestamp) -> pd.DataFrame:
     df: pd.DataFrame
         Columns returned: "ppsn", "date", "cluster"
     """
+    # Reset time to 00:00:00
+    date = date.normalize()
+
     engine = sa.create_engine("sqlite:///./data/interim/jobpath.db")
     metadata = sa.MetaData()
     column_list = ["ppsn", "date", "cluster"]
@@ -77,7 +78,9 @@ def get_clusters(date: pd.Timestamp) -> pd.DataFrame:
 
 
 def get_vital_statistics(
-    date: pd.Timestamp, id_series: pd.Series = None, column_list: List[str] = None
+    date: pd.Timestamp,
+    id_series: Optional[pd.Series] = None,
+    columns: Optional[List] = None,
 ) -> pd.DataFrame:
     """
     Given a date and (optional) series of IDs, return a df with vital statistics
@@ -86,17 +89,23 @@ def get_vital_statistics(
 
     Parameters
     ----------
-    id_series: pd.Series
-        Pandas Series with IDs for lookup
-
     date: pd.Timestamp
-        Exact date of cluster slice
+        Date of interest
+
+    id_series: Optional[pd.Series]
+        Pandas Series with IDs for lookup. If None, return all records for date.
+
+    columns: Optional[List]
+        Columns from the ISTS claim database to return. Default is all columns.
+
 
     Returns
     -------
     df: pd.DataFrame
         Columns returned are given in column_list
     """
+    # Reset time to 00:00:00
+    date = date.normalize()
 
     engine = sa.create_engine("sqlite:///./data/interim/jobpath.db")
     metadata = sa.MetaData()
@@ -105,22 +114,15 @@ def get_vital_statistics(
     print(lookup_date)
 
     # Generate default column list if needed
-    if column_list is None:
-        column_list = [
-            "lr_date",
-            "date_of_birth",
-            "sex",
-            "nat_code",
-            "occupation",
-            "ppsn",
-        ]
+    if columns is None:
+        columns = ["lr_date", "date_of_birth", "sex", "nat_code", "occupation", "ppsn"]
 
     # Create comma-separated list of columns to pass into SELECT part of query
-    columns = ",".join(str(x) for x in column_list)
+    column_query = ",".join(str(x) for x in columns)
 
     # Create SQL query to get columns based on date
     query = (
-        f"""SELECT {columns} 
+        f"""SELECT {column_query} 
         FROM ists_personal WHERE date(lr_date) = date('{lookup_date}')"""
     ).replace("\n", "\r\n")
 
@@ -132,6 +134,8 @@ def get_vital_statistics(
 
     # Use pd.read_sql_query to execute the finalised query
     df = pd.read_sql_query(query, engine, parse_dates=True)
+    duplicated = df.duplicated(subset="ppsn", keep="first")
+    df = df.mask(duplicated)
 
     # Parse dates explicitly if they weren't already parsed by pd.read_sql_query
     for col in [col for col in df.columns.to_list() if "date" in col.lower()]:
@@ -144,26 +148,39 @@ def get_vital_statistics(
     return df
 
 
-#%%
-def get_ists_claims(date: pd.Timestamp, id_series: pd.Series = None, lr_flag=True) -> pd.DataFrame:
+def get_ists_claims(
+    date: pd.Timestamp,
+    lr_flag: bool = True,
+    id_series: Optional[pd.Series] = None,
+    columns: Optional[List] = None,
+) -> pd.DataFrame:
     """
     Given a series of IDs and a date, return a df with ISTS claim info for each ID
 
-    Claim info is taken from last LR date before cluster date.
+    Claim info is taken from last LR date before given date.
 
     Parameters
     ----------
     date: pd.Timestamp
-        Exact date of cluster slice
-    
-    id_series: pd.Series
-        Pandas Series with IDs for lookup
+        Date to look up
+
+    lr_flag: bool = True
+        If True, just return records flagged as on the Live Register 
+        
+    id_series: pd.Series = None
+        Pandas Series with IDs for lookup. 
+        Causing weird problem with Jupyter kernel so not using!
+
+    columns: Optional[List] = None
+        Columns from the ISTS claim database to return. Default is all columns.
 
     Returns
     -------
     df: pd.DataFrame
-        Columns returned: 
     """
+    # Reset time to 00:00:00
+    date = date.normalize()
+
     lookup_date = nearest_lr_date(date, how="previous")
     print(lookup_date)
 
@@ -183,125 +200,51 @@ def get_ists_claims(date: pd.Timestamp, id_series: pd.Series = None, lr_flag=Tru
     with pd.HDFStore("data/interim/ists_store.h5", mode="r") as store:
         df = store.select("/ists_extracts", query)
 
+    duplicated = df.duplicated(subset="ppsn", keep="first")
+    df = df.mask(duplicated)
+    if columns is not None:
+        df = df[columns]
     return df
 
 
-# %%
-def restrict_by_age(
-    dates_of_birth: pd.Series(pd.Timestamp),
-    date: pd.Timestamp,
-    min_age: int = None,
-    max_age: int = None,
-) -> pd.Series(bool):
-    """
-    Given a series of dates of birth, a reference date, and a min and/or age (in years), 
-    return a boolean series that is True for each date of birth within the min/max range
-
-    Parameters
-    ----------
-    dates_of_birth: pd.Series(pd.Timestamp)
-        Should be datetime series; expected to be dates of birth
-
-    date: pd.Timestamp
-        Reference date for calculating ages
-
-    min_age: int = None
-        Min (=youngest) possible age, in years. Can be None, which means no min age.
-
-    max_age: int = None
-        Max (=oldest) possible age, in years. Can be None, which means no max age.
-
-    Returns
-    -------
-    pd.Series(bool):
-        Boolean series with same index as original dates_of_birth.
-        True for each record between given min/max ages, False otherwise.
-    """
-
-    if min_age is not None:
-        min_age_date_of_birth = date - rd.relativedelta(years=min_age)
-        at_least_min_age = dates_of_birth <= min_age_date_of_birth
-    else:
-        at_least_min_age = pd.Series(data=True, index=dates_of_birth.index)
-
-    if max_age is not None:
-        max_age_date_of_birth = date - rd.relativedelta(years=max_age)
-        under_max_age = max_age_date_of_birth < dates_of_birth
-    else:
-        under_max_age = pd.Series(data=True, index=dates_of_birth.index)
-
-    return at_least_min_age & under_max_age
+def get_les_data(columns: Optional[List] = None) -> pd.DataFrame:
+    df = pd.read_excel("data/raw/LES_New_Registrations2016-2017.xlsx")
+    df = df.rename(
+        columns={
+            "PPSN": "ppsn",
+            "LES Client group": "group",
+            "Start Date": "start_date",
+        }
+    )
+    df["end_date"] = df["start_date"] + pd.DateOffset(years=1)
+    df["start_month"] = df["start_date"].dt.to_period("M")
+    df["ppsn"] = df["ppsn"].str.strip()
+    if columns is not None:
+        df = df[columns]
+    return df
 
 
-def restrict_by_code(
-    codes: pd.Series(str), eligible_code_list: List[str] = None
-) -> pd.Series(bool):
-    """
-    Given a code_series and a list of eligible_codes, return a boolean series 
-    that is True for each record in code_series with code in eligible_codes, and False otherwise
-
-    Parameters
-    ----------
-    codes: pd.Series(str)
-        Series of strings (=eligible codes) 
-
-    eligible_code_list: List[str]
-        List of eligible. If no list given, assume no restriction.
-
-    Returns
-    -------
-    pd.Series(bool):
-        Boolean series with same index as original code_series.
-        True for each code in codes where code is in eligible_code_list, False otherwise.
-        If eligble_code_list is Null, then assume no restriction and return True for all.
-    """
-
-    if eligible_code_list is not None:
-        eligible_codes = codes.isin(eligible_code_list)
-        return eligible_codes
-    else:
-        return codes
-
-
-# %%
-# criteria {age, codes, duration}
-date = pd.Timestamp("2016-01-01")
-
-
-
-# %%
-def get_eligible_slice(date: pd.Timestamp) -> pd.DataFrame:
-    # Parameters
-    max_age = 60
-    on_lr = True
-    eligible_code_list = ["UA", "UB"]
-    #min_duration_days = 365
-    # LES
-    # Previous JP
-    # JP hold
-
-    vital_statistics_column_list = [
-            "date_of_birth",
-            "sex",
-            "nat_code",
-            "occupation",
-            "ppsn",
-        ]
-    # Initial df is everone who is clustered on date.
-    # Inner join with 
-    df = pd.merge(
-        left=get_clusters(date), 
-        right=get_vital_statistics(date, vital_statistics_column_list), 
-        on="ppsn"
-        )
-    # Generate boolean column for age restriction - keep original dataframe for reporting
-    df["eligible_age"] = restrict_by_age(df["date_of_birth"], date, max_age=max_age)
-
-    df = pd.merge(left=df, right=get_ists_claims(date, lr_flag=True), on="ppsn")
-
-    # %%
-    df["eligible_code"] = restrict_by_code(df["lr_code"], eligible_code_list)
-
+def get_jobpath_data(columns: Optional[List] = None) -> pd.DataFrame:
+    df = pd.read_excel("data/raw/Data_for_Evaluation_230718.xlsx")
+    df = df.rename(
+        columns={
+            "Referral Status Description": "referral_status",
+            "Start Date": "referral_date",
+            "Date of Interview": "start_date",
+            "PPP Agreed Date": "ppp_agreed_date",
+            "Date of Cancellation": "cancellation_date",
+            "Reason for Cancellation": "cancellation_reason",
+            "Cancellationsubcategory": "cancellation_subcategory",
+            "End Date": "admin_end_date",
+            "Pps No": "ppsn",
+            "Referral Id": "referral_id",
+        }
+    )
+    df["end_date"] = df["start_date"] + pd.DateOffset(years=1)
+    df["start_month"] = df["start_date"].dt.to_period("M")
+    df["ppsn"] = df["ppsn"].str.strip()
+    if columns is not None:
+        df = df[columns]
     return df
 
 

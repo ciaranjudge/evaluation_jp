@@ -230,6 +230,10 @@ features =[
  'WSW_13_15share',
  #'WSW_13_15sum',
            #'Ed_or_Training_13_15share',
+
+
+#### clusters, jobpath_hold
+#### 
           ]
 
 X = select[features] # to enforce column order
