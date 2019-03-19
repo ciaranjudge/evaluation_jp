@@ -115,7 +115,7 @@ def get_vital_statistics(
 
     # Generate default column list if needed
     if columns is None:
-        columns = ["lr_date", "date_of_birth", "sex", "nat_code", "occupation", "ppsn"]
+        columns = ["date_of_birth", "sex", "nat_code", "occupation", "ppsn"]
 
     # Create comma-separated list of columns to pass into SELECT part of query
     column_query = ",".join(str(x) for x in columns)

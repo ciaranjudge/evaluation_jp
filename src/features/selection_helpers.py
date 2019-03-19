@@ -227,30 +227,28 @@ def any_previous_jobpath(
 
 
 def les_starts_this_period(
-    period: pd.Period, id_series: pd.Series, period_type: str = "M"
+    start_date: pd.Timestamp, id_series: pd.Series, period_type: str = "M"
 ) -> pd.Series:
     """
-    Given a time period (or timestamp with period_type), and an id_series,
-    return a boolean series which is True for every record with a LES start in this period
+    Given a start_date, an id_series, and an optional period_type (defaults to "M")
+    return True for every record with a LES start in this period, False otherwise
 
     Parameters
     ----------
-    date: pd.Period
-        Period of interest. Can also be pd.Timestamp.
+    start_date: pd.Timestamp
+        Start of this period
     
     id_series: pd.Series
         Pandas Series with IDs for lookup
 
     period_type: str
-        Pandas period-type-identifying string. Only needed if passing pd.Timestamp not Period.
-
+        Pandas period-type-identifying string. Default is 'M' (not implemented otherwise!)
     Returns
     -------
     pd.Series(bool):
         Boolean series with same index as original id_series.
     """
-    if type(period) != pd.Period:
-        period = period.to_period(period_)
+    period = start_date.to_period(period_type)
     df = get_les_data(columns=["ppsn", "start_month"])
     all_starters_this_period = (
         df["ppsn"].loc[df["start_month"] == period].drop_duplicates()
@@ -261,45 +259,96 @@ def les_starts_this_period(
 
 
 def jobpath_starts_this_period(
-    period: pd.Period, id_series: pd.Series, period_type: str = "M"
+    start_date: pd.Timestamp, id_series: pd.Series, period_type: str = "M"
 ) -> pd.Series:
     """
-    Given a time period (or timestamp with period_type), and an id_series, return a series:
-    True for every record with a JobPath start in this period, False otherwise
+    Given a start_date and an id_series, with optional period_type (default is 'M'):
+    return True for every record with a JobPath start in this period, False otherwise
 
     Parameters
     ----------
-    date: pd.Period
-        Period of interest. Can also be pd.Timestamp.
+    start_date: pd.Timestamp
+        Start of this period
     
     id_series: pd.Series
         Pandas Series with IDs for lookup
 
     period_type: str
-        Pandas period-type-identifying string. Only needed if passing pd.Timestamp not Period.
+        Pandas period-type-identifying string. Default is 'M'.
 
     Returns
     -------
     pd.Series(bool):
         Boolean series with same index as original id_series.
     """
-    if type(period) != pd.Period:
-        period = period.to_period(period_type)
-        df = get_jobpath_data(columns=["ppsn", "start_date"])
-        df["start_period"] = df["start_date"].dt.to_period(period_type)
-        all_starters_this_period = (
-            df["ppsn"].loc[df["start_period"] == period].drop_duplicates()
+
+    period = start_date.to_period(period_type)
+    df = get_jobpath_data(columns=["ppsn", "start_date"])
+    df["start_period"] = df["start_date"].dt.to_period(period_type)
+    all_starters_this_period = (
+        df["ppsn"].loc[df["start_period"] == period].drop_duplicates()
+    )
+    return id_series.isin(all_starters_this_period)
+
+
+def jobpath_hold_this_period(
+    start_date: pd.Timestamp,
+    id_series: pd.Series,
+    period_type: str = "M",
+    how: str = "end",
+) -> pd.Series:
+    """
+    Given a time period and an id_series, 
+    return True for every record with a JobPath hold, False otherwise
+
+    Can choose how to measure JobPath Hold status:
+        -- "end" -> at end of this period (only)
+        -- "start" -> at start of this period (only)
+        -- "both" -> at both start and end of this period
+
+    Parameters
+    ----------
+    start_date: pd.Timestamp
+        Start of this period
+    
+    id_series: pd.Series
+        Pandas Series with IDs for lookup
+
+    period_type: str
+        Pandas period-type-identifying string. Default is 'M'.
+
+    how: str = "end"
+        Specify how to measure JobPath hold status
+
+    Returns
+    -------
+    pd.Series(bool):
+        Boolean series with same index as original id_series.
+    """
+
+    period = start_date.to_period(period_type)    
+    if how in ["start", "both"]:
+        start_data = get_ists_claims(
+            period.to_timestamp(how="S"), columns=["ppsn", "JobPathHold"]
         )
-    else:
-        df = get_jobpath_data(columns=["ppsn", "start_month"])
-        all_starters_this_period = (
-            df["ppsn"].loc[df["start_month"] == period].drop_duplicates()
+        jobpath_hold_at_start = (
+            start_data["ppsn"].loc[start_data["JobPathHold"] == 1].drop_duplicates()
         )
+    if how in ["end", "both"]:
+        end_data = get_ists_claims(
+            period.to_timestamp(how="E"), columns=["ppsn", "JobPathHold"]
+        )
+        jobpath_hold_at_end = (
+            end_data["ppsn"].loc[end_data["JobPathHold"] == 1].drop_duplicates()
+        )
+    if how == "both":
+        jobpath_hold = set(jobpath_hold_at_start) & set(jobpath_hold_at_end)
+    elif how == "start":
+        jobpath_hold = jobpath_hold_at_start
+    elif how == "end":
+        jobpath_hold = jobpath_hold_at_end
 
-    started_this_period = id_series.isin(all_starters_this_period)
-
-    return started_this_period
-
+    return id_series.isin(jobpath_hold)
 
 
 #%%

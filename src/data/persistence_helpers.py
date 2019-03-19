@@ -54,14 +54,21 @@ def save_dataframe(
         dataframe.to_feather(specified_file)
     else:
         # Set up folder path: everything to do with this object gets saved here
-        folderpath = Path.cwd() / "/".join(r for r in logical_root) / logical_name
+        folderpath = (
+            Path.cwd()
+            / "data"
+            / "processed"
+            / "/".join(r for r in logical_root)
+            / logical_name
+        )
         if not folderpath.exists():
             folderpath.mkdir(parents=True, exist_ok=True)
 
         # Set up filename (without any extension)
         filename = f"{logical_name}_{dataframe_name}"
 
-        # Main save file is in .feather format - it's amazingly fast!!
+        # Main save file is in .feather format - it's amazingly fast!
+        print(f"Saving to feather as {filename}")
         filepath = folderpath / f"{filename}.feather"
         dataframe.to_feather(filepath)
 
@@ -110,7 +117,13 @@ def load_dataframe(
         # ...for now, make glorious assumption that it's some kind of csv from archive
         dataframe = pd.read_csv(specified_file)
     else:
-        folderpath = Path.cwd() / "/".join(r for r in logical_root) / logical_name
+        folderpath = (
+            Path.cwd()
+            / "data"
+            / "processed"
+            / "/".join(r for r in logical_root)
+            / logical_name
+        )
         filename = f"{logical_name}_{dataframe_name}"
         filepath = folderpath / f"{filename}.feather"
         dataframe = pd.read_feather(filepath)

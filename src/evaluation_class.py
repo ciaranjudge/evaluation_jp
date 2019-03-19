@@ -1,8 +1,7 @@
 # %%
 # Standard library
-import datetime as dt
 from dataclasses import dataclass, field
-from typing import List, Set, Dict, Tuple, Optional
+from typing import ClassVar, List, Set, Dict, Tuple, Optional
 from pathlib import Path
 
 # External packages
@@ -20,19 +19,20 @@ class EvaluationClass:
     
     Parameters
     ----------
-    period_covered: pd.Period
-        The period that this object refers to.
-        For an EvaluationSlice, the slice date is the start date of the period,
-        and the end date of the period is the end of the last EvaluationPeriod covered
+    start_date: pd.Timestamp
+        The start of the period that this object refers to
+
+    end_date: pd.Timestamp
+        The end of the period that this object refers to
 
     logical_root: Tuple[str]
         Ancestors of this object starting from root (".")
+    
+    seed_dataframe: pd.DataFrame = None
+        Dataframe needed to enable object to set itself up correctly
 
     name_prefix: str = None
         Prefix to be added to logical name of object
-
-    seed_dataframe: pd.DataFrame = None
-        Dataframe needed to enable object to set itself up correctly
 
     rebuild_all: bool = False
         If True, this will call create_dataframe on this object and all its children
@@ -55,26 +55,48 @@ class EvaluationClass:
 
     Methods
     -------
+    make_logical_name()
+        Abstract - to be implemented in concrete child classes
+
+    setup_dataframe()
+        Abstract - to be implemented in concrete child classes
+
+    save_dataframe()
+
+    load_dataframe()
 
     """
 
+    ### Class variables
+    object_type: ClassVar[str] = "abstractclass"  # Specify in child classes!
+    dataframe_names: ClassVar[
+        Tuple[str]
+    ] = ()  # Should be specified directly in child classes!
+
     ### Parameters to be set when object is created (handled by @dataclass)
-    period_covered: pd.Period
-    logical_root: Tuple[str]
-    name_prefix: str = None
-    seed_dataframe: pd.DataFrame = None
+    start_date: pd.Timestamp
+    end_date: pd.Timestamp
+    logical_root: Tuple[str] = (".", )
+    seed_population: pd.DataFrame = None
+    name_prefix: str = ""
     rebuild_all: bool = False
+    eligibility_flags: Tuple[str] = ()
 
     ### Other attributes
     logical_name: str = field(init=False)
-    dataframe_names: Tuple[str] = field(default=(), init=False)
     dataframes: dict = field(default=None, init=False)
+
 
     ### Methods
     def __post_init__(self):
+        self.start_date = self.start_date.normalize()
+        self.end_date = self.end_date.normalize()
         self.make_logical_name()
+        if len(self.dataframe_names) > 0:
+            self.dataframes = {}
 
-        for dataframe_name in dataframe_names:
+        for dataframe_name in self.dataframe_names:
+            print(dataframe_name)
             if self.rebuild_all is True:  # Must create everything from scratch!
                 self.setup_dataframe(dataframe_name)
                 self.save_dataframe(dataframe_name)
@@ -87,7 +109,7 @@ class EvaluationClass:
                         self.save_dataframe(dataframe_name)
                     except:  # ...and if that didn't work, something is wrong!
                         raise Exception(
-                            f"Couldn't create {self.logical_root}: {self.logical_name}: {dataframe_name}"
+                            f"Couldn't create {self.logical_name}: {dataframe_name}"
                         )
 
     def make_logical_name(self):
@@ -96,6 +118,9 @@ class EvaluationClass:
 
         To be implemented in concrete child classes.
         """
+        f_name_prefix = f"{self.name_prefix}_" if len(self.name_prefix) > 0 else ""
+        f_start_date = self.start_date.strftime("%Y-%m-%d")
+        self.logical_name = f"{f_name_prefix}{self.object_type}_{f_start_date}"
         pass
 
     def setup_dataframe(self, dataframe_name: str):
@@ -105,6 +130,16 @@ class EvaluationClass:
         To be implemented in concrete child classes.
         """
         pass
+
+    # Common to several child classes
+    def setup_eligible(self):
+        self.dataframes["eligible"] = (
+            self.dataframes["population"]
+            .copy()
+            .loc[self.dataframes["population"]["eligible"] == True]
+            .drop(list(self.eligibility_flags) + ["eligible"], axis="columns")
+            .reset_index(drop=True)
+        )
 
     def save_dataframe(
         self,
@@ -130,6 +165,7 @@ class EvaluationClass:
 
         """
         save_dataframe(
+            dataframe=self.dataframes[dataframe_name],
             dataframe_name=dataframe_name,
             logical_root=self.logical_root,
             logical_name=self.logical_name,

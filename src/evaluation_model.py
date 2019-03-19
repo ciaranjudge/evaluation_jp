@@ -39,7 +39,17 @@ class EvaluationModel:
 
     """
 
-    descriptive_name: str
-    # df: pd.DataFrame
+    ### Parameters
+    ## Inherited from EvaluationClass
+    # period_covered: pd.Period
+    logical_root: Tuple[str] = (".")  # Add default value here
+    # name_prefix: str = None
+    # seed_dataframe: pd.DataFrame = None
+    # rebuild_all: bool = False
 
+    ### Other attributes
+    ## Inherited from EvaluationClass
+    # logical_name: str = field(init=False)
+    # dataframe_names: Tuple[str] = field(default=(), init=False)
+    # dataframes: dict = field(default=None, init=False)  
 

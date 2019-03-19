@@ -1,10 +1,7 @@
 # %%
 # Standard library
-import datetime as dt
-import calendar
 from dataclasses import dataclass, field
-from typing import List, Set, Dict, Tuple, Optional
-from pathlib import Path
+from typing import ClassVar, List, Set, Dict, Tuple, Optional
 
 # External packages
 import pandas as pd
@@ -21,7 +18,8 @@ from src.features.selection_helpers import (
     les_starts_this_period,
 )
 from src.features.metadata_helpers import lr_reporting_date
-from src.evaluation_period import EvaluationPeriod
+
+# from src.evaluation_period import EvaluationPeriod
 from src.evaluation_class import EvaluationClass
 
 # %%
@@ -32,22 +30,24 @@ class EvaluationSlice(EvaluationClass):
 
     Parameters
     ---------- 
-    parent_path: Path
-        Folder for persistent storage of this EvaluationSlice and all its children
+    start_date: pd.Timestamp
+        The start of the period that this object refers to
 
-    date: pd.Timestamp
-        Date of EvaluationSlice and associated cluster creation
+    end_date: pd.Timestamp
+        The end of the period that this object refers to
 
-    name: str = None
-        The name used for persistent storage of this object. 
-        By default, starts as None and set to "slice_{formatted slice date}" in post_init
+    logical_root: Tuple[str]
+        Ancestors of this object starting from root (".")
 
-    pop_dataframe: pd.DataFrame = None
-        Dataframe containing necessary information about this EvaluationSlice
+    seed_dataframe: pd.DataFrame = None
+        Dataframe needed to enable object to set itself up correctly
+
+    name_prefix: str = None
+        Prefix to be added to logical name of object
 
     rebuild_all: bool = False
         If True, this will call create_dataframe on this object and all its children
-        If False, this object and its children will first try to load existing data.
+        If False, this object and its children will first try to load existing data
 
     min_age: int = None
         Minimum age for eligibility
@@ -66,89 +66,134 @@ class EvaluationSlice(EvaluationClass):
 
     Methods
     -------
-    setup_pop_dataframe()
+    make_logical_name()
+
+    setup_dataframe()
 
     save_dataframe()
 
     load_dataframe()
 
-    setup_evaluation_periods()
+    setup_children()
 
     """
 
-    ### Parameters
+    ### Class variables
+    object_type: ClassVar[str] = "slice"
+    dataframe_names: ClassVar[Tuple[str]] = (
+        "population",
+        "eligible",
+    )  # NB needs trailing comma!
+
+    ### Parameters set on init
     ## Inherited from EvaluationClass
-    # parent_path: Path
-    # date: pd.Timestamp
-    name: str = None  # inherited but setting default None here
-    # pop_dataframe: pd.DataFrame = None
+    start_date: pd.Timestamp
+    end_date: pd.Timestamp
+    # logical_root: Tuple[str] = (".", )
+    # seed_population: pd.DataFrame = None
+    # name_prefix: str = None
+    # rebuild_all: bool = False
 
     ## Specific to EvaluationSlice
+    eligibility_flags: Tuple[str] = (
+        "age_eligible",
+        "code_eligible",
+        "duration_eligible",
+        "not_on_les",
+        "no_previous_jobpath",
+    )
+    slice_freq: str = "Q"
+    period_freq: str = "M"
     min_age: int = None
     max_age: int = 62
     is_on_lr: bool = True
     eligible_codes: Tuple[str] = ("UA", "UB")
     min_duration_days: int = 365
 
+    ### Other attributes
+    ## Inherited from EvaluationClass
+    # logical_name: str = field(init=False)
+    # dataframes: dict = field(default=None, init=False)
+
+    ### Private attributes
+    ## Inherited from EvaluationClass
+    # _start_date: pd.Timestamp = field(init=False, repr=False)
+    # _end_date: pd.Timestamp = field(init=False, repr=False)
+
     ### Methods
     def __post_init__(self):
-        if self.name is None:
-            self.name = f"slice_{self.date.strftime('%Y-%m-%d')}"
         super().__post_init__()
+        self.setup_children()
 
-    def setup_data(self):
+    def setup_dataframe(self, dataframe_name: str):
         """
-        Set up a dataframe where each row is a person in this slice, with eligibility flags
+        Wrapper for setup of individual dataframes. 
+
+        Parameters
+        ----------
+        dataframe_name: str
+            The name of the dataframe to be set up. 
+            This is the key for this dataframe in the dataframes dict.
         
         """
+        if dataframe_name == "population":
+            self.setup_population()
 
+        if dataframe_name == "eligible":
+            self.setup_eligible()
+
+    def setup_population(self):
+        """
+        Set up population: each row is a treatable person, with eligibility flags
+        
+        """
         # Merge first with ISTS vital statistics...
-        self.pop_dataframe = pd.merge(
-            left=get_clusters(self.date),
-            right=get_vital_statistics(self.date).drop("lr_date", axis="columns"),
+        self.dataframes["population"] = pd.merge(
+            left=get_clusters(self.start_date),
+            right=get_vital_statistics(self.start_date),
             on="ppsn",
         )
         # ...then with ISTS claims weekly database...
         ists_columns = ["ppsn", "lr_code", "clm_comm_date"]
-        self.pop_dataframe = pd.merge(
-            left=self.pop_dataframe,
+        self.dataframes["population"] = pd.merge(
+            left=self.dataframes["population"],
             right=get_ists_claims(
-                self.date, lr_flag=self.is_on_lr, columns=ists_columns
+                self.start_date, lr_flag=self.is_on_lr, columns=ists_columns
             ),
             on="ppsn",
         )
 
-        # Generate boolean columns for restrictions - keep original dataframe for reporting
+        # Generate boolean columns for restrictions - keep all rows for reporting
         # In each case, True means eligible, False not eligible
-        eligibility_flags = [
-            "age_is_eligible",
-            "code_is_eligible",
-            "duration_is_eligible",
-            "not_on_les",
-            "no_previous_jobpath",
-        ]
-        self.pop_dataframe["age_is_eligible"] = restrict_by_age(
-            self.pop_dataframe["date_of_birth"], self.date, max_age=self.max_age
+        self.dataframes["population"]["age_eligible"] = restrict_by_age(
+            self.dataframes["population"]["date_of_birth"],
+            self.start_date,
+            max_age=self.max_age,
         )
-        self.pop_dataframe["code_is_eligible"] = restrict_by_code(
-            self.pop_dataframe["lr_code"], self.eligible_codes
+        self.dataframes["population"]["code_eligible"] = restrict_by_code(
+            self.dataframes["population"]["lr_code"], self.eligible_codes
         )
-        self.pop_dataframe["duration_is_eligible"] = restrict_by_duration(
-            self.date, self.pop_dataframe["clm_comm_date"], min_duration=365
+        self.dataframes["population"]["duration_eligible"] = restrict_by_duration(
+            self.start_date,
+            self.dataframes["population"]["clm_comm_date"],
+            min_duration=365,
         )
-        # Find everyone who *does* seem to be on LES and use ~ to switch True and False
-        self.pop_dataframe["not_on_les"] = ~on_les(self.date, self.pop_dataframe["ppsn"])
-
-        # Find everyone who *has* ever started JobPath and use ~ to switch True and False
-        self.pop_dataframe["no_previous_jobpath"] = ~any_previous_jobpath(
-            self.date, self.pop_dataframe["ppsn"]
+        # Find everyone who *is* on LES
+        # then use ~ ('not') to switch True and False
+        self.dataframes["population"]["not_on_les"] = ~on_les(
+            self.start_date, self.dataframes["population"]["ppsn"]
+        )
+        # Find everyone who *has* ever started JobPath
+        # then use ~ to switch True and False
+        self.dataframes["population"]["no_previous_jobpath"] = ~any_previous_jobpath(
+            self.start_date, self.dataframes["population"]["ppsn"]
         )
         # Only people with True for all tests are JobPath eligible!
-        self.pop_dataframe["eligible"] = self.pop_dataframe[eligibility_flags].all(
-            axis="columns"
-        )
+        self.dataframes["population"]["eligible"] = self.dataframes["population"][
+            list(self.eligibility_flags)
+        ].all(axis="columns")
 
-    def setup_evaluation_periods(end_date: pd.Timestamp, freq: str = "M") -> dict:
+    def setup_children(self) -> dict:
         """
         Create dict of {Period: EvaluationPeriod} for each period up to end_date
 
@@ -164,11 +209,14 @@ class EvaluationSlice(EvaluationClass):
             Quarterly ('Q') and weekly ('W') are possible. 
         
         """
-        # Use pd.date_range(start=self.date, end=end_date, freq=freq) 
+        periods = pd.period_range(
+            start=self.start_date, end=self.end_date, freq=self.period_freq
+        )
         # Parameter like 'rebuild_all: bool = False'
         # if rebuild_all:
         #    Pass dataframe to each period when instantiating
-        pass
+        for period in periods:
+            print(period)
 
 
 # def main():
