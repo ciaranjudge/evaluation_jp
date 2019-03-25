@@ -248,4 +248,75 @@ def get_jobpath_data(columns: Optional[List] = None) -> pd.DataFrame:
     return df
 
 
-#%%
+def get_earnings(
+    # date: pd.Timestamp,
+    id_series: pd.Series,
+    columns: Optional[List] = None,
+) -> pd.DataFrame:
+    """
+    Given a series of IDs, return all available employment information for those IDs
+
+    Parameters
+    ----------
+    id_series: pd.Series = None
+        Pandas Series with IDs for lookup. 
+
+    columns: Optional[List] = None
+        Columns from the database to return. Default is all columns.
+
+    Returns
+    -------
+    df: pd.DataFrame
+    """
+    query = f"('RSI_NO' in ({id_series.to_list()}))"
+
+    # print(query)
+
+    with pd.HDFStore("data/interim/earnings.h5", mode="r") as store:
+        df = store.select("/earnings", where=query, columns=columns)
+
+    # Remove records with any error flags
+    error_flags = [
+            "PAY_ERR_IND",
+            "PRSI_ERR_IND",
+            "WIES_ERR_IND",
+            "CLASS_ERR_IND",
+            "PRSI_REFUND_IND",
+            "CANCELLED_IND",
+    ]
+    no_error_flag = ~df[error_flags].any(axis="columns")
+    df = df.loc[no_error_flag].drop(error_flags, axis='columns')
+
+    # Rename columns
+    # PRSI/earnings ratio
+    return df
+
+
+def get_sw_payments(
+    id_series: pd.Series,
+    columns: Optional[List] = None,
+) -> pd.DataFrame:
+    """
+    Given a series of IDs, return all available SW payment information for those IDs
+
+    Parameters
+    ----------
+    id_series: pd.Series = None
+        Pandas Series with IDs for lookup. 
+
+    columns: Optional[List] = None
+        Columns from the database to return. Default is all columns.
+
+    Returns
+    -------
+    df: pd.DataFrame
+    """
+    query = f"('ppsn' in ({set(id_series)}))"
+
+    # print(query)
+
+    with pd.HDFStore("data/interim/master_data_store.h5", mode="r") as store:
+        df = store.select("/payments", where=query, columns=columns)
+
+    return df
+

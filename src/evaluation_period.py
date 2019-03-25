@@ -42,9 +42,6 @@ class EvaluationPeriod(EvaluationClass):
     start_date: pd.Timestamp
         The start of the period that this object refers to
 
-    end_date: pd.Timestamp
-        The end of the period that this object refers to
-
     logical_root: Tuple[str]
         Ancestors of this object starting from root (".")
 
@@ -81,41 +78,41 @@ class EvaluationPeriod(EvaluationClass):
 
     ### Class variables
     object_type: ClassVar[str] = "period"
-    dataframe_names: ClassVar[Tuple[str]] = ("population",)  # NB needs trailing comma!
+    dataframe_names: ClassVar[Tuple[str]] = (
+        "population",
+        "eligible",
+    )  # NB needs trailing comma!
 
     ### Parameters set on init
     ## Inherited from EvaluationClass
     # start_date: pd.Timestamp
-    # end_date: pd.Timestamp
     # logical_root: Tuple[str] = (".", )
     # seed_population: pd.DataFrame = None
     # name_prefix: str = None
     # rebuild_all: bool = False
+    # outcome_start_date: pd.Timestamp = None
+    # outcome_end_date: pd.Timestamp = None
 
     ## Specific to EvaluationPeriod
-    eligibility_flags: Tuple[str] = (
+    freq: str = "M"
+    evaluation_eligibility_flags: Tuple[str] = (
         "on_lr",
         "code_eligible",
         "duration_eligible",
         "not_jobpath_hold",
     )
-    min_age: int = None
-    max_age: int = 62
     is_on_lr: bool = True
-    eligible_codes: Tuple[str] = ("UA", "UB")
-    min_duration_days: int = 365
 
     ### Other attributes
     ## Inherited from EvaluationClass
     # logical_name: str = field(init=False)
     # dataframes: dict = field(default=None, init=False)
-
-    ### Private attributes
-    ## Inherited from EvaluationClass
-    # _start_date: pd.Timestamp = field(init=False, repr=False)
-    # _end_date: pd.Timestamp = field(init=False, repr=False)
+    _period: pd.Period = field(init=False)
+    _end_date: pd.Timestamp = field(init=False)
 
     def __post_init__(self):
+        self._period = self.start_date.to_period(freq="M")
+        self._end_date = self._period.to_timestamp(how="E")
         super().__post_init__()
 
     def setup_dataframe(self, dataframe_name: str):
@@ -132,6 +129,10 @@ class EvaluationPeriod(EvaluationClass):
         if dataframe_name == "population":
             self.setup_population()
 
+        if dataframe_name == "eligible":
+            self.setup_eligible()
+
+
     def setup_population(self):
         """
         Set up population: each row is a treatable person, with eligibility flags
@@ -146,12 +147,12 @@ class EvaluationPeriod(EvaluationClass):
         # In each case, True means eligible, False not eligible
 
         # Need ISTS data for LR status, duration, and code
-        # Left join with ists data to get LR information for period _end_date
+        # Left join with ists data to get LR information for period end
         ists_columns = ["ppsn", "lr_code", "clm_comm_date", "lr_flag"]
         self.dataframes["population"] = pd.merge(
             left=self.dataframes["population"],
             right=get_ists_claims(
-                self.end_date, lr_flag=self.is_on_lr, columns=ists_columns
+                self._end_date, lr_flag=self.is_on_lr, columns=ists_columns
             ),
             how="left",
             on="ppsn",
@@ -165,22 +166,20 @@ class EvaluationPeriod(EvaluationClass):
         )
         # Exclude code changers
         self.dataframes["population"]["code_eligible"] = restrict_by_code(
-            self.dataframes["population"]["lr_code"], self.eligible_codes
+            self.start_date, self.dataframes["population"]["lr_code"]
         )
         # Exclude people who left the Live Register during the period
         self.dataframes["population"]["duration_eligible"] = restrict_by_duration(
-            self.start_date,
-            self.dataframes["population"]["clm_comm_date"],
-            min_duration=365,
+            self.start_date, self.dataframes["population"]["clm_comm_date"]
         )
         # Exclude people with a 'JobPathHold' flag
         self.dataframes["population"]["not_jobpath_hold"] = ~jobpath_hold_this_period(
-            start_date=self.start_date, id_series=self.dataframes["population"]["ppsn"]
+            self.start_date, id_series=self.dataframes["population"]["ppsn"]
         )
 
         # Only people with True for all tests are JobPath eligible!
         self.dataframes["population"]["eligible"] = self.dataframes["population"][
-            list(self.eligibility_flags)
+            list(self.evaluation_eligibility_flags)
         ].all(axis="columns")
 
     # Add labels for JobPath starts
