@@ -78,9 +78,7 @@ def get_clusters(date: pd.Timestamp) -> pd.DataFrame:
 
 
 def get_vital_statistics(
-    date: pd.Timestamp,
-    id_series: Optional[pd.Series] = None,
-    columns: Optional[List] = None,
+    date: pd.Timestamp, ids: Optional[pd.Index] = None, columns: Optional[List] = None
 ) -> pd.DataFrame:
     """
     Given a date and (optional) series of IDs, return a df with vital statistics
@@ -92,8 +90,8 @@ def get_vital_statistics(
     date: pd.Timestamp
         Date of interest
 
-    id_series: Optional[pd.Series]
-        Pandas Series with IDs for lookup. If None, return all records for date.
+    ids: Optional[pd.Index]
+        IDs for lookup. If None, return all records for date.
 
     columns: Optional[List]
         Columns from the ISTS claim database to return. Default is all columns.
@@ -111,11 +109,11 @@ def get_vital_statistics(
     metadata = sa.MetaData()
 
     lookup_date = nearest_lr_date(date, how="previous")
-    print(lookup_date)
 
     # Generate default column list if needed
     if columns is None:
-        columns = ["date_of_birth", "sex", "nat_code", "occupation", "ppsn"]
+        columns = ["date_of_birth", "sex", "nat_code", "occupation"]
+    columns.append("ppsn")
 
     # Create comma-separated list of columns to pass into SELECT part of query
     column_query = ",".join(str(x) for x in columns)
@@ -126,10 +124,10 @@ def get_vital_statistics(
         FROM ists_personal WHERE date(lr_date) = date('{lookup_date}')"""
     ).replace("\n", "\r\n")
 
-    # Add this to query if an id_series has been provided
-    if id_series is not None:
-        ids = ",".join([f"'{str(x)}'" for x in id_series.to_list()])
-        query += f" AND ppsn IN ({ids})"
+    # Add this to query if an ids has been provided
+    if ids is not None:
+        id_list = ",".join([f"'{str(x)}'" for x in ids.to_list()])
+        query += f" AND ppsn IN ({id_list})"
     print(query)
 
     # Use pd.read_sql_query to execute the finalised query
@@ -145,13 +143,17 @@ def get_vital_statistics(
     for col in [col for col in df.columns if df[col].dtype == "object"]:
         df[col] = decode_bytestrings(df[col]).astype("category")
 
-    return df
+    return (
+        df.dropna(axis=0, how="all")
+        .reset_index(drop=True)
+        .set_index("ppsn", verify_integrity=True)
+    )
 
 
 def get_ists_claims(
     date: pd.Timestamp,
+    ids: Optional[pd.Index] = None,
     lr_flag: bool = True,
-    id_series: Optional[pd.Series] = None,
     columns: Optional[List] = None,
 ) -> pd.DataFrame:
     """
@@ -167,10 +169,6 @@ def get_ists_claims(
     lr_flag: bool = True
         If True, just return records flagged as on the Live Register 
         
-    id_series: pd.Series = None
-        Pandas Series with IDs for lookup. 
-        Causing weird problem with Jupyter kernel so not using!
-
     columns: Optional[List] = None
         Columns from the ISTS claim database to return. Default is all columns.
 
@@ -178,33 +176,42 @@ def get_ists_claims(
     -------
     df: pd.DataFrame
     """
-    # Reset time to 00:00:00
+    # Reset time to 00:00:00 and get relevant LR reporting date
     date = date.normalize()
-
     lookup_date = nearest_lr_date(date, how="previous")
-    print(lookup_date)
+
+    if columns is not None:
+        columns.append("ppsn")
+
+    print(f"Columns: {columns}")
 
     # Query to get columns based on date
-    query = f"""('lr_date' == '{lookup_date}')"""
+    query = f"('lr_date' == '{lookup_date}')"
 
-    # Add this to query if an id_series has been provided
-    if id_series is not None:
-        query += f" & ('ppsn' in ({id_series.to_list()}))"
+    # Add this to query if ids have been provided
+    if ids is not None:
+        query += f" & ('ppsn' in ({list(ids)}))"
 
-    # Add this to query if an id_series has been provided
+    # Add this to query if lr_flag is True
     if lr_flag == True:
         query += f" & ('lr_flag' == 1)"
 
     print(query)
 
     with pd.HDFStore("data/interim/ists_store.h5", mode="r") as store:
-        df = store.select("/ists_extracts", query)
+        df = store.select("/ists_extracts", query, columns=columns)
 
     duplicated = df.duplicated(subset="ppsn", keep="first")
     df = df.mask(duplicated)
-    if columns is not None:
-        df = df[columns]
-    return df
+
+    for col in [col for col in df.columns if df[col].dtype == "object"]:
+        df[col] = df[col].astype("category")
+
+    return (
+        df.dropna(axis=0, how="all")
+        .reset_index(drop=True)
+        .set_index("ppsn", verify_integrity=True)
+    )
 
 
 def get_les_data(columns: Optional[List] = None) -> pd.DataFrame:
@@ -250,7 +257,7 @@ def get_jobpath_data(columns: Optional[List] = None) -> pd.DataFrame:
 
 def get_earnings(
     # date: pd.Timestamp,
-    id_series: pd.Series,
+    ids: pd.Index,
     columns: Optional[List] = None,
 ) -> pd.DataFrame:
     """
@@ -258,8 +265,8 @@ def get_earnings(
 
     Parameters
     ----------
-    id_series: pd.Series = None
-        Pandas Series with IDs for lookup. 
+    ids: pd.Index = None
+        IDs for lookup. 
 
     columns: Optional[List] = None
         Columns from the database to return. Default is all columns.
@@ -268,7 +275,7 @@ def get_earnings(
     -------
     df: pd.DataFrame
     """
-    query = f"('RSI_NO' in ({id_series.to_list()}))"
+    query = f"('RSI_NO' in ({ids.to_list()}))"
 
     # print(query)
 
@@ -277,31 +284,28 @@ def get_earnings(
 
     # Remove records with any error flags
     error_flags = [
-            "PAY_ERR_IND",
-            "PRSI_ERR_IND",
-            "WIES_ERR_IND",
-            "CLASS_ERR_IND",
-            "PRSI_REFUND_IND",
-            "CANCELLED_IND",
+        "PAY_ERR_IND",
+        "PRSI_ERR_IND",
+        "WIES_ERR_IND",
+        "CLASS_ERR_IND",
+        "PRSI_REFUND_IND",
+        "CANCELLED_IND",
     ]
     no_error_flag = ~df[error_flags].any(axis="columns")
-    df = df.loc[no_error_flag].drop(error_flags, axis='columns')
+    df = df.loc[no_error_flag].drop(error_flags, axis="columns")
 
     # Rename columns
     # PRSI/earnings ratio
     return df
 
 
-def get_sw_payments(
-    id_series: pd.Series,
-    columns: Optional[List] = None,
-) -> pd.DataFrame:
+def get_sw_payments(ids: pd.Index, columns: Optional[List] = None) -> pd.DataFrame:
     """
     Given a series of IDs, return all available SW payment information for those IDs
 
     Parameters
     ----------
-    id_series: pd.Series = None
+    ids: pd.Series = None
         Pandas Series with IDs for lookup. 
 
     columns: Optional[List] = None
@@ -311,7 +315,7 @@ def get_sw_payments(
     -------
     df: pd.DataFrame
     """
-    query = f"('ppsn' in ({set(id_series)}))"
+    query = f"('ppsn' in ({set(ids)}))"
 
     # print(query)
 

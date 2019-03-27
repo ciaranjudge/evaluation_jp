@@ -3,6 +3,7 @@ from dataclasses import dataclass, field
 from typing import ClassVar, List, Set, Dict, Tuple, Optional
 from functools import wraps
 
+import numpy as np
 import pandas as pd
 
 from src.data.import_helpers import (
@@ -17,23 +18,16 @@ from src.data.import_helpers import (
 ELIGIBILITY_CHECKS = {}
 
 
-def eligibility(inversed=False):
-    def eligibility_checker(checker):
-        check = checker.__name__.lstrip("check_")
-        ELIGIBILITY_CHECKS[check] = checker
 
-        @wraps(checker)
-        def eligibility_checked(*args, **kwargs):
-            if inversed:
-                return ~checker(*args, **kwargs)
-                print("negating!")
-            else:
-                print("not negating!")
-                return checker(*args, **kwargs)
-        
-        return eligibility_checked
-        
-    return eligibility_checker
+def eligibility(checker):
+    check = checker.__name__.replace("check_", "")
+    ELIGIBILITY_CHECKS[check] = checker
+
+    @wraps(checker)
+    def eligibility_checked(*args, **kwargs):
+        return checker(*args, **kwargs)
+
+    return eligibility_checked
 
 
 @dataclass
@@ -44,15 +38,15 @@ class EligibilityChecker:
     Parameters
     ----------
     age : dict = None
-        min : pd.DateOffset
-        max : pd.DateOffset
+        min_age : pd.DateOffset
+        max_age : pd.DateOffset
 
     codes : dict = None
         eligible : Tuple(str)  # Tuple of eligible codes
 
     claim_duration : dict = None
-        min : pd.DateOFfset
-        max : pd.DateOffset
+        min_duration : pd.DateOFfset
+        max_duration : pd.DateOffset
 
     not_on_les : dict = None
         imputed_duration : pd.DateOffset
@@ -64,45 +58,42 @@ class EligibilityChecker:
 
     no_previous_jobpath : dict = None
 
-
-
         
     """
 
-    # Expect function ``check_[this]`` to exist for each variable here
+    # Expect function ``get_[this]`` to exist for each variable here
     age: dict = None
     codes: dict = None
     duration: dict = None
-    les_status: dict = None
-    les_starts: dict = None
-    jobpath_status: dict = None
-    jobpath_starts: dict = None
-    jobpath_hold: dict = None
+    not_on_les: dict = None
+    not_les_starts: dict = None
+    not_on_jobpath: dict = None
+    not_jobpath_starts: dict = None
+    not_jobpath_hold: dict = None
 
     def __post_init__(self):
         # Set up methods for only the criteria supplied on initialisation
         # Need to pass params dynamically to functions
         self.criteria = {k: v for k, v in self.__dict__.items() if v is not None}
-        print(ELIGIBILITY_CHECKS[0].__name__)
+        print(ELIGIBILITY_CHECKS)
 
-    def check_eligibility(self, *args, **kwargs) -> pd.DataFrame:
+    def get_eligibility(self, *args, **kwargs) -> pd.DataFrame:
         # For each method set up post_init, create a boolean pd.Series
         # Then create an overall boolean eligibility series
         # What needs to be passed in here?
         # Create a temp dataframe for stuff that's common to several things?
-        f_list = [f"check_{k}" for k in self.criteria.keys()]
+
+        # Use 'not_' to manage negation!
+        f_list = [f"get_{k}" for k in self.criteria.keys()]
         print(f_list)
 
 
-@eligibility(inversed=True)
-def on_first():
-    print("who")
-    return pd.Series([True, False])
-
-
-@eligibility()
+@eligibility
 def check_age(
-    date: pd.Timestamp, id_series: pd.Series, checks: dict = None
+    date: pd.Timestamp,
+    ids: pd.Index,
+    min_age: pd.DateOffset = None,
+    max_age: pd.DateOffset = None,
 ) -> pd.Series(bool):
     """
     Given a reference date, an ID series, and a min and/or max age (in years), 
@@ -113,12 +104,12 @@ def check_age(
     date: pd.Timestamp
         Reference date for calculating ages
 
-    id_series: pd.Series(pd.Timestamp)
-        Should be datetime series; expected to be dates of birth
+    ids: pd.Index
+        Need unique IDs - should be pd.Index but will work with list or set
 
-    checks: dict = None
-        min : pd.DateOffset
-        max : pd.DateOffset
+    min_age : pd.DateOffset
+
+    max_age : pd.DateOffset
 
     Returns
     -------
@@ -127,89 +118,82 @@ def check_age(
         True for each record between given min/max ages, False otherwise.
     """
 
-    if checks is None or (
-        "min" not in checks.keys() and "max" not in checks.keys()
-    ):
-        return pd.Series(data=True, index=id_series.index)
+    if (min_age is not None) or (max_age is not None):
+        print(f"Check age using min: {min_age} and max: {max_age}")
+        dates_of_birth = get_vital_statistics(
+            date, ids, columns=["date_of_birth"]
+        ).squeeze(axis="columns")
+
+    if min_age is not None:
+        min_age_date_of_birth = date - min_age
+        at_least_min_age = dates_of_birth <= min_age_date_of_birth
     else:
-        min_age = checks["min"] if "min" in checks.keys() else None
-        max_age = checks["max"] if "max" in checks.keys() else None
-        print(f"Restrict by age using min: {min_age} and max: {max_age}")
-        source = get_vital_statistics(
-            date, id_series, columns=["ppsn", "date_of_birth"]
-        )
-        dates_of_birth = pd.Series(index=source["ppsn"], data=source["date_of_birth"])
+        at_least_min_age = pd.Series(data=True, index=ids)
 
-        if min_age is not None:
-            min_age_date_of_birth = date - min_age
-            at_least_min_age = dates_of_birth <= min_age_date_of_birth
-        else:
-            at_least_min_age = pd.Series(data=True, index=dates_of_birth.index)
+    if max_age is not None:
+        max_age_date_of_birth = date - max_age
+        under_max_age = max_age_date_of_birth < dates_of_birth
+    else:
+        under_max_age = pd.Series(data=True, index=ids)
 
-        if max_age is not None:
-            max_age_date_of_birth = date - max_age
-            under_max_age = max_age_date_of_birth < dates_of_birth
-        else:
-            under_max_age = pd.Series(data=True, index=dates_of_birth.index)
+    return at_least_min_age & under_max_age
 
-        return at_least_min_age & under_max_age
 
-# %%
-def code_eligible(
-    date: pd.Timestamp, codes: pd.Series(str), code_criteria: pd.DataFrame = None
+@eligibility
+def check_code(
+    date: pd.Timestamp, ids: pd.Index, eligible_codes: Tuple[str] = None
 ) -> pd.Series(bool):
     """
-    Given a series of codes and a date, 
-    return True for each record that has an eligible code on that date
+    Given a reference date, an ID series, and a tuple of codes, 
+    return True for each id that has an eligible code on that date, else False
 
     Parameters
     ----------
     date: pd.Timestamp
-        Reference date for what codes are eligible. 
-        NB this is not implemented yet! Codes are hard-coded below!
+        Reference date for lookup of ids 
 
-    codes: pd.Series(str)
-        Series of (people with their) codes
+    ids : pd.Index
+        Need unique IDs - should be pd.Index but will work with list or set
 
-    code_criteria: pd.DataFrame = None
-        Not yet implemented!!
-        Should be the lookup source for what codes were eligible on date    
+    eligible : Tuple(str)
+        Tuple of eligible codes
 
     Returns
     -------
-    pd.Series(bool):
-        Boolean series with same index as original code_series.
-        True for each code in codes where code is in eligible_code_list, False otherwise.
+    pd.Series(bool)
+        Boolean series with original id index, True for each id with eligible code
     """
 
-    # Should be got by date lookup from code_criteria but hardcoded for now!
-    eligible_code_list = ("UA", "UB")
+    if (eligible_codes is not None) and (len(eligible_codes) > 0):
+        print(f"Check codes using eligible: {eligible_codes}")
+        code_data = get_ists_claims(date, ids, columns=["lr_code"]).squeeze(axis="columns")
+        return code_data.isin(eligible_codes)
+    else:
+        return pd.Series(data=True, index=ids)
 
-    print(f"Restrict by code using eligible codes: {eligible_code_list}")
 
-    return codes.isin(eligible_code_list)
-
-
-def restrict_by_duration(
+@eligibility
+def check_duration(
     date: pd.Timestamp,
-    claim_start_dates: pd.Series(pd.Timestamp),
-    duration_criteria: pd.DataFrame = None,
+    ids: pd.Index,
+    min_duration: pd.DateOffset = None,
+    max_duration: pd.DateOffset = None,
 ) -> pd.Series(bool):
     """
-    Given a series of durations (in days), a date, and min/max durations, 
-    return a boolean series that is True for each duration within the min/max range
+    Given a reference date, an ID series, and checks for min and/or max duration,
+    return True for each id that has an eligible code on that date, else False
 
     Parameters
     ----------
     date: pd.Timestamp
-        Reference date for calculating durations
+        Reference date for lookup of ids and calculating duration
 
-    claim_start_dates: pd.Series(pd.Timestamp)
-        Should be datetime series; expected to be episode durations
+    ids : pd.Index
+        Need unique IDs - should be pd.Index but will work with list or set
 
-    duration_criteria: pd.DataFrame = None
-        Not yet implemented!!
-        Should be the lookup source for what durations were eligible on date    
+    min_duration : pd.DateOffset = None
+
+    max_duration : pd.DateOffset = None
 
     Returns
     -------
@@ -217,21 +201,20 @@ def restrict_by_duration(
         Boolean series with same index as original durations series.
         True for each record between given min/max durations, False otherwise.
     """
-    # Should be got by lookup from age_criteria but hardcoded for now!
-    # Also reimplement durations as pd.DateOffset rather than int (=no. of days)
-    min_duration: int = 365  # Min (=shortest) possible duration, in days.
-    max_duration: int = None
-
-    print(f"Restrict by duration using min: {min_duration}, max: {max_duration}")
+    if (min_duration is not None) or (max_duration is not None):
+        print(f"Check duration using min: {min_duration} and max: {max_duration}")
+        claim_start_dates = get_ists_claims(
+            date, ids, columns=["clm_comm_date"]
+        ).squeeze(axis="columns")
 
     if min_duration is not None:
-        date_of_min_duration = date - pd.DatetimeDelta(days=min_duration)
+        date_of_min_duration = date - min_duration
         at_least_min_duration = claim_start_dates <= date_of_min_duration
     else:
         at_least_min_duration = pd.Series(data=True, index=claim_start_dates.index)
 
     if max_duration is not None:
-        date_of_max_duration = date - pd.DatetimeDelta(days=max_duration)
+        date_of_max_duration = date - max_duration
         less_than_max_duration = date_of_max_duration < claim_start_dates
     else:
         less_than_max_duration = pd.Series(data=True, index=claim_start_dates.index)
@@ -239,45 +222,55 @@ def restrict_by_duration(
     return at_least_min_duration & less_than_max_duration
 
 
+@eligibility
 def on_les(
-    date: pd.Timestamp, id_series: pd.Series, les_criteria: pd.DataFrame = None
+    date: pd.Timestamp,
+    ids: pd.Index,
+    episode_duration: pd.DateOffset = pd.DateOffset(years=1),
 ) -> pd.Series:
     """
     Given a date and id_series, return True for every record on LES on that date
 
     Parameters
     ----------
-    date: pd.Period
-        Period of interest. Can also be pd.Timestamp.
-    
-    id_series: pd.Series
-        Pandas Series with IDs for lookup
+    date: pd.Timestamp
+        Reference date for lookup of ids 
 
-    les_criteria:
-        Not yet implemented!!
-        Should be the lookup source for what durations were eligible on date 
+    ids : pd.Index
+        Need unique IDs - should be pd.Index but will work with list or set
+
+    les_episode_duration : pd.DateOffset
 
     Returns
     -------
-    pd.Series(bool):
+    pd.Series(bool)
         Boolean series with same index as original id_series.
     """
-    # Should be got by lookup from les_criteria but hardcoded for now!
-    les_duration: pd.DateOffset = pd.DateOffset(years=1)
 
-    print(f"Find people on LES using duration: {les_duration}")
+    if episode_duration is not None:
+        print(f"Find people on LES using duration: {episode_duration}")
+        les = get_les_data(columns=["ppsn", "start_date"])
+        gte_start = les["start_date"] <= date
+        lte_end = date <= les["start_date"] + episode_duration
+        les.loc[gte_start & lte_end, "on_les"] = True
+        on_les_on_date = (
+            pd.pivot_table(les, values="on_les", index="ppsn", aggfunc=np.any)
+            .squeeze(axis="columns")
+            .reindex(ids, fill_value=False)
+        )
+        return on_les_on_date
+    else:
+        return pd.Series(data=False, index=ids)
 
-    les_df = get_les_data(columns=["ppsn", "start_date", "end_date"])
-    on_or_after_start = les_df["start_date"] <= date
-    on_or_before_end = date <= les_df["end_date"]
 
-    all_on_les_on_date = les_df["ppsn"].loc[on_or_after_start & on_or_before_end]
-    on_les_on_date = id_series.isin(all_on_les_on_date)
-    return on_les_on_date
-
-
-def any_previous_jobpath(
-    date: pd.Timestamp, id_series: pd.Series, how: str = "both"
+@eligibility
+def on_jobpath(
+    date: pd.Timestamp,
+    ids: pd.Index,
+    episode_duration: pd.DateOffset = pd.DateOffset(years=1),
+    use_jobpath_data: bool = True,
+    use_ists_data: bool = True,
+    combine: str = "either",  # Can be "either" or "both"
 ) -> pd.Series:
     """
     Given a date and an id_series, return a series which is 
@@ -285,59 +278,62 @@ def any_previous_jobpath(
 
     Parameters
     ----------
-    date: pd.Timestamp
+    date : pd.Timestamp
         Lookup date
     
-    id_series: pd.Series
+    id_series : pd.Series
         Pandas Series with IDs for lookup
 
-    how: str = 'both'
-        Flag for how to find JobPath people:
-            -- 'both' means check both ISTS and JobPath datasets
-            -- 'jobpath_only' means check JobPath only
-            -- 'ists_only' means check ISTS only
+    episode_duration: pd.DateOffset = pd.DateOffset(years=1)
+
+    use_jobpath_data: bool = True
+
+    use_ists_data: bool = True
+
+    combine: str = "either"
+        Can be "either" or "both"
 
     Returns
     -------
     pd.Series(bool):
         Boolean series with same index as original id_series.
     """
+    if use_jobpath_data or use_ists_data:
+        print(f"Find people on JobPath on {date} assuming duration {episode_duration}")
 
-    print(f"Find people on JobPath on date {date}")
+        # First get ppsns of all JobPath starters before date from JobPath database
+        if use_jobpath_data:
+            jobpath = get_jobpath_data(columns=["ppsn", "start_date"])
+            gte_start = jobpath["start_date"] <= date
+            lte_end = date <= jobpath["start_date"] + episode_duration
+            jobpath.loc[gte_start & lte_end, "on_jobpath"] = True
+            on_jobpath_jobpath = (
+                pd.pivot_table(
+                    jobpath, values="on_jobpath", index="ppsn", aggfunc=np.any
+                )
+                .squeeze(axis="columns")
+                .reindex(ids, fill_value=False)
+            )
+        else:
+            on_jobpath_jobpath = pd.Series(data=False, index=ids)
 
-    # First get ppsns of all JobPath starters before date from JobPath database
-    if how == "both" or how == "jobpath_only":
-        jobpath_df = get_jobpath_data(columns=["ppsn", "start_date"])
-        jobpath_previous_start = jobpath_df["start_date"] < date
-        jobpath_previous_jobpath = (
-            jobpath_df["ppsn"].loc[jobpath_previous_start].drop_duplicates()
-        )
+        # Then get ppsn of everyone with an ISTS JobPath flag at end of previous month
+        if use_ists_data:
+            on_jobpath_ists = get_ists_claims(
+                date, ids, columns=["JobPath_Flag"]
+            ).squeeze(axis="columns")
+        else:
+            on_jobpath_ists = pd.Series(data=False, index=ids)
 
-    # Then get ppsn of everyone with an ISTS JobPath flag at end of previous month
-    if how == "both" or how == "ists_only":
-        previous_month_date = (
-            (date - pd.DateOffset(months=1)).to_period("M").to_timestamp(how="E")
-        )
-        ists_df = get_ists_claims(previous_month_date)
-        ists_previous_jobpath = ists_df["ppsn"].loc[ists_df["JobPath_Flag"] == 1]
-
-    # Transform this pd.Series to a set. Simple if just using one source...
-    if how == "jobpath_only":
-        previous_jobpath = set(jobpath_previous_jobpath)
-    elif how == "ists_only":
-        previous_jobpath = set(ists_previous_jobpath)
-    # ...but need to get union of JobPath and ISTS series ("|") if using both
-    else:
-        previous_jobpath = set(jobpath_previous_jobpath) | set(ists_previous_jobpath)
-
-    # Then find the IDs of the people in the given id_series which are in this set
-    previous_jobpath_in_id_series = id_series.isin(previous_jobpath)
-
-    return previous_jobpath_in_id_series
+        if use_jobpath_data and use_ists_data and combine == "both":
+            return on_jobpath_jobpath & on_jobpath_ists
+        else:  # combine == "either" or only one source in use
+            return on_jobpath_jobpath | on_jobpath_ists
 
 
-def les_starts_this_period(
-    start_date: pd.Timestamp, id_series: pd.Series, period_type: str = "M"
+@eligibility
+def les_starts(
+    date: pd.Timestamp, ids: pd.Index, period_type: str = "M"
 ) -> pd.Series:
     """
     Given a start_date, an id_series, and an optional period_type (defaults to "M")
@@ -345,34 +341,40 @@ def les_starts_this_period(
 
     Parameters
     ----------
-    start_date: pd.Timestamp
+    date: pd.Timestamp
         Start of this period
     
-    id_series: pd.Series
+    ids: pd.Series
         Pandas Series with IDs for lookup
 
-    period_type: str
-        Pandas period-type-identifying string. Default is 'M' (not implemented otherwise!)
+    period_type: str = 'M'
+        Pandas period-type-identifying string. Default is 'M'.
     Returns
     -------
     pd.Series(bool):
         Boolean series with same index as original id_series.
     """
-    period = start_date.to_period(period_type)
-
+    period = date.to_period(period_type)
     print(f"Get LES starters in period: {period}")
-
-    df = get_les_data(columns=["ppsn", "start_month"])
-    all_starters_this_period = (
-        df["ppsn"].loc[df["start_month"] == period].drop_duplicates()
+    les = get_les_data(columns=["ppsn", "start_date"])
+    gte_period_start = period.start_time <= les["start_date"]
+    lte_period_end = les["start_date"] <= period.end_time
+    les.loc[gte_period_start & lte_period_end, "on_les"] = True
+    les_starts = (
+        pd.pivot_table(les, values="on_les", index="ppsn", aggfunc=np.any)
+        .squeeze(axis="columns")
+        .reindex(ids, fill_value=False)
     )
-    started_this_period = id_series.isin(all_starters_this_period)
+    return les_starts
 
-    return started_this_period
-
-
-def jobpath_starts_this_period(
-    start_date: pd.Timestamp, id_series: pd.Series, period_type: str = "M"
+@eligibility
+def jobpath_starts(
+    date: pd.Timestamp,
+    ids: pd.Index,
+    period_type: str = "M",
+    use_jobpath_data: bool = True,
+    use_ists_data: bool = True,
+    combine: str = "either",  # Can be "either" or "both"
 ) -> pd.Series:
     """
     Given a start_date and an id_series, with optional period_type (default is 'M'):
@@ -389,28 +391,64 @@ def jobpath_starts_this_period(
     period_type: str
         Pandas period-type-identifying string. Default is 'M'.
 
+    use_jobpath_data: bool = True
+
+    use_ists_data: bool = False
+
+    combine: str = "either"
+        Can be "either" or "both"
+
     Returns
     -------
     pd.Series(bool):
         Boolean series with same index as original id_series.
     """
-    period = start_date.to_period(period_type)
 
-    print(f"Get JobPath starters in period: {period}")
+    if use_jobpath_data:
+        period = date.to_period(period_type)
+        print(f"Get JobPath starters in period: {period}")
+        jobpath = get_jobpath_data(columns=["ppsn", "start_date"])
+        gte_period_start = period.start_time <= jobpath["start_date"]
+        lte_period_end = jobpath["start_date"] <= period.end_time
+        jobpath.loc[gte_period_start & lte_period_end, "on_jobpath"] = True
+        jobpath_jobpath_starts = (
+            pd.pivot_table(jobpath, values="on_jobpath", index="ppsn", aggfunc=np.any)
+            .squeeze(axis="columns")
+            .astype(bool)
+            .reindex(ids, fill_value=False)
+        )
+    else:
+        jobpath_jobpath_starts = pd.Series(data=False, index=ids)
 
-    df = get_jobpath_data(columns=["ppsn", "start_date"])
-    df["start_period"] = df["start_date"].dt.to_period(period_type)
-    all_starters_this_period = (
-        df["ppsn"].loc[df["start_period"] == period].drop_duplicates()
-    )
-    return id_series.isin(all_starters_this_period)
+    if use_ists_data:
+        # Not on at start but on at end
+        not_ists_jobpath_at_start = ~on_jobpath(
+            date, 
+            ids, 
+            episode_duration=pd.DateOffset(years=1), 
+            use_jobpath_data=False,
+            use_ists_data=True,
+        )
+        ists_jobpath_at_end = on_jobpath(
+            date + pd.DateOffset(months=1), 
+            ids, 
+            episode_duration=pd.DateOffset(years=1), 
+            use_jobpath_data=False,
+            use_ists_data=True,
+        )
+        ists_jobpath_starts = not_ists_jobpath_at_start & ists_jobpath_at_end    
+    else:
+        ists_jobpath_starts = pd.Series(data=False, index=ids)
+
+    if use_jobpath_data and use_ists_data and combine == "both":
+        return jobpath_jobpath_starts & ists_jobpath_starts
+    else:  # combine == "either" or only one source in use
+        return jobpath_jobpath_starts | ists_jobpath_starts
 
 
-def jobpath_hold_this_period(
-    start_date: pd.Timestamp,
-    id_series: pd.Series,
-    period_type: str = "M",
-    how: str = "end",
+@eligibility
+def jobpath_hold(
+    date: pd.Timestamp, ids: pd.Series, period_type: str = "M", how: str = "end"
 ) -> pd.Series:
     """
     Given a time period and an id_series, 
@@ -433,7 +471,8 @@ def jobpath_hold_this_period(
         Pandas period-type-identifying string. Default is 'M'.
 
     how: str = "end"
-        Specify how to measure JobPath hold status
+        Specify how to measure JobPath hold status.
+        Possible values are "start", "end", "both", "either". 
 
     Returns
     -------
@@ -441,32 +480,31 @@ def jobpath_hold_this_period(
         Boolean series with same index as original id_series.
     """
 
-    period = start_date.to_period(period_type)
+    period = date.to_period(period_type)
 
     print(f"Get JobPathHold people in period: {period}")
 
-    if how in ["start", "both"]:
-        start_data = get_ists_claims(
-            period.to_timestamp(how="S"), columns=["ppsn", "JobPathHold"]
-        )
+    if how in ["start", "both", "either"]:
         jobpath_hold_at_start = (
-            start_data["ppsn"].loc[start_data["JobPathHold"] == 1].drop_duplicates()
+            get_ists_claims(period.to_timestamp(how="S"), ids, columns=["JobPathHold"])
+            .squeeze(axis="columns")
+            .astype(bool)
         )
-    if how in ["end", "both"]:
-        end_data = get_ists_claims(
-            period.to_timestamp(how="E"), columns=["ppsn", "JobPathHold"]
-        )
+    if how in ["end", "both", "either"]:
         jobpath_hold_at_end = (
-            end_data["ppsn"].loc[end_data["JobPathHold"] == 1].drop_duplicates()
+            get_ists_claims(period.to_timestamp(how="E"), ids, columns=["JobPathHold"])
+            .squeeze(axis="columns")
+            .astype(bool)
         )
+
     if how == "both":
-        jobpath_hold = set(jobpath_hold_at_start) & set(jobpath_hold_at_end)
+        jobpath_hold = jobpath_hold_at_start & jobpath_hold_at_end
+    if how == "either":
+        jobpath_hold = jobpath_hold_at_start | jobpath_hold_at_end
     elif how == "start":
         jobpath_hold = jobpath_hold_at_start
     elif how == "end":
         jobpath_hold = jobpath_hold_at_end
 
-    return id_series.isin(jobpath_hold)
+    return jobpath_hold
 
-
-#%%

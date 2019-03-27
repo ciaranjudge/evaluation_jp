@@ -111,17 +111,13 @@ class EvaluationSlice:
         Set up initial pop: people on LR on start_date with claim and personal info
 
         """
-        # First get vital statistics...
-        self.data["seed_pop"] = get_vital_statistics(self.start_date)
-
-        # ...then merge with ISTS claims weekly database
-        ists_columns = ["ppsn", "lr_code", "clm_comm_date"]
+        # First get Live Register claims...
+        lr = get_ists_claims(self.start_date, lr_flag=self.is_on_lr, columns=["lr_code", "clm_comm_date"])
+        #...then add vital statistics...
+        vs = get_vital_statistics(self.start_date, ids=lr.index)
+        # ...then merge the two.
         self.data["seed_pop"] = pd.merge(
-            left=self.data["seed_pop"],
-            right=get_ists_claims(
-                self.start_date, lr_flag=self.is_on_lr, columns=ists_columns
-            ),
-            on="ppsn",
+            left=lr, right=vs, left_index=True, right_index=True
         )
 
     @populate
@@ -130,8 +126,9 @@ class EvaluationSlice:
         Create clusters for population, starting from seed_pop
 
         """
+        clusters = get_clusters(self.start_date)
         self.data["clustered_pop"] = pd.merge(
-            left=self.data["seed_pop"], right=get_clusters(self.start_date), on="ppsn"
+            left=self.data["seed_pop"], right=clusters, left_index=True, right_index=True
         )
 
     # @populate
