@@ -8,22 +8,14 @@ import pandas as pd
 
 # Local packages
 from src.data.import_helpers import get_ists_claims
-from src.features.selection_helpers import (
-    restrict_by_code,
-    restrict_by_duration,
-    on_les,
-    jobpath_starts_this_period,
-    les_starts_this_period,
-    jobpath_hold_this_period,
-)
-from src.features.metadata_helpers import lr_reporting_date
+from src.data.persistence_helpers import get_logical_name, populate, save_data, load_data
+from src.features.selection_helpers import EligibilityChecker, EligibilityCheckManager
 
-# from src.evaluation_period import EvaluationPeriod
-from src.evaluation_class import EvaluationClass
+from src.features.metadata_helpers import lr_reporting_date
 
 # %%
 @dataclass
-class EvaluationPeriod(EvaluationClass):
+class EvaluationPeriod:
     """
     Dataclass to manage evaluation treatment periods: 
         -- set up population and divide into T and C groups
@@ -84,17 +76,15 @@ class EvaluationPeriod(EvaluationClass):
     )  # NB needs trailing comma!
 
     ### Parameters set on init
-    ## Inherited from EvaluationClass
-    # start_date: pd.Timestamp
-    # logical_root: Tuple[str] = (".", )
-    # seed_population: pd.DataFrame = None
-    # name_prefix: str = None
-    # rebuild_all: bool = False
-    # outcome_start_date: pd.Timestamp = None
-    # outcome_end_date: pd.Timestamp = None
+    period: pd.Period
+    logical_root: Tuple[str] = (".", )
+    seed_population: pd.DataFrame = None
+    name_prefix: str = None
+    rebuild_all: bool = False
+    outcome_start_date: pd.Timestamp = None
+    outcome_end_date: pd.Timestamp = None
 
     ## Specific to EvaluationPeriod
-    freq: str = "M"
     evaluation_eligibility_flags: Tuple[str] = (
         "on_lr",
         "code_eligible",
@@ -102,6 +92,9 @@ class EvaluationPeriod(EvaluationClass):
         "not_jobpath_hold",
     )
     is_on_lr: bool = True
+    _type_name: str = "model"
+    _logical_name: str = field(init=False)
+    _date_format: str = "%Y-%m-%d"
 
     ### Other attributes
     ## Inherited from EvaluationClass
@@ -111,9 +104,10 @@ class EvaluationPeriod(EvaluationClass):
     _end_date: pd.Timestamp = field(init=False)
 
     def __post_init__(self):
-        self._period = self.start_date.to_period(freq="M")
-        self._end_date = self._period.to_timestamp(how="E")
-        super().__post_init__()
+        self.start_date = self.start_date.normalize()
+        self._logical_name = self.get_logical_name(
+            self._type_name, self.start_date, self._date_format, self.name_prefix
+        )
 
     def setup_dataframe(self, dataframe_name: str):
         """

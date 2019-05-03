@@ -8,7 +8,14 @@ import pandas as pd
 
 # Local packages
 from src.evaluation_slice import EvaluationSlice
-from src.data.import_helpers import get_earnings, get_sw_payments, get_ists_claims
+from src.data.persistence_helpers import (
+    get_name,
+    get_path,
+    populate,
+    save_data,
+    load_data,
+)
+from src.features.selection_helpers import EligibilityChecker, EligibilityCheckManager
 
 # %%
 @dataclass
@@ -21,10 +28,10 @@ class EvaluationModel:
     # start_date: pd.Timestamp
     #     The start of the period that this object refers to
 
-    # logical_root: Tuple[str]
+    # root: Tuple[str]
     #     Ancestors of this object starting from root (".")
 
-    # name_prefix: str = None
+    # prefix: str = None
     #     Prefix to be added to logical name of object
 
     # rebuild_all: bool = False
@@ -33,7 +40,7 @@ class EvaluationModel:
 
     Attributes
     ----------
-    logical_name: str 
+    name: str 
         Logical name of this object, created as part of __post_init__ setup
 
     data: dict
@@ -42,15 +49,18 @@ class EvaluationModel:
 
     Methods
     -------
-    setup_logical_name()
+    
       
     """
+
+    ### -- Class variables -- ###
+    TYPE_NAME: ClassVar[str] = "model"
 
     ### -- Parameters set on init -- ###
     ## Model
     start_date: pd.Timestamp
-    logical_root: Tuple[str] = (".",)
-    name_prefix: str = ""
+    root: Tuple[str] = (".",)
+    prefix: str = None
     rebuild_all: bool = False
 
     ## Outcomes
@@ -58,38 +68,35 @@ class EvaluationModel:
     outcome_end_date: pd.Timestamp = None
 
     ## Slices
+    slice_prefix: str = None
     slice_freq: str = "Q"
     last_slice_date: pd.Timestamp = None
-    # slice_cluster_eligibility_flags: Tuple[str] = None  # Needed for reclustering
-    slice_evaluation_eligibility_flags: Tuple[str] = ()
+    slice_clustering_eligibility_checker: EligibilityCheckManager = None
+    slice_evaluation_eligibility_checker: EligibilityCheckManager = None
 
     ## Periods
+    period_prefix: str = None
     period_freq: str = "M"
-    last_period_date: pd.Timestamp = pd.Timestamp("2017-01-01")
-    period_evaluation_eligibility_flags: Tuple[str] = ()
-
-    ## Lookup dataframes (NB not yet implemented and should just be part of data{})
-    # age_criteria: pd.DataFrame = None
-    # code_criteria: pd.DataFrame = None
+    last_period_date: pd.Timestamp = None
+    period_eligibility_checker: EligibilityCheckManager = None
 
     ### -- Other attributes -- ###
-    logical_name: str = field(init=False)
-    data: dict = field(default=None, init=False)
-    slices: dict = field(init=False)
+    ## Boilerplate
+    name: str = field(init=False)
+    path: Path = field(init=False)
+    ## Data
+    data: Dict[str, pd.DataFrame] = field(init=False)
+    ## Slices managed by Manager
+    slices: Dict[pd.Period, EvaluationSlice] = field(init=False)
 
-    ### Methods
+    ### -- Methods -- ###
     def __post_init__(self):
         self.start_date = self.start_date.normalize()
-        self.setup_logical_name()
+        self.name = get_name(self.TYPE_NAME, self.start_date, prefix=self.prefix)
+        self.path = get_path(self.root, self.name)
         self.setup_slices()
         # Get union of slice participants once slices are set up
-        # Set up 
-
-    def setup_logical_name(self):
-        f_name_prefix = f"{self.name_prefix}__" if len(self.name_prefix) > 0 else ""
-        f_start_date = self.start_date.strftime("%Y-%m-%d")
-        self.logical_name = f"{f_name_prefix}model_{f_start_date}"
-
+        # Set up shared data and make available to slices
 
     def setup_slices(self):
         slice_range = pd.period_range(
@@ -99,23 +106,19 @@ class EvaluationModel:
         for s in slice_range:
             self.slices[s] = EvaluationSlice(
                 ## Slice
-                start_date=s.to_timestamp("S"),
-                logical_root=tuple(list(self.logical_root) + [self.logical_name]),
+                period=s,
+                root=tuple(list(self.root) + [self.name]),
+                prefix=self.slice_prefix,
                 rebuild_all=self.rebuild_all,
-                # cluster_eligibility_flags=self.slice_cluster_eligibility_flags,
-                evaluation_eligibility_flags=self.slice_evaluation_eligibility_flags,
+                clustering_eligibility_checker=self.slice_clustering_eligibility_checker,
+                evaluation_eligibility_checker=self.slice_evaluation_eligibility_checker,
                 ## Outcomes
-                outcome_start_date=s.to_timestamp("S") + pd.DateOffset(months=3),
+                outcome_start_date=s.to_timestamp(how="E"),
                 outcome_end_date=self.outcome_end_date,
                 ## Periods
-                last_period_date=self.last_period_date,
                 period_freq=self.period_freq,
-                period_evaluation_eligibility_flags=self.period_evaluation_eligibility_flags,
+                period_prefix=self.period_prefix,
+                last_period_date=self.last_period_date,
+                period_eligibility_checker=self.period_eligibility_checker,
             )
 
-
-
-
-
-
-#%%
