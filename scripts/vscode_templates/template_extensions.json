@@ -1,0 +1,10 @@
+{
+    "recommendations": [
+        "eamodio.gitlens", 
+        "ms-python.python", 
+        "ms-vscode-remote.vscode-remote-extensionpack",
+        "ms-vsts.team",
+        "redhat.vscode-yaml"
+    ]
+  }
+
