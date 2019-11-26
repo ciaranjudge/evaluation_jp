@@ -1,0 +1,17 @@
+{
+    "terminal.integrated.shellArgs.windows": [
+        "/K", "%LOCALAPPDATA%\\Continuum\\miniconda3\\Scripts\\activate.bat", 
+        "%LOCALAPPDATA%\\Continuum\\miniconda3"
+    ], 
+    "terminal.integrated.automationShell.windows": "C:\\Windows\\System32\\cmd.exe",
+    "python.pythonPath": "%LOCALAPPDATA%\\Continuum\\miniconda3\\python.exe",
+    "python.dataScience.askForKernelRestart": false,
+    "python.dataScience.sendSelectionToInteractiveWindow": true,
+    "python.formatting.provider": "black",
+    "python.linting.pylintEnabled": true,
+    "python.linting.enabled": true,
+    "python.testing.pytestEnabled": true,
+    "git.enableSmartCommit": true,
+    "explorer.confirmDragAndDrop": false,
+    "explorer.confirmDelete": false
+}
