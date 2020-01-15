@@ -69,7 +69,6 @@ def load(filepath, cols):
     # ...but pd.read_csv() doesn't expose SAS7BDATReader's "convert_dates=False"
     # ...so only way out is to just directly create the SAS7BDATReader!
     print( "load " + str(filepath))
-    print( "load " + str(cols))
     in_reader = SAS7BDATReader(filepath, convert_dates=False, convert_text=False)
 
     # This creates a pd.DataFrame from the SAS7BDATReader object.
@@ -86,7 +85,6 @@ def sas_date_to_datetime(in_col):
     Converter function for dates in sas7bdat format.
     Automatic conversion via pd.
     """
-    print(in_col)
     out_col = pd.to_timedelta(in_col, unit="D")
     out_col += pd.Timestamp("1960-01-01")
     return out_col
@@ -114,8 +112,14 @@ def process(data, lr_date, claim_cols, personal_cols,to_int_cols):
     # Add the date of the current ISTS extract to the dataframe
     data["lr_date"] = lr_date
 
-    personal_data = data["lr_date", personal_cols]
-    claim_data = data["ppsn", "lr_date", claim_cols]
+    cols_pd = personal_cols.copy()
+    cols_pd.append("lr_date")
+    personal_data = data[cols_pd]
+
+    cols_cc =  claim_cols.copy()
+    cols_cc.append("lr_date")
+    cols_cc.append("ppsn")
+    claim_data = data[cols_cc]
 
     return personal_data, claim_data
 #
@@ -127,44 +131,44 @@ def fload(lr_dates_filenames, first=False):
         "location", "CLM_STATUS", "CLM_SUSP_DTL_REAS_CODE",
         "CDAS", "ada_code", "JobPath_Flag", "JobPathHold",
         "PERS_RATE", "ADA_AMT", "CDA_AMT", "MEANS", "EMEANS", "NEMEANS", "NET_FLAT",
-        "FUEL", "RRA", "WEEKLY_RATE",
+        "FUEL", "RRA", "WEEKLY_RATE", "Recip_flag"
     ]
     personal_cols = [
-        'date_of_birth', "sex", "nat_code", "occupation", "ppsn", "RELATED_RSI_NO",
+        'date_of_birth', "age", "sex", "nat_code", "occupation", "ppsn", "RELATED_RSI_NO"
     ]
     byte_cols = ["sex", "lr_code", "lls_code", "ppsn"]
     categorical_cols = ["sex", "lr_code", "lls_code"]
     to_int_cols = ["age", "Recip_flag", "lr_flag", "JobPath_Flag", "JobPathHold"]
     date_cols = ["clm_reg_date", "clm_comm_date", 'date_of_birth']
 
-    print("DEBUG 1")
-    personal_results = []
-    claim_results = []
-    cols = claim_cols
-    cols.extend(claim_cols)
+    personal_results = pd.DataFrame()
+    claim_results = pd.DataFrame()
+    cols_fl = personal_cols.copy()
+    cols_fl.extend(claim_cols)
     for lr_date, filepath in lr_dates_filenames.items():
         if os.path.exists(str(filepath)):
-            data = load(filepath, cols)
+            data = load(filepath, cols_fl)
             for col in date_cols:
-                print("------ " + str(col))
                 data[col] = sas_date_to_datetime(data[col])
             for col in byte_cols:
                 data[col] = decode_strings(data[col])
             personal_data, claim_data = process(data, lr_date, claim_cols, personal_cols,to_int_cols)
-            personal_results.append(personal_data)
-            claim_results.append(claim_data)
+            personal_data.to_sql("ists_personal", con=engine, if_exists="append")
+            claim_data.to_sql("ists_claims", con=engine, if_exists="append")
+            # personal_results.append(personal_data)
+            # claim_results.append(claim_data)
 
     # return personal_results, claim_results
-    if first:
-        personal_data.to_sql("ists_personal", con=engine, if_exists="replace")
-        claim_results.to_sql("ists_claims", con=engine, if_exists="replace")
-        first = False
-    # ...and otherwise add this extract to the end of out_df and the database table
-    else:
-        personal_data.to_sql("ists_personal", con=engine, if_exists="replace")
-        claim_results.to_sql("ists_claims", con=engine, if_exists="replace")
-        # out_df = concat_categorical(out_df, in_df)
-        # in_df.to_sql("ists_extracts", con=engine, if_exists="append")
+    # if first:
+    #     personal_results.to_sql("ists_personal", con=engine, if_exists="replace")
+    #     claim_results.to_sql("ists_claims", con=engine, if_exists="replace")
+    #     first = False
+    # # ...and otherwise add this extract to the end of out_df and the database table
+    # else:
+    #     personal_results.to_sql("ists_personal", con=engine, if_exists="append")
+    #     claim_results.to_sql("ists_claims", con=engine, if_exists="append")
+    #     # out_df = concat_categorical(out_df, in_df)
+    #     # in_df.to_sql("ists_extracts", con=engine, if_exists="append")
 
 #
 # # @dask.delayed
@@ -204,12 +208,12 @@ def fload(lr_dates_filenames, first=False):
 
 
 
-engine = sa.create_engine("sqlite:///C:\\Users\\MarioRomera\\repos\\data1\\jobpath.db")
+engine = sa.create_engine("sqlite:///C:\\Users\\SteveBeaney\\repos\\data1\\jobpath.db")
 metadata = sa.MetaData()
 
 
 # ists_extract_folder = Path("//cskma0294/F/ISTS/")
-ists_extract_folder = Path("C:\\Users\\MarioRomera\\repos\\data")
+ists_extract_folder = Path("C:\\Users\\SteveBeaney\\repos\\data")
 ists_extract_filepaths = list(ists_extract_folder.glob("ists_ext*.sas7bdat"))
 ists_extract_filenames = [p.name for p in ists_extract_filepaths]
 

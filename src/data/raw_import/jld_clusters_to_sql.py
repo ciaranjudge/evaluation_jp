@@ -54,7 +54,8 @@ query = """
         SELECT *
         FROM jld_q_clusters
         """
-%time df = pd.read_sql_query(query, engine)
+
+df = pd.read_sql_query(query, engine)
 
 # %%
 dt_index = pd.DatetimeIndex(df.columns)
@@ -94,7 +95,6 @@ df_long = df.reset_index()
 
 
 #%%
-rogue_rows = 
-df_long.head()
+rogue_rows = df_long.head()
 
 #%%
