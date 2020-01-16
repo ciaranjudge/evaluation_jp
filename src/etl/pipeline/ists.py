@@ -33,9 +33,8 @@ class Ists_file(data_file.Data_file):
         self.filename = self.location + "\\ists_ext_" + \
                     self.file_date.strftime("%d%b%Y").lower() + ".sas7bdat"
 
-
-    def do_process(self):
-        print( '----  begin`>' + str(datetime.datetime.now()))
+    def read(self):
+        print('----  begin`>' + str(datetime.datetime.now()))
         engine = sa.create_engine("sqlite:///" + self.db)
         conn = engine.connect()
         ists_file = self.location + "\\ists_ext_" + \
@@ -50,8 +49,8 @@ class Ists_file(data_file.Data_file):
                 data.to_sql("ists_data_tmp", con=engine, if_exists="replace")
                 self.run_sql(conn, ists_file)
             except:
-                print( 'ERROR - ' + str(ists_file) + ' failed to load')
-        print( '------  end`>' + str(datetime.datetime.now()))
+                print('ERROR - ' + str(ists_file) + ' failed to load')
+        print('------  end`>' + str(datetime.datetime.now()))
 
     def run_sql(self, conn, ists_file):
         print( '1>' + str(datetime.datetime.now()))
@@ -60,53 +59,44 @@ class Ists_file(data_file.Data_file):
         conn.execute(t)
         print( '2>' + str(datetime.datetime.now()))
         t = text("""  INSERT INTO ists_personal (date_of_birth, sex, nat_code, occupation, ppsn, RELATED_RSI_NO)      
-              select te.date_of_birth, te.sex, te.nat_code, te.occupation, te.ppsn, te.RELATED_RSI_NO
-                  from ists_data_tmp te
-                  left join ists_personal pd 
-                      on te.date_of_birth = pd.date_of_birth 
-                          and te.sex = pd.sex
-                          and te.nat_code = pd.nat_code
-                          and te.occupation = pd.occupation
-                          and te.ppsn = pd.ppsn
-                          and ((te.RELATED_RSI_NO IS NULL AND pd.RELATED_RSI_NO IS NULL) OR (te.RELATED_RSI_NO = pd.RELATED_RSI_NO))
-                where pd.ppsn IS NULL
-                group by te.date_of_birth, te.sex, te.nat_code, te.occupation, te.ppsn, te.RELATED_RSI_NO;
+                      select te.date_of_birth, te.sex, te.nat_code, te.occupation, te.ppsn, te.RELATED_RSI_NO
+                          from ists_data_tmp te
+                          left join ists_personal pd 
+                              on te.date_of_birth = pd.date_of_birth 
+                                  and te.sex = pd.sex
+                                  and te.nat_code = pd.nat_code
+                                  and te.occupation = pd.occupation
+                                  and te.ppsn = pd.ppsn
+                                  and ((te.RELATED_RSI_NO IS NULL AND pd.RELATED_RSI_NO IS NULL) OR (te.RELATED_RSI_NO = pd.RELATED_RSI_NO))
+                        where pd.ppsn IS NULL
+                        group by te.date_of_birth, te.sex, te.nat_code, te.occupation, te.ppsn, te.RELATED_RSI_NO;
             """)
         conn.execute(t)
         print( '3>' + str(datetime.datetime.now()))
-        t = text("""  insert into ists_claims ( lr_code, lr_flag, lls_code, clm_reg_date, clm_comm_date, 
+        t = text(""" 
+                       insert into ists_claims ( lr_code, lr_flag, lls_code, clm_reg_date, clm_comm_date, 
                                                      location, CLM_STATUS, CLM_SUSP_DTL_REAS_CODE, CDAS, ada_code, 
                                                      JobPath_Flag, JobPathHold, PERS_RATE, ADA_AMT, CDA_AMT, MEANS, 
                                                      EMEANS, NEMEANS, NET_FLAT, FUEL, RRA, WEEKLY_RATE, Recip_flag, 
                                                      lr_date, personal_id )         
-    select te.lr_code, te.lr_flag, te.lls_code, te.clm_reg_date, te.clm_comm_date, te.location, te.CLM_STATUS,
-            te.CLM_SUSP_DTL_REAS_CODE, te.CDAS, te.ada_code, te.JobPath_Flag, te.JobPathHold, te.PERS_RATE, 
-            te.ADA_AMT, te.CDA_AMT, te.MEANS, te.EMEANS, te.NEMEANS, te.NET_FLAT, te.FUEL, te.RRA, te.WEEKLY_RATE,
-             te.Recip_flag, te.lr_date, pd.id
-        from ists_data_tmp te
-        join ists_personal pd 
-            on te.date_of_birth = pd.date_of_birth 
-                and te.sex = pd.sex
-                and te.nat_code = pd.nat_code
-                and te.occupation = pd.occupation
-                and te.ppsn = pd.ppsn
-                and ((te.RELATED_RSI_NO IS NULL AND pd.RELATED_RSI_NO IS NULL) OR (te.RELATED_RSI_NO = pd.RELATED_RSI_NO)) """)
+                       select te.lr_code, te.lr_flag, te.lls_code, te.clm_reg_date, te.clm_comm_date, te.location, te.CLM_STATUS,
+                              te.CLM_SUSP_DTL_REAS_CODE, te.CDAS, te.ada_code, te.JobPath_Flag, te.JobPathHold, te.PERS_RATE, 
+                              te.ADA_AMT, te.CDA_AMT, te.MEANS, te.EMEANS, te.NEMEANS, te.NET_FLAT, te.FUEL, te.RRA, te.WEEKLY_RATE,
+                              te.Recip_flag, te.lr_date, pd.id
+                           from ists_data_tmp te
+                           join ists_personal pd 
+                               on te.date_of_birth = pd.date_of_birth 
+                                   and te.sex = pd.sex
+                                   and te.nat_code = pd.nat_code
+                                   and te.occupation = pd.occupation
+                                   and te.ppsn = pd.ppsn
+                                   and ((te.RELATED_RSI_NO IS NULL AND pd.RELATED_RSI_NO IS NULL) OR (te.RELATED_RSI_NO = pd.RELATED_RSI_NO)) 
+                    """)
         conn.execute(t)
         print( '4>' + str(datetime.datetime.now()))
         t = text("""  drop table ists_data_tmp """)
         conn.execute(t)
-        mtime = futil.modification_date(ists_file)
         print( '5>' + str(datetime.datetime.now()))
-        t = text("delete from load_file where file ='" +
-                 self.filename + "'")
-        conn.execute(t)
-        print( '6>' + str(datetime.datetime.now()))
-        t = text("insert into load_file (file, mod_date, load_time) values('" +
-                 self.filename +
-                 "', '" + mtime.strftime("%Y-%m-%d %H:%M:%S.%f") +
-                 "', '" + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f") + "')")
-        conn.execute(t)
-        print( '7>' + str(datetime.datetime.now()))
 
     def load(self, filepath, cols):
         data, meta = pyreadstat.read_sas7bdat(filepath, encoding='LATIN1')

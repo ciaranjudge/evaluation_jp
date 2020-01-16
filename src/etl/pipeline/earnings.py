@@ -19,20 +19,6 @@ class Earnings_file(data_file.Data_file):
         self.db = db
         self.filename = filename
 
-    def do_process(self):
-        mtime = futil.modification_date(self.filename)
-        self.read()
-        engine = sa.create_engine("sqlite:///" + self.db)
-        conn = engine.connect()
-        t = text("delete from load_file where file ='" +
-                 self.filename + "'")
-        conn.execute(t)
-        t = text("insert into load_file (file, mod_date, load_time) values('" +
-                 self.filename +
-                 "', '" + mtime.strftime("%Y-%m-%d %H:%M:%S.%f") +
-                 "', '" + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f") + "')")
-        conn.execute(t)
-
     def read(self):
         engine = sa.create_engine("sqlite:///" + self.db)
         conn = engine.connect()
@@ -54,35 +40,16 @@ class Earnings_file(data_file.Data_file):
                     l = []
                     count += 1
                     print(str(count) + " " + str(datetime.datetime.now()))
-                    if count == 3:
+                    if count >= 1:
                         break
             df = pd.DataFrame(l, columns=['RSI_NO','CON_YEAR','PAYMENT_LINE_COUNT','CONS_SOURCE_CODE','CONS_SOURCE_SECTION_CODE','NO_OF_CONS','CONS_CLASS_CODE','CONS_FROM_DATE','CONS_TO_DATE','EARNINGS_AMT','TOT_PRSI_AMT','EMPLOYER_NO','EMPLT_COUNT','EMPLT_NO','EMPLOYEE_PRSI_AMT','EMPLT_SCH_ID_NO','EMPLT_SCH_FROM_DATE','NON_CONSOLIDATABLE_IND','PAY_ERR_IND','PRSI_ERR_IND','WIES_ERR_IND','CLASS_ERR_IND','PRSI_REFUND_IND','CANCELLED_IND','CRS_SEGMENT','LA_DATE_TIME','RECORD_VERS_NO','USER_ID_CODE','PROGRAM_ID_CODE'])
             df.to_sql("earnings_" + str(count) + "_tmp", con=engine, if_exists="replace")
             count += 1
             print(str(count) + " " + str(datetime.datetime.now()))
 
-
-
-
-
-
-
-
-
-        # reader = pyreadstat.read_file_in_chunks(pyreadstat.read_sas7bdat, self.filename, chunksize=500000)
-        #
-        # count = 0
-        # for df, meta in reader:
-        #     print(str(count) + "    > " + str(datetime.datetime.now()))
-        #     df.to_sql("earnings_" + str(count) + "_tmp", con=engine, if_exists="replace")
-        #     print(str(count) + "    < " + str(datetime.datetime.now()))
-        #     print()
-        #     count += 1
-        #     if count == 2:
-        #         break
         print('-----  read >' + str(datetime.datetime.now()))
         t = text("""
-        CREATE TABLE earnings_tmp (
+CREATE TABLE earnings_tmp (
     RSI_NO                   TEXT,
     CON_YEAR                 FLOAT,
     PAYMENT_LINE_COUNT       FLOAT,
@@ -118,7 +85,7 @@ class Earnings_file(data_file.Data_file):
         for n in range(0, count):
             print(str(n) + "    > " + str(datetime.datetime.now()))
             t = text( """
-            insert into earnings_tmp (RSI_NO, CON_YEAR, PAYMENT_LINE_COUNT, CONS_SOURCE_CODE, CONS_SOURCE_SECTION_CODE, NO_OF_CONS,CONS_CLASS_CODE, CONS_FROM_DATE, CONS_TO_DATE, EARNINGS_AMT, TOT_PRSI_AMT, EMPLOYER_NO,
+insert into earnings_tmp (RSI_NO, CON_YEAR, PAYMENT_LINE_COUNT, CONS_SOURCE_CODE, CONS_SOURCE_SECTION_CODE, NO_OF_CONS,CONS_CLASS_CODE, CONS_FROM_DATE, CONS_TO_DATE, EARNINGS_AMT, TOT_PRSI_AMT, EMPLOYER_NO,
 EMPLT_COUNT, EMPLT_NO, EMPLOYEE_PRSI_AMT, EMPLT_SCH_ID_NO, EMPLT_SCH_FROM_DATE, NON_CONSOLIDATABLE_IND,PAY_ERR_IND, PRSI_ERR_IND, WIES_ERR_IND, CLASS_ERR_IND, PRSI_REFUND_IND, CANCELLED_IND, CRS_SEGMENT,
 LA_DATE_TIME, RECORD_VERS_NO, USER_ID_CODE, PROGRAM_ID_CODE)
 select RSI_NO, CON_YEAR, PAYMENT_LINE_COUNT, CONS_SOURCE_CODE, CONS_SOURCE_SECTION_CODE, NO_OF_CONS,CONS_CLASS_CODE, CONS_FROM_DATE, CONS_TO_DATE, EARNINGS_AMT, TOT_PRSI_AMT, EMPLOYER_NO,

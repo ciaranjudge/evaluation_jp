@@ -1,0 +1,23 @@
+{
+  "db": "d:\\data_test\\jobpath.db",
+  "ists": {
+    "location": "Z:\\ISTS",
+    "startDate": "2014-01-01"
+  },
+  "les": {
+    "file": "\\\\cskma0294\\F\\Evaluations\\JobPath\\LES_exclusion\\LES_New_Registrations2016-2017.xlsx"
+  },
+  "penalties": {
+    "file": "\\\\cskma0294\\F\\Management Board\\Penalty Rates\\penalties_00_latest.sas7bdat"
+  },
+  "earnings": {
+    "file": "\\\\cskma0294\\Data\\CRS\\con_year_payment_line.sas7bdat",
+    "blockSize": 2500000,
+    "blocks": 1
+  },
+  "payments": {
+    "file": "\\\\cskma0294\\F\\SH\\construction\\Construction_Oct2019\\parpall.sas7bdat",
+    "blockSize": 2500000,
+    "blocks": 1
+  }
+}

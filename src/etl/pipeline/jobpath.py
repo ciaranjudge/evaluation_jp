@@ -8,8 +8,6 @@ import penalties as penalties
 import pandas as pd
 
 
-
-
 class Ists_load(luigi.Task):
     ists_sunday = luigi.DateParameter()
     db = luigi.Parameter()

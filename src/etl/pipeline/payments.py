@@ -15,21 +15,6 @@ class Payments_file(data_file.Data_file):
         self.db = db
         self.filename = filename
 
-
-    def do_process(self):
-        mtime = futil.modification_date(self.filename)
-        self.read()
-        engine = sa.create_engine("sqlite:///" + self.db)
-        conn = engine.connect()
-        t = text("delete from load_file where file ='" +
-                 self.filename + "'")
-        conn.execute(t)
-        t = text("insert into load_file (file, mod_date, load_time) values('" +
-                 self.filename +
-                 "', '" + mtime.strftime("%Y-%m-%d %H:%M:%S.%f") +
-                 "', '" + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f") + "')")
-        conn.execute(t)
-
     def read(self):
         engine = sa.create_engine("sqlite:///" + self.db)
         conn = engine.connect()
@@ -50,27 +35,16 @@ class Payments_file(data_file.Data_file):
                     l = []
                     count += 1
                     print(str(count) + " " + str(datetime.datetime.now()))
-                    if count == 3:
+                    if count >= 1:
                         break
             df = pd.DataFrame(l, columns=['ppsn', 'Quarter', 'SCHEME_TYPE', 'AMOUNT', 'QTR', 'count'])
             df.to_sql("payments_" + str(count) + "_tmp", con=engine, if_exists="replace")
             count += 1
             print(str(count) + " " + str(datetime.datetime.now()))
 
-        # reader = pyreadstat.read_file_in_chunks(pyreadstat.read_sas7bdat, self.filename, chunksize=500000)
-        #
-        # count = 0
-        # for df, meta in reader:
-        #     print(str(count) + "    > " + str(datetime.datetime.now()))
-        #     df.to_sql("payments_" + str(count) + "_tmp", con=engine, if_exists="replace")
-        #     print(str(count) + "    < " + str(datetime.datetime.now()))
-        #     print()
-        #     count += 1
-        #     if count == 2:
-        #         break
         print('-----  read >' + str(datetime.datetime.now()))
         t = text("""
-        CREATE TABLE payments_tmp (
+CREATE TABLE payments_tmp (
     ppsn        TEXT,
     Quarter     FLOAT,
     SCHEME_TYPE TEXT,
