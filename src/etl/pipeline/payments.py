@@ -66,6 +66,8 @@ class Payments_file:
                     l = []
                     count += 1
                     print(str(count) + " " + str(datetime.datetime.now()))
+                    # if count == 4:
+                    #     break
             df = pd.DataFrame(l, columns=['ppsn', 'Quarter', 'SCHEME_TYPE', 'AMOUNT', 'QTR', 'count'])
             df.to_sql("payments_" + str(count) + "_tmp", con=engine, if_exists="replace")
             count += 1

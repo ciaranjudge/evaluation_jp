@@ -21,11 +21,11 @@ from sqlalchemy import text
 # conn = engine.connect()
 
 # chunk=1000000
-# print('>>> ' + str(datetime.datetime.now()))
-# df, meta = pyreadstat.read_sas7bdat( 'd:\\data\\parpall.sas7bdat', metadataonly=True )
-# rows = meta.number_rows
-# print( rows )
-# print('>>> ' + str(datetime.datetime.now()))
+print('>>> ' + str(datetime.datetime.now()))
+df, meta = pyreadstat.read_sas7bdat( 'd:\\data\\test_earn.sas7bdat', metadataonly=True )
+rows = meta.number_rows
+print( rows )
+print('>>> ' + str(datetime.datetime.now()))
 #
 # count = 0
 # for i in range(chunk,rows,chunk):
@@ -44,29 +44,29 @@ from sqlalchemy import text
 #     gc.collect()
 #     count += 1
 
-from sas7bdat import SAS7BDAT
-
-
-engine = sa.create_engine("sqlite:///d:\\data\\read_test.db" )
-conn = engine.connect()
-
-
-count = 0
-print(str(count) + " " + str(datetime.datetime.now()))
-c=0
-l=[]
-with SAS7BDAT('d:\\data\\parpall.sas7bdat', skip_header=True) as reader:
-    for row in reader:
-        l.append(row)
-        c+=1
-        if c > 2500000:
-            c=0
-            df = pd.DataFrame(l, columns=['ppsn','Quarter','SCHEME_TYPE','AMOUNT','QTR','count'])
-            df.to_sql("payments_" + str(count) + "_tmp", con=engine, if_exists="replace")
-            l=[]
-            count += 1
-            print(str(count) + " " + str(datetime.datetime.now()))
-    df = pd.DataFrame(l, columns=['ppsn','Quarter','SCHEME_TYPE','AMOUNT','QTR','count'])
-    df.to_sql("payments_" + str(count) + "_tmp", con=engine, if_exists="replace")
-    count += 1
-    print(str(count) + " " + str(datetime.datetime.now()))
+# from sas7bdat import SAS7BDAT
+#
+#
+# engine = sa.create_engine("sqlite:///d:\\data\\read_test.db" )
+# conn = engine.connect()
+#
+#
+# count = 0
+# print(str(count) + " " + str(datetime.datetime.now()))
+# c=0
+# l=[]
+# with SAS7BDAT('d:\\data\\parpall.sas7bdat', skip_header=True) as reader:
+#     for row in reader:
+#         l.append(row)
+#         c+=1
+#         if c > 2500000:
+#             c=0
+#             df = pd.DataFrame(l, columns=['ppsn','Quarter','SCHEME_TYPE','AMOUNT','QTR','count'])
+#             df.to_sql("payments_" + str(count) + "_tmp", con=engine, if_exists="replace")
+#             l=[]
+#             count += 1
+#             print(str(count) + " " + str(datetime.datetime.now()))
+#     df = pd.DataFrame(l, columns=['ppsn','Quarter','SCHEME_TYPE','AMOUNT','QTR','count'])
+#     df.to_sql("payments_" + str(count) + "_tmp", con=engine, if_exists="replace")
+#     count += 1
+#     print(str(count) + " " + str(datetime.datetime.now()))
