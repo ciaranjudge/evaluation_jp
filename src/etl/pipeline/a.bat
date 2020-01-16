@@ -1,1 +1,1 @@
-python  .\jobpath.py JobPathEtl --local-scheduler --st 2020-01-07 --db D:\data_test\jobpath.db --il Z:\ISTS --ea \\cskma0294\Data\CRS\con_year_payment_line.sas7bdat --pay \\cskma0294\F\SH\construction\Construction_Oct2019\parpall.sas7bdat --pen "\\cskma0294\F\Management Board\Penalty Rates\penalties_00_latest.sas7bdat" --les \\cskma0294\F\Evaluations\JobPath\LES_exclusion\LES_New_Registrations2016-2017.xlsx
+python  .\jobpath.py JobPathEtl --local-scheduler --config config.json

@@ -15,9 +15,9 @@ import data_file
 
 class Earnings_file(data_file.Data_file):
 
-    def __init__(self, db, filename):
-        self.db = db
-        self.filename = filename
+    def __init__(self, settings):
+        self.db = settings['db']
+        self.filename = settings['earnings']['file']
 
     def read(self):
         engine = sa.create_engine("sqlite:///" + self.db)

@@ -8,14 +8,12 @@ import futil as futil
 import data_file
 
 
-
-
 class Ists_file(data_file.Data_file):
 
-    def __init__(self, db, location, file_date):
-        self.db = db
-        self.location = location
-        self.file_date = file_date
+    def __init__(self, sunday, settings):
+        self.db = settings['db']
+        self.location = settings['ists']['location']
+        self.file_date = sunday
         self.claim_cols = [
             "lr_code", "lr_flag", "lls_code", "clm_reg_date", "clm_comm_date",
             "location", "CLM_STATUS", "CLM_SUSP_DTL_REAS_CODE",
@@ -55,7 +53,7 @@ class Ists_file(data_file.Data_file):
     def run_sql(self, conn, ists_file):
         print( '1>' + str(datetime.datetime.now()))
         t = text("""  delete from ists_claims 
-            where lr_date in ( select lr_date from ists_data_tmp group by lr_date ); """)
+                          where lr_date in ( select lr_date from ists_data_tmp group by lr_date ); """)
         conn.execute(t)
         print( '2>' + str(datetime.datetime.now()))
         t = text("""  INSERT INTO ists_personal (date_of_birth, sex, nat_code, occupation, ppsn, RELATED_RSI_NO)      
