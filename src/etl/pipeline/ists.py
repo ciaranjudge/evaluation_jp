@@ -5,11 +5,12 @@ import sqlalchemy as sa
 from sqlalchemy import text
 import pyreadstat
 import futil as futil
+import data_file
 
 
 
 
-class Ists_file:
+class Ists_file(data_file.Data_file):
 
     def __init__(self, db, location, file_date):
         self.db = db
@@ -29,31 +30,9 @@ class Ists_file:
         self.categorical_cols = ["sex", "lr_code", "lls_code"]
         self.to_int_cols = ["Recip_flag", "lr_flag", "JobPath_Flag", "JobPathHold"]
         self.date_cols = ["clm_reg_date", "clm_comm_date", 'date_of_birth']
-
-    def processed(self):
-        ists_file = self.location + "\\ists_ext_" + \
+        self.filename = self.location + "\\ists_ext_" + \
                     self.file_date.strftime("%d%b%Y").lower() + ".sas7bdat"
-        if os.path.isfile(ists_file):
-            engine = sa.create_engine("sqlite:///" + self.db)
-            conn = engine.connect()
-            t = text("select count(*) from load_ists where file_date='" + self.file_date.strftime(
-                "%Y-%m-%d %H:%M:%S.%f") + "'")
-            if next(conn.execute(t))[0] > 0:
-                mtime = futil.modification_date(ists_file)
-                t = text("select count(*) from load_ists where file_date='" + self.file_date.strftime(
-                    "%Y-%m-%d %H:%M:%S.%f") +
-                         "' and mod_date='" + mtime.strftime("%Y-%m-%d %H:%M:%S.%f") + "'")
-                if next(conn.execute(t))[0] > 0:
-                    return True
-                else:
-                    print("source file " + ists_file + " has been modified")
-                    return False
-            else:
-                print("source file " + ists_file + " not loaded")
-                return False
-        else:
-            print("source file " + ists_file + " not present")
-            return True
+
 
     def do_process(self):
         print( '----  begin`>' + str(datetime.datetime.now()))
@@ -118,12 +97,12 @@ class Ists_file:
         conn.execute(t)
         mtime = futil.modification_date(ists_file)
         print( '5>' + str(datetime.datetime.now()))
-        t = text("delete from load_ists where file_date ='" +
-                 self.file_date.strftime("%Y-%m-%d %H:%M:%S.%f") + "'")
+        t = text("delete from load_file where file ='" +
+                 self.filename + "'")
         conn.execute(t)
         print( '6>' + str(datetime.datetime.now()))
-        t = text("insert into load_ists (file_date, mod_date, load_time) values('" +
-                 self.file_date.strftime("%Y-%m-%d %H:%M:%S.%f") +
+        t = text("insert into load_file (file, mod_date, load_time) values('" +
+                 self.filename +
                  "', '" + mtime.strftime("%Y-%m-%d %H:%M:%S.%f") +
                  "', '" + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f") + "')")
         conn.execute(t)

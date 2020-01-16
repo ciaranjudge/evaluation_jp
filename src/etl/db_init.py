@@ -4,68 +4,12 @@ import pandas as pd
 
 
 # engine = create_engine('sqlite:///\\\\cskma0294\\F\\Evaluations\data\\jobpath.db', echo = False)
-engine = create_engine('sqlite:///d:\\data\\jp_pl.db', echo = False)
+engine = create_engine('sqlite:///D:\\data_test\\jobpath.db', echo = False)
 conn = engine.connect()
 
-# sql_DF = pd.read_sql(" select *                                            "+
-#                      "    from ists_claims c                               "+
-#                      "    join ists_personal p                             "+
-#                      "       on c.personal_id=p.id                         "+
-#                      "    where lr_date = '2020-01-03' and occupation=10   ",
-#                      con=engine)
-# print(sql_DF.head(3))
-
-# t = text("""CREATE TABLE load_ists (
-#                 id         INTEGER PRIMARY KEY AUTOINCREMENT,
-#                 file_date  DATETIME,
-#                 mod_date   DATETIME,
-#                 load_time  DATETIME
-#             )"""
-# )
-# conn.execute(t)
 
 
-# t = text("""CREATE TABLE load_earnings (
-#                 id         INTEGER PRIMARY KEY AUTOINCREMENT,
-#                 file       TEXT,
-#                 mod_date   DATETIME,
-#                 load_time  DATETIME
-#             )"""
-# )
-# conn.execute(t)
-#
-#
-# t = text("""CREATE TABLE load_payments (
-#                 id         INTEGER PRIMARY KEY AUTOINCREMENT,
-#                 file       TEXT,
-#                 mod_date   DATETIME,
-#                 load_time  DATETIME
-#             )"""
-# )
-# conn.execute(t)
-#
-#
-# t = text("""CREATE TABLE load_penalties (
-#                 id         INTEGER PRIMARY KEY AUTOINCREMENT,
-#                 file       TEXT,
-#                 mod_date   DATETIME,
-#                 load_time  DATETIME
-#             )"""
-# )
-# conn.execute(t)
-#
-#
-# t = text("""CREATE TABLE load_les (
-#                 id         INTEGER PRIMARY KEY AUTOINCREMENT,
-#                 file       TEXT,
-#                 mod_date   DATETIME,
-#                 load_time  DATETIME
-#             )"""
-# )
-# conn.execute(t)
-#
-#
-# t = text("""CREATE TABLE load_jobpath (
+# t = text("""CREATE TABLE load_file (
 #                 id         INTEGER PRIMARY KEY AUTOINCREMENT,
 #                 file       TEXT,
 #                 mod_date   DATETIME,
@@ -74,6 +18,8 @@ conn = engine.connect()
 # )
 # conn.execute(t)
 
+#
+#
 # t = text("""
 # CREATE TABLE earnings (
 #     id                       INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -109,7 +55,7 @@ conn = engine.connect()
 # )
 #         """)
 # conn.execute(t)
-
+#
 # t = text("""
 # CREATE TABLE payments (
 #     id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -122,8 +68,8 @@ conn = engine.connect()
 # )
 #         """)
 # conn.execute(t)
-
-
+#
+#
 # t = text("""CREATE TABLE ists_personal (
 #                 id             INTEGER PRIMARY KEY AUTOINCREMENT,
 #                 date_of_birth  DATETIME,
@@ -137,7 +83,7 @@ conn = engine.connect()
 # conn.execute(t)
 #
 #
-
+#
 # t= text("""
 # CREATE TABLE les (
 #     id           INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -148,51 +94,51 @@ conn = engine.connect()
 # )
 # """)
 # conn.execute(t)
-
-
-
-t= text("""
-CREATE TABLE penalties (
-    id                     INTEGER PRIMARY KEY AUTOINCREMENT,
-    ppsn                   TEXT,
-    sex                    TEXT,
-    age_penstart           FLOAT,
-    life_event_date        DATE,
-    location               TEXT,
-    loc_div                TEXT,
-    marital_status         TEXT,
-    marital_group          TEXT,
-    nat_code               TEXT,
-    nat_detail             TEXT,
-    nat_group              TEXT,
-    occ_group              TEXT,
-    occupation             FLOAT,
-    ada_code               TEXT,
-    spouse                 TEXT,
-    cda_number             FLOAT,
-    cdas                   TEXT,
-    startdate              DATE,
-    Extractdate            DATE,
-    pendur                 FLOAT,
-    duration               TEXT,
-    status                 TEXT,
-    clm_code               TEXT,
-    clm_comm_date          DATE,
-    clm_end_date           DATE,
-    rra                    TEXT,
-    LO_office              TEXT,
-    RRB                    FLOAT,
-    CLM_SUSP_DTL_REAS_CODE TEXT
-)
-""")
-conn.execute(t)
-
-
-
-
-
-
-
+#
+#
+#
+# t= text("""
+# CREATE TABLE penalties (
+#     id                     INTEGER PRIMARY KEY AUTOINCREMENT,
+#     ppsn                   TEXT,
+#     sex                    TEXT,
+#     age_penstart           FLOAT,
+#     life_event_date        DATE,
+#     location               TEXT,
+#     loc_div                TEXT,
+#     marital_status         TEXT,
+#     marital_group          TEXT,
+#     nat_code               TEXT,
+#     nat_detail             TEXT,
+#     nat_group              TEXT,
+#     occ_group              TEXT,
+#     occupation             FLOAT,
+#     ada_code               TEXT,
+#     spouse                 TEXT,
+#     cda_number             FLOAT,
+#     cdas                   TEXT,
+#     startdate              DATE,
+#     Extractdate            DATE,
+#     pendur                 FLOAT,
+#     duration               TEXT,
+#     status                 TEXT,
+#     clm_code               TEXT,
+#     clm_comm_date          DATE,
+#     clm_end_date           DATE,
+#     rra                    TEXT,
+#     LO_office              TEXT,
+#     RRB                    FLOAT,
+#     CLM_SUSP_DTL_REAS_CODE TEXT
+# )
+# """)
+# conn.execute(t)
+#
+#
+#
+#
+#
+#
+#
 # t = text("""CREATE TABLE ists_claims (
 #                     id             INTEGER PRIMARY KEY AUTOINCREMENT,
 #                     lr_code                TEXT,
@@ -223,5 +169,5 @@ conn.execute(t)
 #                 )"""
 #           )
 # conn.execute(t)
-
-
+#
+#
