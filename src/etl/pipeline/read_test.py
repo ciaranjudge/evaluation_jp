@@ -182,40 +182,60 @@ conn = engine.connect()
 # conn.execute(t)
 
 
+#
+# headings = ['RSI_NO','CON_YEAR','PAYMENT_LINE_COUNT','CONS_SOURCE_CODE','CONS_SOURCE_SECTION_CODE','NO_OF_CONS','CONS_CLASS_CODE','CONS_FROM_DATE','CONS_TO_DATE','EARNINGS_AMT','TOT_PRSI_AMT','EMPLOYER_NO','EMPLT_COUNT','EMPLT_NO','EMPLOYEE_PRSI_AMT','EMPLT_SCH_ID_NO','EMPLT_SCH_FROM_DATE','NON_CONSOLIDATABLE_IND','PAY_ERR_IND','PRSI_ERR_IND','WIES_ERR_IND','CLASS_ERR_IND','PRSI_REFUND_IND','CANCELLED_IND','CRS_SEGMENT','LA_DATE_TIME','RECORD_VERS_NO','USER_ID_CODE','PROGRAM_ID_CODE']
+# types= {'RSI_NO': 'str',        'CON_YEAR':'float',
+#         'PAYMENT_LINE_COUNT':'float',       'CONS_SOURCE_CODE': 'str',       'CONS_SOURCE_SECTION_CODE': 'str',
+#         'NO_OF_CONS':'float',       'CONS_CLASS_CODE':'str',       'CONS_FROM_DATE':'float',
+#         'CONS_TO_DATE':'float',       'EARNINGS_AMT':'float',       'TOT_PRSI_AMT':'float',
+#         'EMPLOYER_NO': 'str',       'EMPLT_COUNT':'float',       'EMPLT_NO': 'str',
+#         'EMPLOYEE_PRSI_AMT':'float',       'EMPLT_SCH_ID_NO': 'str',       'EMPLT_SCH_FROM_DATE':'float',
+#         'NON_CONSOLIDATABLE_IND': 'str',       'PAY_ERR_IND': 'str',       'PRSI_ERR_IND': 'str',
+#         'WIES_ERR_IND': 'str',       'CLASS_ERR_IND': 'str',       'PRSI_REFUND_IND': 'str',
+#         'CANCELLED_IND': 'str',       'CRS_SEGMENT':'float',       'LA_DATE_TIME':'float',
+#         'RECORD_VERS_NO':'float',       'USER_ID_CODE':'float',       'PROGRAM_ID_CODE': 'str'}
+#
+# print(" start " + str(datetime.datetime.now()))
+# c=0
+# count=0
+# files={}
+# with SAS7BDAT('d:\\data\\con_year_payment_line.sas7bdat', skip_header=True) as reader:
+#     for row in reader:
+#         if not( int(row[1]) in files.keys()):
+#             files[int(row[1])] = open("d:\\data\\earnings_"+str(int(row[1]))+".txt", "wt")
+#             files[int(row[1])].write(','.join(map(str, headings)) + "\n")
+#         files[int(row[1])].write(','.join(map(str ,row))+"\n")
+#         c += 1
+#         if c >= 1000000:
+#             count += 1
+#             c = 0;
+#             print("     " + str(count) + "   "+ str(datetime.datetime.now()))
+#             # if count >= 3:
+#             #     break
+#     print("     " + str(count) + "   " + str(datetime.datetime.now()))
+#     files = load_files(files)
+#     print( "   end " + str(datetime.datetime.now()))
+#
 
-headings = ['RSI_NO','CON_YEAR','PAYMENT_LINE_COUNT','CONS_SOURCE_CODE','CONS_SOURCE_SECTION_CODE','NO_OF_CONS','CONS_CLASS_CODE','CONS_FROM_DATE','CONS_TO_DATE','EARNINGS_AMT','TOT_PRSI_AMT','EMPLOYER_NO','EMPLT_COUNT','EMPLT_NO','EMPLOYEE_PRSI_AMT','EMPLT_SCH_ID_NO','EMPLT_SCH_FROM_DATE','NON_CONSOLIDATABLE_IND','PAY_ERR_IND','PRSI_ERR_IND','WIES_ERR_IND','CLASS_ERR_IND','PRSI_REFUND_IND','CANCELLED_IND','CRS_SEGMENT','LA_DATE_TIME','RECORD_VERS_NO','USER_ID_CODE','PROGRAM_ID_CODE']
-types= {'RSI_NO': 'str',        'CON_YEAR':'float',
-        'PAYMENT_LINE_COUNT':'float',       'CONS_SOURCE_CODE': 'str',       'CONS_SOURCE_SECTION_CODE': 'str',
-        'NO_OF_CONS':'float',       'CONS_CLASS_CODE':'str',       'CONS_FROM_DATE':'float',
-        'CONS_TO_DATE':'float',       'EARNINGS_AMT':'float',       'TOT_PRSI_AMT':'float',
-        'EMPLOYER_NO': 'str',       'EMPLT_COUNT':'float',       'EMPLT_NO': 'str',
-        'EMPLOYEE_PRSI_AMT':'float',       'EMPLT_SCH_ID_NO': 'str',       'EMPLT_SCH_FROM_DATE':'float',
-        'NON_CONSOLIDATABLE_IND': 'str',       'PAY_ERR_IND': 'str',       'PRSI_ERR_IND': 'str',
-        'WIES_ERR_IND': 'str',       'CLASS_ERR_IND': 'str',       'PRSI_REFUND_IND': 'str',
-        'CANCELLED_IND': 'str',       'CRS_SEGMENT':'float',       'LA_DATE_TIME':'float',
-        'RECORD_VERS_NO':'float',       'USER_ID_CODE':'float',       'PROGRAM_ID_CODE': 'str'}
+
 
 print(" start " + str(datetime.datetime.now()))
 c=0
 count=0
-files={}
+
+
+result_file = open("output.csv",'wb')
+wr = csv.writer(result_file, dialect='excel')
 with SAS7BDAT('d:\\data\\con_year_payment_line.sas7bdat', skip_header=True) as reader:
     for row in reader:
-        if not( int(row[1]) in files.keys()):
-            files[int(row[1])] = open("d:\\data\\earnings_"+str(int(row[1]))+".txt", "wt")
-            files[int(row[1])].write(','.join(map(str, headings)) + "\n")
-        files[int(row[1])].write(','.join(map(str ,row))+"\n")
+            fout.
         c += 1
         if c >= 1000000:
             count += 1
             c = 0;
             print("     " + str(count) + "   "+ str(datetime.datetime.now()))
-            # if count >= 3:
-            #     break
     print("     " + str(count) + "   " + str(datetime.datetime.now()))
-    files = load_files(files)
     print( "   end " + str(datetime.datetime.now()))
-
 
 
 
