@@ -1,4 +1,4 @@
-name: {{cookiecutter.repo_name}}
+name: evaluation_jp
 
 channels:
   - conda-forge
@@ -6,8 +6,8 @@ channels:
 
 dependencies:
   # Python
-  - python=3.7 # Want to use 3.8 but some packages not ready yet
-
+  - python=3.8 
+  
   # Formatting, refactoring, linting
   - black # Auto code formatter https://github.com/psf/black
   - pylint # Static code analysis https://www.pylint.org/
@@ -22,6 +22,7 @@ dependencies:
   - pytest
 
   # Jupyter 
+  - ipykernel
   - ipywidgets
   - jupyterlab
   - jupytext
@@ -39,6 +40,7 @@ dependencies:
   - pandas
   - scikit-learn
   - scipy
+  - sqlalchemy
 
   # I/O
   - beautifulsoup4
