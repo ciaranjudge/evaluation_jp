@@ -1,4 +1,4 @@
 {
-    "python.pythonPath": "C:\\Users\\ciaranjudge\\AppData\\Local\\Continuum\\miniconda3\\envs\\evaluation_jp\\python.exe",
+    "python.pythonPath": "C:\\Users\\hughcronin\\AppData\\Local\\Continuum\\miniconda3\\envs\\evaluation_jp\\python.exe",
     "python.formatting.provider": "black"
 }
