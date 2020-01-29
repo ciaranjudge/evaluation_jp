@@ -1,19 +1,18 @@
 from abc import ABCMeta, abstractmethod
 
 import pandas as pd
-import futil
+import futil as futil
 import datetime
 import os
 import sqlalchemy as sa
 from sqlalchemy import text
-from sas7bdat import SAS7BDAT
 
 
 class Data_file(metaclass=ABCMeta):
 
     def processed(self):
         if os.path.isfile(self.filename):
-            engine = sa.create_engine("sqlite:///" + self.db)
+            engine = sa.create_engine( self.db)
             conn = engine.connect()
             t = text("select count(*) from load_file where file='" + self.filename + "'")
             if next(conn.execute(t))[0] > 0:
@@ -35,7 +34,7 @@ class Data_file(metaclass=ABCMeta):
     def do_process(self):
         mtime = futil.modification_date(self.filename)
         self.read()
-        engine = sa.create_engine("sqlite:///" + self.db)
+        engine = sa.create_engine( self.db)
         conn = engine.connect()
         t = text("delete from load_file where file ='" +
                  self.filename + "'")

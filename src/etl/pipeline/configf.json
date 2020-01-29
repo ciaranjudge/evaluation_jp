@@ -1,0 +1,49 @@
+{
+  "db": "sqlite:///d:\\data\\wwld.db",
+  "ists": {
+    "location": "\\\\cskma0294\\F\\ISTS",
+    "startDate": "2014-01-01"
+  },
+  "les": {
+    "file": "\\\\cskma0294\\F\\Evaluations\\JobPath\\LES_exclusion\\LES_New_Registrations2016-2017.xlsx"
+  },
+  "penalties": {
+    "file": "\\\\cskma0294\\F\\Management Board\\Penalty Rates\\penalties_00_latest.sas7bdat"
+  },
+  "earnings": {
+    "file": "\\\\cskma0294\\Data\\CRS\\con_year_payment_line.sas7bdat",
+    "workdir": "d:\\data\\load\\",
+    "blocksize": 1000000,
+    "blocks": 0
+  },
+  "payments": {
+    "file": "\\\\cskma0294\\F\\SH\\construction\\Construction_Oct2019\\parpall.sas7bdat",
+    "workdir": "d:\\data\\load\\",
+    "blocksize": 1000000,
+    "blocks": 0
+  },
+  "plss": {
+    "file": "\\\\cskma0294\\F\\PLSS\\PLSS_deaspsample.dta"
+  },
+  "jobpath": {
+    "location": "\\\\cskma0294\\F\\Evaluations\\JobPath\\Python\\Analysis\\JPOutcomes",
+    "pattern": "\\linkedclaims*full_clusters_jp_summary_status.csv"
+  },
+  "pay_old": {
+    "location": "\\\\cskma0294\\F\\Evaluations\\JobPath\\Python\\Data\\payments_2006_2013",
+    "workdir": "d:\\data\\load\\",
+    "pattern": "\\payee_pmt_line_*.sas7bdat",
+    "blocksize": 1000000,
+    "blocks": 0
+ }
+}
+
+
+
+
+
+
+
+
+
+

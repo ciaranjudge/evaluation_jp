@@ -10,6 +10,9 @@ from sqlalchemy import text
 from sas7bdat import SAS7BDAT
 import data_file
 import shutil
+import luigi
+import csv
+from os import path
 
 
 class Earnings_file(data_file.Data_file):
@@ -18,6 +21,8 @@ class Earnings_file(data_file.Data_file):
         self.db = settings['db']
         self.filename = settings['earnings']['file']
         self.dir = settings['earnings']['workdir']
+        if not(os.path.exists(str( self.dir))):
+            os.makedirs(self.dir, exist_ok=True)
 
     def insertData(self, diff_file):
         headings = ['RSI_NO', 'CON_YEAR', 'PAYMENT_LINE_COUNT', 'CONS_SOURCE_CODE', 'CONS_SOURCE_SECTION_CODE',
@@ -26,7 +31,7 @@ class Earnings_file(data_file.Data_file):
                     'EMPLT_SCH_FROM_DATE', 'NON_CONSOLIDATABLE_IND', 'PAY_ERR_IND', 'PRSI_ERR_IND', 'WIES_ERR_IND',
                     'CLASS_ERR_IND', 'PRSI_REFUND_IND', 'CANCELLED_IND', 'CRS_SEGMENT', 'LA_DATE_TIME',
                     'RECORD_VERS_NO', 'USER_ID_CODE', 'PROGRAM_ID_CODE']
-        engine = sa.create_engine('sqlite:///' + self.db, echo=False)
+        engine = sa.create_engine( self.db, echo=False)
         conn = engine.connect()
         c = 0
         count = 0
@@ -57,7 +62,7 @@ class Earnings_file(data_file.Data_file):
                     'EMPLT_SCH_FROM_DATE', 'NON_CONSOLIDATABLE_IND', 'PAY_ERR_IND', 'PRSI_ERR_IND', 'WIES_ERR_IND',
                     'CLASS_ERR_IND', 'PRSI_REFUND_IND', 'CANCELLED_IND', 'CRS_SEGMENT', 'LA_DATE_TIME',
                     'RECORD_VERS_NO', 'USER_ID_CODE', 'PROGRAM_ID_CODE']
-        engine = sa.create_engine('sqlite:///' + self.db, echo=False)
+        engine = sa.create_engine( self.db, echo=False)
         conn = engine.connect()
         t = text("""
         CREATE TABLE earningst (
@@ -172,3 +177,159 @@ class Earnings_file(data_file.Data_file):
         os.remove( self.dir+'diff.txt')
         shutil.move(self.dir+'output-sort.txt', self.dir+'earn_current.txt')
 
+
+class Earnings_txt(luigi.Task):
+    settings = luigi.Parameter()
+
+    def requires(self):
+        return []
+
+    def complete(self):
+        self.dir = self.settings['earnings']['workdir']
+        return path.exists(self.dir+'output.txt')
+
+    def creatNewEarn(self, source, filename):
+        print(" start " + str(datetime.datetime.now()))
+        c = 0
+        count = 0
+        result_file = open(filename, 'wt')
+        wr = csv.writer(result_file, dialect='excel')
+        with SAS7BDAT(source, skip_header=True) as reader:
+            for row in reader:
+                wr.writerow(row)
+                c += 1
+                if c >= int(self.settings['earnings']['blocksize']):
+                    print("     " + str(count) + "   " + str(datetime.datetime.now()))
+                    count += 1
+                    blocks = int(self.settings['earnings']['blocks'])
+                    if blocks>0 and count > blocks:
+                        break
+                    c = 0;
+        print("     " + str(count) + "   " + str(datetime.datetime.now()))
+        print("   end " + str(datetime.datetime.now()))
+        result_file.close()
+
+    def run(self):
+        print('Creating new text')
+        self.creatNewEarn(self.settings['earnings']['file'], self.dir+'\\output.txt')
+
+
+class Earnings_sort(luigi.Task):
+    settings = luigi.Parameter()
+
+    def requires(self):
+        yield Earnings_txt(self.settings)
+
+    def complete(self):
+        self.dir = self.settings['earnings']['workdir']
+        return path.exists(self.dir+'output-sort.txt')
+
+    def merge_sort(self, infile, outfile, dir):
+        chunks = []
+        print(" start " + str(datetime.datetime.now()))
+        count = 0
+        c = 0
+        outtfile = open(dir + '\\temp_' + str(count) + '.txt', 'wt')
+        with open(infile, 'rt') as inf:
+            for l in inf:
+                if c >= int(self.settings['earnings']['blocksize']):
+                    outtfile.close()
+                    os.system('sort < ' + self.dir + '\\temp_' + str(count) + '.txt  > ' +  self.dir + '\\temp_' + str( count) + '_sort.txt')
+                    print("     " + str(count) + "   " + str(datetime.datetime.now()))
+                    chunks.append(self.dir + '\\temp_' + str(count) + '_sort.txt')
+                    count += 1
+                    outtfile = open(self.dir + '\\temp_' + str(count) + '.txt', 'wt')
+                    c = 0
+                if (len(l) > 1):
+                    outtfile.write(l.strip() + '\n')
+                    c += 1
+        outtfile.close()
+        if c > 0:
+            os.system( 'sort < ' +  self.dir + '\\temp_' + str(count) + '.txt  > ' +  self.dir + '\\temp_' + str(count) + '_sort.txt')
+            chunks.append(self.dir +'temp_' + str(count) + '_sort.txt')
+        print("     " + str(count) + "   " + str(datetime.datetime.now()))
+        print("   end " + str(datetime.datetime.now()))
+        sfiles = []
+        slines = []
+        for ff in chunks:
+            f = open(ff, 'rt')
+            sfiles.append(f)
+            li = f.readline()
+            if li:
+                slines.append(li)
+            else:
+                slines.append('zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz')
+        fout = open(outfile, 'wt')
+        while True:
+            ind = slines.index(min(slines))
+            if slines[ind] == 'zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz':
+                break
+            fout.write(slines[ind])
+            slines[ind] = sfiles[ind].readline()
+            if not (slines[ind]):
+                slines[ind] = 'zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz'
+        fout.close()
+
+    def run(self):
+        print('Sorting new text')
+        self.merge_sort(self.dir+'output.txt', self.dir+'output-sort.txt', self.dir)
+        for root, dirs, files in os.walk(self.dir, topdown=False):
+            for name in files:
+                if 'temp' in name:
+                    os.remove(os.path.join(root, name))
+        os.remove(self.dir+'\\output.txt')
+
+
+class Earnings_diff(luigi.Task):
+    settings = luigi.Parameter()
+
+    def requires(self):
+        yield Earnings_sort(self.settings)
+
+    def complete(self):
+        self.dir = self.settings['earnings']['workdir']
+        return path.exists(self.dir+'diff.txt')
+
+    def createDiff(self, old_file, new_file, diff_file):
+        if not(path.exists(old_file)):
+            print( "No Earnings current file. Creating empty file, Deleting earnings table data")
+            f=open(old_file,'wt')
+            f.close()
+            engine = sa.create_engine(self.settings['db'], echo=False)
+            conn=engine.connect()
+            t=text("delete from earnings")
+            conn.execute(t)
+        c = 0
+        count = 0
+        print(" start " + str(datetime.datetime.now()))
+        fout = open(diff_file, 'wt')
+        fnew = open(new_file, 'rt')
+        fold = open(old_file, 'rt')
+        o = fold.readline()
+        n = fnew.readline()
+        while o or n:
+            if c >= int(self.settings['earnings']['blocksize']):
+                print("     " + str(count) + "   " + str(datetime.datetime.now()))
+                count += 1
+                c = 0
+            if not (o) or n < o:
+                c += 1
+                fout.write('>' + n)
+                n = fnew.readline()
+            elif not (n) or o < n:
+                c += 1
+                fout.write('<' + o)
+                o = fold.readline()
+            elif o == n:
+                c += 2
+                n = fnew.readline()
+                o = fold.readline()
+        fnew.close()
+        fold.close()
+        fout.close()
+        print("     " + str(count) + "   " + str(datetime.datetime.now()))
+        print("   end " + str(datetime.datetime.now()))
+
+    def run(self):
+        print('create load diff file')
+        self.createDiff(self.dir+'earn_current.txt', self.dir+'output-sort.txt', self.dir+'diff.txt')

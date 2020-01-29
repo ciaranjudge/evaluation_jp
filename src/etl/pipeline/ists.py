@@ -33,7 +33,7 @@ class Ists_file(data_file.Data_file):
 
     def read(self):
         print('----  begin`>' + str(datetime.datetime.now()))
-        engine = sa.create_engine("sqlite:///" + self.db)
+        engine = sa.create_engine(self.db)
         conn = engine.connect()
         ists_file = self.location + "\\ists_ext_" + \
                     self.file_date.strftime("%d%b%Y").lower() + ".sas7bdat"
@@ -53,18 +53,25 @@ class Ists_file(data_file.Data_file):
     def run_sql(self, conn, ists_file):
         print( '1>' + str(datetime.datetime.now()))
         t = text("""  delete from ists_claims 
-                          where lr_date in ( select lr_date from ists_data_tmp group by lr_date ); """)
+                          where lr_date in ( select lr_date from ists_data_tmp group by lr_date ) 
+                 """)
+        conn.execute(t)
+        print( '1.1>' + str(datetime.datetime.now()))
+        t = text(""" CREATE INDEX idx_ists_t_1 ON ists_data_tmp (
+                        ppsn,date_of_birth,sex,nat_code,occupation
+                     )
+                 """)
         conn.execute(t)
         print( '2>' + str(datetime.datetime.now()))
         t = text("""  INSERT INTO ists_personal (date_of_birth, sex, nat_code, occupation, ppsn, RELATED_RSI_NO)      
                       select te.date_of_birth, te.sex, te.nat_code, te.occupation, te.ppsn, te.RELATED_RSI_NO
                           from ists_data_tmp te
                           left join ists_personal pd 
-                              on te.date_of_birth = pd.date_of_birth 
+                              on te.ppsn = pd.ppsn
+                                  and te.date_of_birth = pd.date_of_birth 
                                   and te.sex = pd.sex
                                   and te.nat_code = pd.nat_code
                                   and te.occupation = pd.occupation
-                                  and te.ppsn = pd.ppsn
                                   and ((te.RELATED_RSI_NO IS NULL AND pd.RELATED_RSI_NO IS NULL) OR (te.RELATED_RSI_NO = pd.RELATED_RSI_NO))
                         where pd.ppsn IS NULL
                         group by te.date_of_birth, te.sex, te.nat_code, te.occupation, te.ppsn, te.RELATED_RSI_NO;
@@ -83,11 +90,11 @@ class Ists_file(data_file.Data_file):
                               te.Recip_flag, te.lr_date, pd.id
                            from ists_data_tmp te
                            join ists_personal pd 
-                               on te.date_of_birth = pd.date_of_birth 
+                               on te.ppsn = pd.ppsn
+                                   and te.date_of_birth = pd.date_of_birth 
                                    and te.sex = pd.sex
                                    and te.nat_code = pd.nat_code
                                    and te.occupation = pd.occupation
-                                   and te.ppsn = pd.ppsn
                                    and ((te.RELATED_RSI_NO IS NULL AND pd.RELATED_RSI_NO IS NULL) OR (te.RELATED_RSI_NO = pd.RELATED_RSI_NO)) 
                     """)
         conn.execute(t)

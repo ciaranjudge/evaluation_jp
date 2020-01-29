@@ -13,7 +13,7 @@ class Penalties_file(data_file.Data_file):
         self.filename = settings['penalties']['file']
 
     def read(self):
-        engine = sa.create_engine("sqlite:///" + self.db)
+        engine = sa.create_engine( self.db)
         conn = engine.connect()
         print( '----  begin >' + str(datetime.datetime.now()))
         print('-----  read >' + str(datetime.datetime.now()))
