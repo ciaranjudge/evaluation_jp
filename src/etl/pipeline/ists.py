@@ -58,7 +58,7 @@ class Ists_file(data_file.Data_file):
         conn.execute(t)
         print( '1.1>' + str(datetime.datetime.now()))
         t = text(""" CREATE INDEX idx_ists_t_1 ON ists_data_tmp (
-                        ppsn,date_of_birth,sex,nat_code,occupation
+                        ppsn
                      )
                  """)
         conn.execute(t)

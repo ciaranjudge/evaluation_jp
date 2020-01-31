@@ -21,7 +21,7 @@ class Penalties_file(data_file.Data_file):
         df.to_sql("penalties_tmp", con=engine, if_exists="replace")
         print('----  merge >' + str(datetime.datetime.now()))
         t = text( """
-                      insert into penalties (    ppsn,sex,age_penstart,life_event_date,location,loc_div,marital_status,marital_group,nat_code ,nat_detail,nat_group,occ_group, occupation,ada_code,spouse,cda_number,cdas,startdate,Extractdate,pendur,duration,status,clm_code,clm_comm_date,clm_end_date,rra,LO_office,RRB,CLM_SUSP_DTL_REAS_CODE)
+                      insert into penalties ( ppsn,sex,age_penstart,life_event_date,location,loc_div,marital_status,marital_group,nat_code ,nat_detail,nat_group,occ_group, occupation,ada_code,spouse,cda_number,cdas,startdate,Extractdate,pendur,duration,status,clm_code,clm_comm_date,clm_end_date,rra,LO_office,RRB,CLM_SUSP_DTL_REAS_CODE)
                       select te.ppsn, te.sex,te.age_penstart,te.life_event_date,te.location,te.loc_div,te.marital_status,te.marital_group,te.nat_code ,te.nat_detail,te.nat_group,te.occ_group,
 	                      te.occupation,te.ada_code,te.spouse,te.cda_number,te.cdas,te.startdate,te.Extractdate,te.pendur,te.duration,te.status,te.clm_code,te.clm_comm_date,te.clm_end_date,te.rra,
 	                      te.LO_office,te.RRB,te.CLM_SUSP_DTL_REAS_CODE

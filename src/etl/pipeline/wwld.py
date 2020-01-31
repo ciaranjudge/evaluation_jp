@@ -110,8 +110,8 @@ class PaymentsOld_load(luigi.Task):
     settings = luigi.Parameter()
 
     def requires(self):
-        # return []
-        yield paymentsOld.PaymentsOld_diff(self.settings)
+        return []
+        # yield paymentsOld.PaymentsOld_diff(self.settings)
 
     def complete(self):
         self.paymentsOld = paymentsOld.PaymentsOld_file(self.settings)
@@ -120,6 +120,7 @@ class PaymentsOld_load(luigi.Task):
     def run(self):
         self.paymentsOld.do_process()
         # pass
+
 
 class Earnings_load(luigi.Task):
     settings = luigi.Parameter()
@@ -493,12 +494,6 @@ class WWLDEtl(luigi.Task):
             t = text("""
             CREATE INDEX idx_ists_p_ppsn ON ists_personal (
                 ppsn
-            )
-            """)
-            conn.execute(t)
-            t = text("""
-            CREATE INDEX idx_ists_p_full1 ON ists_personal (
-                ppsn,date_of_birth,sex,nat_code,occupation
             )
             """)
             conn.execute(t)

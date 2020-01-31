@@ -165,14 +165,70 @@ class PaymentsOld_file(data_file.Data_file):
         print("   end " + str(datetime.datetime.now()))
 
     def read(self):
-        print('making inserts')
-        self.insertData(self.dir+'diff-payold.txt')
+        # print('making inserts')
+        # self.insertData(self.dir+'diff-payold.txt')
+        #
+        # print('making deletes')
+        # self.deleteData( self.dir+'diff-payold.txt')
+        # os.remove( self.dir+'diff-payold.txt')
+        # shutil.move(self.dir + 'output-payold-sort.txt', self.dir + 'payold_current.txt')
 
-        print('making deletes')
-        self.deleteData( self.dir+'diff-payold.txt')
-        os.remove( self.dir+'diff-payold.txt')
-        shutil.move(self.dir + 'output-payold-sort.txt', self.dir + 'payold_current.txt')
-        pass
+        engine = sa.create_engine(self.db)
+        conn = engine.connect()
+        print( '1>   ' + str(datetime.datetime.now()))
+        t = text("drop table pay_old" )
+        conn.execute(t)
+        t = text("""CREATE TABLE pay_old (
+                        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                        CLMT_RSI_NO  TEXT,
+                        CLM_SCH_CODE TEXT,
+                        CLM_REG_DATE DATETIME,
+                        ISSUE_DATE   DATETIME,
+                        STAT_CODE    TEXT,
+                        AMOUNT       FLOAT,
+                        year         FLOAT )
+                  """ )
+        conn.execute(t)
+        print( '2>   ' + str(datetime.datetime.now()))
+        total = 0
+        for source in glob.glob(self.settings['pay_old']['location'] + self.settings['pay_old']['pattern'])[::-1]:
+            i = source.index( 'payee_pmt_line_' )
+            year = int(source[i+15:i+19])
+            print(year)
+            count = 0
+            c = 0
+            rows = []
+            with SAS7BDAT(source, skip_header=True) as reader:
+                for row in reader:
+                    c += 1
+                    dict1 = {}
+                    dict1['CLMT_RSI_NO'] = row[0]
+                    dict1['CLM_SCH_CODE'] = row[1]
+                    dict1['CLM_REG_DATE'] = row[2]
+                    dict1['ISSUE_DATE'] = row[3]
+                    dict1['STAT_CODE'] = row[4]
+                    dict1['AMOUNT'] = float(row[5])
+                    dict1['year'] = int(year)
+                    rows.append(dict1)
+                    if c >= int(self.settings['pay_old']['blocksize']):
+                        df = pd.DataFrame(rows)
+                        df.to_sql("pay_old", con=engine, if_exists="append", index=False)
+                        total += c
+                        c = 0
+                        print( str(count) + "   " + str(total) + '>   ' + str(datetime.datetime.now()))
+                        rows = []
+                        count += 1
+                        blocks = int(self.settings['pay_old']['blocks'])
+                        if blocks>0 and count > blocks:
+                            break
+                df = pd.DataFrame(rows)
+                df.to_sql("pay_old", con=engine, if_exists="append", index=False)
+                total += c
+                print( str(count) + "   " + str(total) + '>   ' + str(datetime.datetime.now()))
+        print( '3>   ' + str(datetime.datetime.now()))
+        t = text("CREATE INDEX idx_pay_old_ppsn ON pay_old ( CLMT_RSI_NO ) ")
+        conn.execute(t)
+        print( '4>   ' + str(datetime.datetime.now()))
 
 
 class PaymentsOld_txt(luigi.Task):
@@ -208,6 +264,8 @@ class PaymentsOld_txt(luigi.Task):
                             break
                         c = 0;
             print("     " + str(count) + "   " + str(datetime.datetime.now()))
+
+
         print("   end " + str(datetime.datetime.now()))
         result_file.close()
 
