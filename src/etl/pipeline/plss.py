@@ -16,6 +16,7 @@ class Plss_file(data_file.Data_file):
         print( '----  begin >' + str(datetime.datetime.now()))
         print('-----  read >' + str(datetime.datetime.now()))
         df, meta = pyreadstat.read_dta( self.filename)
+
         df.to_sql("plss_tmp", con=engine, if_exists="replace")
         print('----  merge >' + str(datetime.datetime.now()))
         t = text( """
