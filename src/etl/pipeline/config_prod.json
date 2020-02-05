@@ -1,11 +1,11 @@
 {
-  "db": "sqlite:///d:\\data_test_live\\wwld_t.db",
+  "db": "sqlite:///\\\\cskma0294\\F\\Evaluations\\data\\wwld.db",
   "pay_old": {
     "location": "\\\\cskma0294\\F\\Evaluations\\JobPath\\Python\\Data\\payments_2006_2013",
     "pattern": "\\payee_pmt_line_*.sas7bdat",
-    "workdir": "d:\\data_test_live\\load_t\\",
-    "blocksize": 10000,
-    "blocks": 3
+    "workdir": "\\\\cskma0294\\F\\Evaluations\\data\\load_t\\",
+    "blocksize": 1000000,
+    "blocks": 0
   },
   "les": {
     "file": "\\\\cskma0294\\F\\Evaluations\\JobPath\\LES_exclusion\\LES_New_Registrations2016-2017.xlsx"
@@ -26,15 +26,15 @@
   },
   "earnings": {
     "file": "\\\\cskma0294\\Data\\CRS\\con_year_payment_line.sas7bdat",
-    "workdir": "d:\\data_test_live\\load_t\\",
-    "blocksize": 10000,
-    "blocks": 3
+    "workdir": "\\\\cskma0294\\F\\Evaluations\\data\\load_t\\",
+    "blocksize": 1000000,
+    "blocks": 0
   },
   "payments": {
     "file": "\\\\cskma0294\\F\\SH\\construction\\Construction_Oct2019\\parpall.sas7bdat",
-    "workdir": "d:\\data_test_live\\load_t\\",
-    "blocksize": 10000,
-    "blocks": 3
+    "workdir": "\\\\cskma0294\\F\\Evaluations\\data\\load_t\\",
+    "blocksize": 1000000,
+    "blocks": 0
   }
 }
 

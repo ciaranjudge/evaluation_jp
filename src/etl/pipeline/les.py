@@ -1,11 +1,8 @@
 import pandas as pd
 import datetime
-import os
-import futil
 import sqlalchemy as sa
 from sqlalchemy import text
 import data_file
-import json
 
 class Les_file(data_file.Data_file):
 

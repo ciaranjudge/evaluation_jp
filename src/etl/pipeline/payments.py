@@ -1,6 +1,4 @@
 import pandas as pd
-import futil
-import pyreadstat
 import datetime
 import os
 import sqlalchemy as sa

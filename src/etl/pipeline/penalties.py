@@ -1,7 +1,6 @@
 import pyreadstat
 import datetime
-import os
-import futil
+
 import sqlalchemy as sa
 from sqlalchemy import text
 import data_file

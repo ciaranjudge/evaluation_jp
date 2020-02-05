@@ -9,14 +9,10 @@ import payments as payments
 import les as les
 import penalties as penalties
 import plss as plss
-import pay_old as pay_old
 import pandas as pd
 import json
-import os
 import glob
-from os import path
-import csv
-from sas7bdat import SAS7BDAT
+import os
 import sqlalchemy as sa
 from sqlalchemy import text
 
@@ -159,6 +155,27 @@ class WWLDEtl(luigi.Task):
         engine = sa.create_engine(db, echo=False)
         conn = engine.connect()
         try:
+            t = text("""CREATE TABLE load_file (
+                     id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                     file       TEXT,
+                     mod_date   DATETIME,
+                     load_time  DATETIME)
+                     """)
+            conn.execute(t)
+        except:
+            print("table 'load_file' already exists")
+
+        self.create_plss_sql(conn)
+        self.create_pay_old_sql(conn)
+        self.create_jobpath_sql(conn)
+        self.create_earnings_sql(conn)
+        self.create_payments_sql(conn)
+        self.create_les_sql(conn)
+        self.create_penalties_sql(conn)
+        self.create_ists_sql(conn)
+
+    def create_plss_sql(self, conn):
+        try:
             t = text("""
                         CREATE TABLE plss (
                             id                               INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -218,7 +235,7 @@ class WWLDEtl(luigi.Task):
                             hash_ppsn                        TEXT,
                             age                              FLOAT
                     );
-                """ )
+                """)
             conn.execute(t)
             t = text("""
                 CREATE INDEX idx_plss_ppsn ON plss (
@@ -229,43 +246,7 @@ class WWLDEtl(luigi.Task):
         except:
             print("table 'plss' already exists")
 
-
-        try:
-            t = text("""
-                        CREATE TABLE pay_old (
-                            id           INTEGER PRIMARY KEY AUTOINCREMENT,
-                            CLMT_RSI_NO  TEXT,
-                            CLM_SCH_CODE TEXT,
-                            CLM_REG_DATE DATETIME,
-                            ISSUE_DATE   DATETIME,
-                            STAT_CODE    TEXT,
-                            AMOUNT       FLOAT,
-                            year         FLOAT
-                    )
-                """ )
-            conn.execute(t)
-            t = text("""
-                CREATE INDEX idx_pay_old_ppsn ON pay_old (
-                    CLMT_RSI_NO
-                )
-            """)
-            conn.execute(t)
-            t = text("""
-                CREATE INDEX idx_pay_old_year ON pay_old (
-                    year
-                )
-            """)
-            conn.execute(t)
-            t = text("""
-                CREATE INDEX idx_pay_old_full1 ON pay_old (
-                    CLM_SCH_CODE,CLM_REG_DATE,ISSUE_DATE,STAT_CODE,AMOUNT
-                )
-            """)
-            conn.execute(t)
-        except:
-            print("table 'pay_old' already exists")
-
-
+    def create_jobpath_sql(self, conn):
         try:
             t = text("""
                 CREATE TABLE jobpath (
@@ -274,7 +255,7 @@ class WWLDEtl(luigi.Task):
                     ppsn       TEXT,
                     qtr        TEXT
                 )
-                """ )
+                """)
             conn.execute(t)
             t = text("""
                 CREATE INDEX idx_jp_ppsn ON jobpath (
@@ -282,121 +263,122 @@ class WWLDEtl(luigi.Task):
                 )
             """)
             conn.execute(t)
+            # t = text("""
+            #     CREATE INDEX idx_jp_cluster ON jobpath (
+            #         cluster
+            #     )
+            # """)
+            # conn.execute(t)
+            # t = text("""
+            #     CREATE INDEX idx_jp_qtr ON jobpath (
+            #         qtr
+            #     )
+            # """)
+            # conn.execute(t)
             t = text("""
-                CREATE INDEX idx_jp_cluster ON jobpath (
-                    cluster
-                )
-            """)
-            conn.execute(t)
-            t = text("""
-                CREATE INDEX idx_jp_qtr ON jobpath (
-                    qtr
-                )
-            """)
-            conn.execute(t)
-            t = text("""
-                CREATE INDEX idx_jp_full1 ON jobpath (
-                    ppsn, cluster, qtr
+                CREATE INDEX idx_jp_pcq ON jobpath (
+                    ppsn,cluster,qtr
                 )
             """)
             conn.execute(t)
         except:
             print("table 'jobpath' already exists")
-        try:
-            t = text("""CREATE TABLE load_file (
-                    id         INTEGER PRIMARY KEY AUTOINCREMENT,
-                    file       TEXT,
-                    mod_date   DATETIME,
-                    load_time  DATETIME
-                )"""
-                     )
-            conn.execute(t)
-        except:
-            print("table 'load_file' already exists")
 
+    def create_earnings_sql(self, conn):
         try:
             t = text("""
-            CREATE TABLE earnings (
-                id                       INTEGER PRIMARY KEY AUTOINCREMENT,
-                RSI_NO                   TEXT,
-                CON_YEAR                 FLOAT,
-                PAYMENT_LINE_COUNT       FLOAT,
-                CONS_SOURCE_CODE         TEXT,
-                CONS_SOURCE_SECTION_CODE TEXT,
-                NO_OF_CONS               FLOAT,
-                CONS_CLASS_CODE          TEXT,
-                CONS_FROM_DATE           FLOAT,
-                CONS_TO_DATE             FLOAT,
-                EARNINGS_AMT             FLOAT,
-                TOT_PRSI_AMT             FLOAT,
-                EMPLOYER_NO              TEXT,
-                EMPLT_COUNT              FLOAT,
-                EMPLT_NO                 TEXT,
-                EMPLOYEE_PRSI_AMT        FLOAT,
-                EMPLT_SCH_ID_NO          TEXT,
-                EMPLT_SCH_FROM_DATE      FLOAT,
-                NON_CONSOLIDATABLE_IND   TEXT,
-                PAY_ERR_IND              TEXT,
-                PRSI_ERR_IND             TEXT,
-                WIES_ERR_IND             TEXT,
-                CLASS_ERR_IND            TEXT,
-                PRSI_REFUND_IND          TEXT,
-                CANCELLED_IND            TEXT,
-                CRS_SEGMENT              FLOAT,
-                LA_DATE_TIME             FLOAT,
-                RECORD_VERS_NO           FLOAT,
-                USER_ID_CODE             FLOAT,
-                PROGRAM_ID_CODE          TEXT
-            )
-                    """)
-            conn.execute(t)
-            t = text("""
-            CREATE INDEX idx_earn_ppsn ON earnings (
-                RSI_NO
-            )
+                        CREATE TABLE earnings (
+                            id                       INTEGER PRIMARY KEY AUTOINCREMENT,
+                            RSI_NO                   TEXT,
+                            CON_YEAR                 FLOAT,
+                            PAYMENT_LINE_COUNT       FLOAT,
+                            CONS_SOURCE_CODE         TEXT,
+                            CONS_SOURCE_SECTION_CODE TEXT,
+                            NO_OF_CONS               FLOAT,
+                            CONS_CLASS_CODE          TEXT,
+                            CONS_FROM_DATE           FLOAT,
+                            CONS_TO_DATE             FLOAT,
+                            EARNINGS_AMT             FLOAT,
+                            TOT_PRSI_AMT             FLOAT,
+                            EMPLOYER_NO              TEXT,
+                            EMPLT_COUNT              FLOAT,
+                            EMPLT_NO                 TEXT,
+                            EMPLOYEE_PRSI_AMT        FLOAT,
+                            EMPLT_SCH_ID_NO          TEXT,
+                            EMPLT_SCH_FROM_DATE      FLOAT,
+                            NON_CONSOLIDATABLE_IND   TEXT,
+                            PAY_ERR_IND              TEXT,
+                            PRSI_ERR_IND             TEXT,
+                            WIES_ERR_IND             TEXT,
+                            CLASS_ERR_IND            TEXT,
+                            PRSI_REFUND_IND          TEXT,
+                            CANCELLED_IND            TEXT,
+                            CRS_SEGMENT              FLOAT,
+                            LA_DATE_TIME             FLOAT,
+                            RECORD_VERS_NO           FLOAT,
+                            USER_ID_CODE             FLOAT,
+                            PROGRAM_ID_CODE          TEXT
+                        )
             """)
             conn.execute(t)
             t = text("""
-            CREATE INDEX idx_earn_full1 ON earnings (
-                RSI_NO,
-                CON_YEAR,
-                PAYMENT_LINE_COUNT
-            );
+                        CREATE INDEX idx_earn_ppsn ON earnings (
+                            RSI_NO
+                        )
+            """)
+            conn.execute(t)
+
+            t = text("""
+                        CREATE INDEX idx_earn_cons_class_code ON earnings (
+                            CONS_CLASS_CODE
+                        )            
+            """)
+            conn.execute(t)
+            t = text("""
+                        CREATE INDEX idx_earn_cons_source_code ON earnings (
+                            CONS_SOURCE_CODE
+                        )
+            """)
+            conn.execute(t)
+            t = text("""
+                        CREATE INDEX idx_earn_cons_year ON earnings (
+                            CON_YEAR
+                        )
+            """)
+            conn.execute(t)
+            t = text("""
+                        CREATE INDEX idx_earn_earnings_amt ON earnings (
+                            EARNINGS_AMT
+                        )
+            """)
+            conn.execute(t)
+            t = text("""
+                        CREATE INDEX idx_earn_employee_prsi_amt ON earnings (
+                            EMPLOYEE_PRSI_AMT
+                        )
+            """)
+            conn.execute(t)
+            t = text("""
+                        CREATE INDEX idx_earn_employer_no ON earnings (
+                            EMPLOYER_NO
+                        )
+            """)
+            conn.execute(t)
+            t = text("""
+                        CREATE INDEX idx_earn_no_cons ON earnings (
+                            NO_OF_CONS
+                        )
+            """)
+            t = text("""
+                        CREATE INDEX idx_earn_tot_prsi_amt ON earnings (
+                            TOT_PRSI_AMT
+                        )            
             """)
             conn.execute(t)
         except:
             print("table 'earnings' already exists")
 
-        try:
-            t = text("""
-            CREATE TABLE payments (
-                id          INTEGER PRIMARY KEY AUTOINCREMENT,
-                ppsn        TEXT,
-                Quarter     FLOAT,
-                SCHEME_TYPE TEXT,
-                AMOUNT      FLOAT,
-                QTR         TEXT,
-                count       FLOAT
-            )
-                    """)
-            conn.execute(t)
-            t = text("""
-            CREATE INDEX idx_pay_ppsn ON payments (
-                ppsn
-            )
-            """)
-            conn.execute(t)
-            t = text("""
-            CREATE INDEX idx_payments_full1 ON payments (
-                ppsn,
-                QTR,
-                count
-            )
-            """)
-            conn.execute(t)
-        except:
-            print("table 'payments' already exists")
-
+    def create_les_sql(self, conn):
         try:
             t = text("""
             CREATE TABLE les (
@@ -434,53 +416,74 @@ class WWLDEtl(luigi.Task):
         except:
             print("table 'les' already exists")
 
+    def create_penalties_sql(self, conn):
         try:
             t = text("""
-            CREATE TABLE penalties (
-                id                     INTEGER PRIMARY KEY AUTOINCREMENT,
-                ppsn                   TEXT,
-                sex                    TEXT,
-                age_penstart           FLOAT,
-                life_event_date        DATE,
-                location               TEXT,
-                loc_div                TEXT,
-                marital_status         TEXT,
-                marital_group          TEXT,
-                nat_code               TEXT,
-                nat_detail             TEXT,
-                nat_group              TEXT,
-                occ_group              TEXT,
-                occupation             FLOAT,
-                ada_code               TEXT,
-                spouse                 TEXT,
-                cda_number             FLOAT,
-                cdas                   TEXT,
-                startdate              DATE,
-                Extractdate            DATE,
-                pendur                 FLOAT,
-                duration               TEXT,
-                status                 TEXT,
-                clm_code               TEXT,
-                clm_comm_date          DATE,
-                clm_end_date           DATE,
-                rra                    TEXT,
-                LO_office              TEXT,
-                RRB                    FLOAT,
-                CLM_SUSP_DTL_REAS_CODE TEXT
-            )
+                        CREATE TABLE penalties (
+                            id                     INTEGER PRIMARY KEY AUTOINCREMENT,
+                            ppsn                   TEXT,
+                            sex                    TEXT,
+                            age_penstart           FLOAT,
+                            life_event_date        DATE,
+                            location               TEXT,
+                            loc_div                TEXT,
+                            marital_status         TEXT,
+                            marital_group          TEXT,
+                            nat_code               TEXT,
+                            nat_detail             TEXT,
+                            nat_group              TEXT,
+                            occ_group              TEXT,
+                            occupation             FLOAT,
+                            ada_code               TEXT,
+                            spouse                 TEXT,
+                            cda_number             FLOAT,
+                            cdas                   TEXT,
+                            startdate              DATE,
+                            Extractdate            DATE,
+                            pendur                 FLOAT,
+                            duration               TEXT,
+                            status                 TEXT,
+                            clm_code               TEXT,
+                            clm_comm_date          DATE,
+                            clm_end_date           DATE,
+                            rra                    TEXT,
+                            LO_office              TEXT,
+                            RRB                    FLOAT,
+                            CLM_SUSP_DTL_REAS_CODE TEXT
+                        )
             """)
             conn.execute(t)
             t = text("""
-            CREATE INDEX idx_penalties_ppsn ON penalties (
-                ppsn
-            )
+                        CREATE INDEX idx_penalties_ppsn ON penalties (
+                            ppsn
+                        )
+            """)
+            conn.execute(t)
+            t = text("""
+                         CREATE INDEX idx_penalties_Extractdate ON penalties (
+                            Extractdate
+                        )           
+            """)
+            conn.execute(t)
+            t = text("""
+                         CREATE INDEX idx_penalties_location ON penalties (
+                            location
+                        )           
+            """)
+            conn.execute(t)
+            t = text("""
+                        CREATE INDEX idx_penalties_startdate ON penalties (
+                            startdate
+                        )            
             """)
             conn.execute(t)
         except:
             print("table 'penalties' already exists")
 
+    def create_ists_sql(self, conn):
         try:
-            t = text("""CREATE TABLE ists_personal (
+            t = text("""
+                        CREATE TABLE ists_personal (
                             id             INTEGER PRIMARY KEY AUTOINCREMENT,
                             date_of_birth  DATETIME,
                             sex            TEXT,
@@ -488,63 +491,201 @@ class WWLDEtl(luigi.Task):
                             occupation     TEXT,
                             ppsn           TEXT,
                             related_rsi_no TEXT
-                        )"""
-                     )
+                        )
+            """)
             conn.execute(t)
             t = text("""
-            CREATE INDEX idx_ists_p_ppsn ON ists_personal (
-                ppsn
-            )
+                        CREATE INDEX idx_ists_p_por ON ists_personal (
+                            ppsn, occupation, related_rsi_no
+                        )
             """)
             conn.execute(t)
         except:
             print("table 'ists_personal' already exists")
-
         try:
             t = text("""CREATE TABLE ists_claims (
-                                id             INTEGER PRIMARY KEY AUTOINCREMENT,
-                                lr_code                TEXT,
-                                lr_flag                BIGINT,
-                                lls_code               TEXT,
-                                clm_reg_date           DATETIME,
-                                clm_comm_date          DATETIME,
-                                location               TEXT,
-                                CLM_STATUS             TEXT,
-                                CLM_SUSP_DTL_REAS_CODE TEXT,
-                                CDAS                   FLOAT,
-                                ada_code               TEXT,
-                                JobPath_Flag           BIGINT,
-                                JobPathHold            BIGINT,
-                                PERS_RATE              FLOAT,
-                                ADA_AMT                FLOAT,
-                                CDA_AMT                FLOAT,
-                                MEANS                  FLOAT,
-                                EMEANS                 FLOAT,
-                                NEMEANS                FLOAT,
-                                NET_FLAT               FLOAT,
-                                FUEL                   FLOAT,
-                                RRA                    FLOAT,
-                                WEEKLY_RATE            FLOAT,
-                                Recip_flag             BIGINT,
-                                lr_date                DATE,
-                                personal_id            INTEGER
-                            )"""
-                     )
-            conn.execute(t)
-            t = text("""
-            CREATE INDEX idx_isits_cl_pid ON ists_claims (
-                personal_id
-            )           
+                            id             INTEGER PRIMARY KEY AUTOINCREMENT,
+                            lr_code                TEXT,
+                            lr_flag                BIGINT,
+                            lls_code               TEXT,
+                            clm_reg_date           DATETIME,
+                            clm_comm_date          DATETIME,
+                            location               TEXT,
+                            CLM_STATUS             TEXT,
+                            CLM_SUSP_DTL_REAS_CODE TEXT,
+                            CDAS                   FLOAT,
+                            ada_code               TEXT,
+                            JobPath_Flag           BIGINT,
+                            JobPathHold            BIGINT,
+                            PERS_RATE              FLOAT,
+                            ADA_AMT                FLOAT,
+                            CDA_AMT                FLOAT,
+                            MEANS                  FLOAT,
+                            EMEANS                 FLOAT,
+                            NEMEANS                FLOAT,
+                            NET_FLAT               FLOAT,
+                            FUEL                   FLOAT,
+                            RRA                    FLOAT,
+                            WEEKLY_RATE            FLOAT,
+                            Recip_flag             BIGINT,
+                            lr_date                DATE,
+                            personal_id            INTEGER,
+                            foreign key (personal_id) references ists_personal(id)
+                        )
             """)
             conn.execute(t)
             t = text("""
-            CREATE INDEX idx_ists_cl_lr_d ON ists_claims (
-                lr_date
-            )
+                        CREATE INDEX idx_isits_cl_pid ON ists_claims (
+                            personal_id
+                        )           
             """)
+            conn.execute(t)
+            t = text("""
+                        CREATE INDEX idx_ists_cl_lr_d ON ists_claims (
+                            lr_date
+                        )
+            """)
+            conn.execute(t)
+            t = text("""
+                        CREATE INDEX idx_ists_c_clm_comm_date ON ists_claims (
+                            clm_comm_date
+                        )
+            """)
+            conn.execute(t)
+            t = text("""
+                        CREATE INDEX idx_ists_c_location ON ists_claims (
+                            location
+                        )
+            """)
+            conn.execute(t)
+            t = text("""
+                        CREATE INDEX idx_ists_c_lr_code ON ists_claims (
+                            lr_code
+                        )
+            """)
+            conn.execute(t)
+            t = text("""
+                        CREATE INDEX idx_ists_c_lr_flag ON ists_claims (
+                            lr_flag
+                        )           
+            """)
+
             conn.execute(t)
         except:
             print("table 'ists_claims' already exists")
+
+    def create_pay_old_sql(self, conn):
+        try:
+            t = text("""
+                        CREATE TABLE pay_old (
+                            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                            CLMT_RSI_NO  TEXT,
+                            CLM_SCH_CODE TEXT,
+                            CLM_REG_DATE DATETIME,
+                            ISSUE_DATE   DATETIME,
+                            STAT_CODE    TEXT,
+                            AMOUNT       FLOAT,
+                            year         FLOAT
+                        )
+                """)
+            conn.execute(t)
+            t = text("""
+                        CREATE INDEX idx_pay_old_ppsn ON pay_old (
+                            CLMT_RSI_NO
+                        )
+            """)
+            conn.execute(t)
+            t = text("""
+                        CREATE INDEX idx_pay_old_year ON pay_old (
+                            year
+                        )
+            """)
+            conn.execute(t)
+            t = text("""
+                        CREATE INDEX idx_pay_old_AMOUNT ON pay_old (
+                            AMOUNT
+                        )
+            """)
+            conn.execute(t)
+            t = text("""
+                        CREATE INDEX idx_pay_old_CLM_REG_DATE ON pay_old (
+                            CLM_REG_DATE
+                        )
+            """)
+            conn.execute(t)
+            t = text("""
+                        CREATE INDEX idx_pay_old_CLM_SCH_CODE ON pay_old (
+                            CLM_SCH_CODE
+                        )
+            """)
+            conn.execute(t)
+        except:
+            print("table 'pay_old' already exists")
+
+    def create_payments_sql(self, conn):
+        try:
+            t = text("""
+                        CREATE TABLE payments (
+                            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                            ppsn        TEXT,
+                            Quarter     FLOAT,
+                            SCHEME_TYPE TEXT,
+                            AMOUNT      FLOAT,
+                            QTR         TEXT,
+                            count       FLOAT
+                        )
+            """)
+            conn.execute(t)
+            t = text("""
+                        CREATE INDEX idx_pay_ppsn ON payments (
+                            ppsn
+                        )
+            """)
+            conn.execute(t)
+            t = text("""
+                        CREATE INDEX idx_payments_full1 ON payments (
+                            ppsn,
+                            QTR,
+                            count
+                        )
+            """)
+            conn.execute(t)
+            t = text("""
+                        CREATE INDEX idx_payments_Quarter ON payments (
+                            Quarter
+                        )
+            """)
+            conn.execute(t)
+
+            t = text("""
+                        CREATE INDEX idx_payments_QTR ON payments (
+                            QTR
+                        )
+            """)
+            conn.execute(t)
+
+            t = text("""
+                        CREATE INDEX idx_payments_SCHEME_TYPE ON payments (
+                            SCHEME_TYPE
+                        )
+            """)
+            conn.execute(t)
+
+            t = text("""
+                        CREATE INDEX idx_payments_AMOUNT ON payments (
+                            AMOUNT
+                        )
+            """)
+            conn.execute(t)
+
+            t = text("""
+                        CREATE INDEX idx_payments_count ON payments (
+                            count
+                        )
+            """)
+            conn.execute(t)
+        except:
+            print("table 'payments' already exists")
 
     def requires(self):
         if 'ists' in self.settings:

@@ -1,10 +1,9 @@
-from datetime import date, timedelta
+from datetime import timedelta
 import datetime
 import os
 import sqlalchemy as sa
 from sqlalchemy import text
 import pyreadstat
-import futil as futil
 import data_file
 
 

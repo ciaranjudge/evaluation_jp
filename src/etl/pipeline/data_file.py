@@ -1,6 +1,5 @@
-from abc import ABCMeta, abstractmethod
 
-import pandas as pd
+from abc import ABCMeta, abstractmethod
 import futil as futil
 import datetime
 import os
