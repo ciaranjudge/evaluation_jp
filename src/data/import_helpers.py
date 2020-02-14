@@ -1,3 +1,9 @@
+
+#%%
+
+# %%
+
+
 # %%
 from typing import List, Set, Dict, Tuple, Optional
 import datetime as dt
@@ -7,12 +13,13 @@ import dateutil.relativedelta as rd
 import numpy as np
 import pandas as pd
 
-pd.set_option("io.hdf.default_format", "table")
-
 from sqlalchemy import create_engine
 import sqlalchemy as sa
-
+#%%
 from src.features.metadata_helpers import nearest_lr_date
+#%%
+engine = sa.create_engine('sqlite:///\\\\cskma0294\\F\\Evaluations\\data\\wwld.db', echo=False)
+#%%
 
 
 def decode_bytestrings(series: pd.Series) -> pd.Series:
@@ -77,79 +84,8 @@ def get_clusters(date: pd.Timestamp) -> pd.DataFrame:
     return df
 
 
-def get_vital_statistics(
-    date: pd.Timestamp, ids: Optional[pd.Index] = None, columns: Optional[List] = None
-) -> pd.DataFrame:
-    """
-    Given a date and (optional) series of IDs, return a df with vital statistics
 
-    Vital statistics are taken from last LR date before given date
-
-    Parameters
-    ----------
-    date: pd.Timestamp
-        Date of interest
-
-    ids: Optional[pd.Index]
-        IDs for lookup. If None, return all records for date.
-
-    columns: Optional[List]
-        Columns from the ISTS claim database to return. Default is all columns.
-
-
-    Returns
-    -------
-    df: pd.DataFrame
-        Columns returned are given in column_list
-    """
-    # Reset time to 00:00:00
-    date = date.normalize()
-
-    engine = sa.create_engine("sqlite:///./data/interim/jobpath.db")
-    metadata = sa.MetaData()
-
-    lookup_date = nearest_lr_date(date, how="previous")
-
-    # Generate default column list if needed
-    if columns is None:
-        columns = ["date_of_birth", "sex", "nat_code", "occupation"]
-    columns.append("ppsn")
-
-    # Create comma-separated list of columns to pass into SELECT part of query
-    column_query = ",".join(str(x) for x in columns)
-
-    # Create SQL query to get columns based on date
-    query = (
-        f"""SELECT {column_query} 
-        FROM ists_personal WHERE date(lr_date) = date('{lookup_date}')"""
-    ).replace("\n", "\r\n")
-
-    # Add this to query if an ids has been provided
-    if ids is not None:
-        id_list = ",".join([f"'{str(x)}'" for x in ids.to_list()])
-        query += f" AND ppsn IN ({id_list})"
-    print(query)
-
-    # Use pd.read_sql_query to execute the finalised query
-    df = pd.read_sql_query(query, engine, parse_dates=True)
-    duplicated = df.duplicated(subset="ppsn", keep="first")
-    df = df.mask(duplicated)
-
-    # Parse dates explicitly if they weren't already parsed by pd.read_sql_query
-    for col in [col for col in df.columns.to_list() if "date" in col.lower()]:
-        df[col] = pd.to_datetime(df[col], infer_datetime_format=True)
-
-    # Any bytestring-coded strings that snuck in from SAS? Decode them!
-    for col in [col for col in df.columns if df[col].dtype == "object"]:
-        df[col] = decode_bytestrings(df[col]).astype("category")
-
-    return (
-        df.dropna(axis=0, how="all")
-        .reset_index(drop=True)
-        .set_index("ppsn", verify_integrity=True)
-    )
-
-
+#%%
 def get_ists_claims(
     date: pd.Timestamp,
     ids: Optional[pd.Index] = None,
@@ -178,42 +114,56 @@ def get_ists_claims(
     """
     # Reset time to 00:00:00 and get relevant LR reporting date
     date = date.normalize()
-    lookup_date = nearest_lr_date(date, how="previous")
+    # lookup_date = nearest_lr_date(date, how="previous")
+    lookup_date=str(date.date())
+
+    # Query to get columns based on date
+    query=f"""select *
+        from ists_claims c
+        join ists_personal p
+        on c.personal_id=p.id
+        where lr_date = '{lookup_date}'
+        """
+    # Add this to query if ids have been provided
+    # if ids is not None:
+    #     query += f" & ('ppsn' in ({list(ids)}))"
+
+    # Add this to query if lr_flag is True
+    # if lr_flag == True:
+    #     query += f" & ('lr_flag' == 1)"
+
+    print(query)
+        
+    sql_ists = pd.read_sql(query, con=engine)
+    sql_ists.head()
+
+    duplicated = sql_ists["ppsn"].duplicated(keep="first")
+    sql_ists = sql_ists[~duplicated]
+
+    # for col in [col for col in sql_ists.columns if sql_ists[col].dtype == "object"]:
+    #     sql_ists[col] = sql_ists[col].astype("category")
 
     if columns is not None:
         columns.append("ppsn")
-
-    print(f"Columns: {columns}")
-
-    # Query to get columns based on date
-    query = f"('lr_date' == '{lookup_date}')"
-
-    # Add this to query if ids have been provided
-    if ids is not None:
-        query += f" & ('ppsn' in ({list(ids)}))"
-
-    # Add this to query if lr_flag is True
-    if lr_flag == True:
-        query += f" & ('lr_flag' == 1)"
-
-    print(query)
-
-    with pd.HDFStore("data/interim/ists_store.h5", mode="r") as store:
-        df = store.select("/ists_extracts", query, columns=columns)
-
-    duplicated = df.duplicated(subset="ppsn", keep="first")
-    df = df.mask(duplicated)
-
-    for col in [col for col in df.columns if df[col].dtype == "object"]:
-        df[col] = df[col].astype("category")
+        sql_ists = sql_ists[columns]
 
     return (
-        df.dropna(axis=0, how="all")
+        sql_ists.dropna(axis=0, how="all")
         .reset_index(drop=True)
         .set_index("ppsn", verify_integrity=True)
     )
 
 
+
+returned_df=get_ists_claims(
+            pd.Timestamp('2020-01-03'),
+            lr_flag=True,  
+            columns=["lr_code", "clm_comm_date"],
+        )
+
+
+
+#%%
 def get_les_data(columns: Optional[List] = None) -> pd.DataFrame:
     df = pd.read_excel("data/raw/LES_New_Registrations2016-2017.xlsx")
     df = df.rename(
