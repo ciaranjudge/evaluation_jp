@@ -1,0 +1,1 @@
+python  .\jobpath.py JobPathEtl --local-scheduler --st 2020-01-01 --db D:\data\jp_pl.db --il Z:\ISTS --ea d:\data\con_year_payment_line.sas7bdat --pay d:\data\parpall.sas7bdat --pen "\\cskma0294\F\Management Board\Penalty Rates\penalties_00_latest.sas7bdat" --les Z:\Evaluations\JobPath\LES_exclusion\LES_New_Registrations2016-2017.xlsx
