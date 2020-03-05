@@ -17,6 +17,7 @@ dependencies:
   - cookiecutter # Create project from git template https://github.com/cookiecutter/cookiecutter 
   - great-expectations # Pipeline tests for data https://github.com/great-expectations/great_expectations
   - intake # Tools for loading and sharing data https://pypi.org/project/intake/
+  - luigi
   - marshmallow # Data marshalling & schema validation https://marshmallow.readthedocs.io
   - prefect # 
   - pytest
@@ -40,9 +41,11 @@ dependencies:
   - dask
   - numpy
   - pandas
+  - pandas-profiling  # df.describe() has nothing on this!
   - scikit-learn
   - scipy
   - sqlalchemy
+  - trelawney  # explain analytics models
 
   # I/O
   - beautifulsoup4

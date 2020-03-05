@@ -121,17 +121,12 @@ class EvaluationSlice:
 
         """
         # First get Live Register claims...
-        lr = get_ists_claims(
+        self.data["seed_pop"] = get_ists_claims(
             self.period.to_timestamp(how="S"),
-            lr_flag=True,
+            lr_flag=True,  
             columns=["lr_code", "clm_comm_date"],
         )
-        # ...then add vital statistics...
-        vs = get_vital_statistics(self.period.to_timestamp(how="S"), ids=lr.index)
-        # ...then merge the two.
-        self.data["seed_pop"] = pd.merge(
-            left=lr, right=vs, left_index=True, right_index=True
-        )
+
 
     @populate
     def get_clustered(self):
