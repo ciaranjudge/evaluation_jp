@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 import numpy as np
 import pandas as pd
+from pandas.api.extensions import register_dataframe_accessor
 import sqlalchemy as sa
 
 data_folder = Path("//Cskma0294/f/Evaluations/data")
@@ -68,7 +69,7 @@ def sas_date_to_datetime(
     return date_series
 
 
-@pd.api.extensions.register_dataframe_accessor("cleanup")
+@register_dataframe_accessor("cleanup")
 @dataclass
 class CleanupAccessor:
     data: pd.DataFrame
@@ -165,6 +166,3 @@ for chunk_number, chunk in enumerate(crs_reader):
 #     .cleanup.int_cols_to_int(int_cols)
 # )
 
-
-# %%
-crs_client_df = pd.read_sql()
