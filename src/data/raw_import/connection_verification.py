@@ -10,7 +10,10 @@ query="""select *
 from ists_claims c
 join ists_personal p
 on c.personal_id=p.id
-where lr_date = '2020-01-03' and occupation=10"""
+"""
+date = '2020-01-03'
+query += f"where lr_date = '{date}' and occupation=10"
+print(query)
 sql_ists = pd.read_sql(query, con=engine)
 sql_ists.head()
 # %%
