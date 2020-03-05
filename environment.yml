@@ -24,6 +24,7 @@ dependencies:
   # Jupyter 
   - ipykernel
   - ipywidgets
+  - jupyter
   - jupyterlab
   - jupytext
   - nodejs
@@ -32,6 +33,7 @@ dependencies:
   # Visualisation
   - altair
   - matplotlib
+  - pdvega  # pandas plotting API rendered in vegalite! https://github.com/altair-viz/pdvega
   - seaborn
 
   # Data science
@@ -45,7 +47,6 @@ dependencies:
   # I/O
   - beautifulsoup4
   - lxml
-  - pyreadstat 
   - tabula-py
   - xlrd
   
