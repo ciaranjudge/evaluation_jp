@@ -1,4 +1,6 @@
 {
+  "src/data/raw_import/raw_data_test/ists_extracts_test.py": true,
+  "src/data/raw_import/raw_data_test/les_test.py": true,
   "src/features/test__selection_helpers.py": true,
   "src/main_test.py": true,
   "src/visualization/altair_test.py": true
