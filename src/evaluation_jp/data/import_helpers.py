@@ -1,9 +1,3 @@
-
-#%%
-
-# %%
-
-
 # %%
 from typing import List, Set, Dict, Tuple, Optional
 import datetime as dt
@@ -14,21 +8,28 @@ import numpy as np
 import pandas as pd
 
 import sqlalchemy as sa
+
 #%%
-#from src.features.metadata_helpers import nearest_lr_date
+from src.features.metadata_helpers import nearest_lr_date
+
 #%%
-engine = sa.create_engine('sqlite:///\\\\cskma0294\\F\\Evaluations\\data\\wwld.db', echo=False)
+engine = sa.create_engine(
+    "sqlite:///\\\\cskma0294\\F\\Evaluations\\data\\wwld.db", echo=False
+)
 insp = sa.engine.reflection.Inspector.from_engine(engine)
+
+
 def get_datetime_cols(table_name):
-    column_metadata = insp.get_columns(table_name)    
+    column_metadata = insp.get_columns(table_name)
     datetime_cols = [
-        col["name"] for col in column_metadata if type(col["type"]) == sa.sql.sqltypes.DATETIME
+        col["name"]
+        for col in column_metadata
+        if type(col["type"]) == sa.sql.sqltypes.DATETIME
     ]
     return datetime_cols
 
+
 #%%
-
-
 def decode_bytestrings(series: pd.Series) -> pd.Series:
     """
     Given a pd.Series of dtype 'object', decode it as utf-8 if it's in bytecode format
@@ -91,7 +92,6 @@ def get_clusters(date: pd.Timestamp) -> pd.DataFrame:
     return df
 
 
-
 #%%
 def get_ists_claims(
     date: pd.Timestamp,
@@ -124,44 +124,41 @@ def get_ists_claims(
     """
     # Reset time to 00:00:00 and get relevant LR reporting date
     date = date.normalize()
-    # lookup_date = nearest_lr_date(date, how="previous")
-    lookup_date=str(date.date())
+    lookup_date = nearest_lr_date(date, how="previous")
+    # lookup_date = str(date.date())
 
     # Query to get columns based on date
-    query=f"""select *
+    query = f"""select *
         from ists_claims c
         join ists_personal p
         on c.personal_id=p.id
         where lr_date = '{lookup_date}'
         """
-  
 
     print(query)
-        
-    datetime_cols=get_datetime_cols("ists_personal")+get_datetime_cols("ists_claims")
+
+    datetime_cols = get_datetime_cols("ists_personal") + get_datetime_cols(
+        "ists_claims"
+    )
     sql_ists = pd.read_sql(query, con=engine, parse_dates=datetime_cols)
-    
+
     duplicated = sql_ists["ppsn"].duplicated(keep="first")
     sql_ists = sql_ists[~duplicated]
 
     # for col in [col for col in sql_ists.columns if sql_ists[col].dtype == "object"]:
     #     sql_ists[col] = sql_ists[col].astype("category")
     if ids is not None:
-        selected_ids=sql_ists['ppsn'].isin(ids)
-        sql_ists=sql_ists.loc[selected_ids]
-#     
-    # Add this to query if lr_flag is True
- 
+        selected_ids = sql_ists["ppsn"].isin(ids)
+        sql_ists = sql_ists.loc[selected_ids]
+
     if lr_flag == True:
-        on_lr=sql_ists['lr_flag']==1
-        sql_ists=sql_ists.loc[on_lr]
-#      """
+        on_lr = sql_ists["lr_flag"] == 1
+        sql_ists = sql_ists.loc[on_lr]
 
     if columns is not None:
         columns.append("ppsn")
         sql_ists = sql_ists[columns]
-    
-   
+
     return (
         sql_ists.dropna(axis=0, how="all")
         .reset_index(drop=True)
@@ -169,74 +166,56 @@ def get_ists_claims(
     )
 
 
-
-returned_df=get_ists_claims(
-            pd.Timestamp('2020-01-03'),
-            lr_flag=True,  
-            #columns=["lr_code", "clm_comm_date", 'lr_flag'],
-            ids=['0070688N','0200098K']
-        )
-
 #%%
-#test
-
-
-# context1 = ssl._create_unverified_context() # add context below
-# url_sector = "https://www.cso.ie/StatbankServices/StatbankServices.svc/jsonservice/responseinstance/LRM02"
-# try:
-#     with urlopen(url_sector) as f:
-#         LRM02 = json.load(f)
-#         LR_monthly = create_dataframe(LRM02)  
-# except:
-#     with urlopen(url_sector, context=context1) as f:
-#         LRM02 = json.load(f)
-#         LR_monthly = create_dataframe(LRM02)
-   
-
-#%%
-
-
 def get_les_data(columns: Optional[List] = None) -> pd.DataFrame:
-    query="""select client_group, ppsn, start_date  from les
+    query = """select client_group, ppsn, start_date  from les
     """
     sql_les = pd.read_sql(query, con=engine, parse_dates=datetime_cols)
-    sql_les["start_date"]=pd.to_datetime(sql_les["start_date"])
+    sql_les["start_date"] = pd.to_datetime(sql_les["start_date"])
     sql_les["end_date"] = sql_les["start_date"] + pd.DateOffset(years=1)
     sql_les["start_month"] = sql_les["start_date"].dt.to_period("M")
     sql_les["ppsn"] = sql_les["ppsn"].str.strip()
     if columns is not None:
         sql_les = sql_les[columns]
     return sql_les
-df_les=get_les_data()
+
+
+df_les = get_les_data()
 
 #%%
-#%%
 def get_jobpath_data(columns: Optional[List] = None) -> pd.DataFrame:
-    query="""select * from jobpath_referrals
+    query = """select * from jobpath_referrals
     """
     column_metadata = insp.get_columns("jobpath_referrals")
     column_metadata = insp.get_columns("jobpath_referrals")
     datetime_cols = [
-        col["name"] for col in column_metadata if type(col["type"]) == sa.sql.sqltypes.DATETIME
+        col["name"]
+        for col in column_metadata
+        if type(col["type"]) == sa.sql.sqltypes.DATETIME
     ]
     sql_jobpath = pd.read_sql(query, con=engine, parse_dates=datetime_cols)
-  
+
     sql_jobpath["jobpath_end_date"] = sql_jobpath["jobpath_end_date"].fillna(
         sql_jobpath["jobpath_start_date"] + pd.DateOffset(years=1)
-        )
-    sql_jobpath["jobpath_start_month"] = sql_jobpath["jobpath_start_date"].dt.to_period("M")
+    )
+    sql_jobpath["jobpath_start_month"] = sql_jobpath["jobpath_start_date"].dt.to_period(
+        "M"
+    )
     sql_jobpath["ppsn"] = sql_jobpath["ppsn"].str.strip()
     if columns is not None:
         sql_jobpath = sql_jobpath[columns]
     return sql_jobpath
-df_jobpath=get_jobpath_data(columns=["jobpath_start_month", "ppsn"])
+
+
+df_jobpath = get_jobpath_data(columns=["jobpath_start_month", "ppsn"])
 #%%
 # where QTR='2014Q1'
-query="""select * from Jobpath
+query = """select * from Jobpath
 """
 sql_Jobpath = pd.read_sql(query, con=engine)
-sql_Jobpath.head()     
+sql_Jobpath.head()
 #%%
+
 
 def get_earnings(
     # date: pd.Timestamp,

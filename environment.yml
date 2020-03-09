@@ -45,7 +45,7 @@ dependencies:
   - scikit-learn
   - scipy
   - sqlalchemy
-  - trelawney  # explain analytics models
+  # - trelawney  # explain analytics models
 
   # I/O
   - beautifulsoup4
