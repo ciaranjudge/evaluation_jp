@@ -10,7 +10,6 @@ from evaluation_jp.data.import_helpers import (
     get_les_data,
     get_jobpath_data,
     get_ists_claims,
-    get_vital_statistics,
 )
 
 
@@ -164,7 +163,7 @@ def check_age(
 
     if (min_age is not None) or (max_age is not None):
         print(f"Check age using min: {min_age} and max: {max_age}")
-        dates_of_birth = get_vital_statistics(
+        dates_of_birth = get_ists_claims(
             date, ids, columns=["date_of_birth"]
         ).squeeze(axis="columns")
 

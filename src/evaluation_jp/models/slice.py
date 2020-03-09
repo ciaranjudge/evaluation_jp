@@ -1,13 +1,14 @@
 # %%
 # Standard library
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import ClassVar, List, Set, Dict, Tuple, Optional, Union
 
 # External packages
 import pandas as pd
 
 # Local packages
-from evaluation_jp.data.import_helpers import get_clusters, get_vital_statistics, get_ists_claims
+from evaluation_jp.data.import_helpers import get_clusters, get_ists_claims
 from evaluation_jp.data.persistence_helpers import (
     get_name,
     populate,
@@ -17,7 +18,7 @@ from evaluation_jp.data.persistence_helpers import (
 from evaluation_jp.features.selection_helpers import EligibilityChecker, EligibilityCheckManager
 from evaluation_jp.features.metadata_helpers import lr_reporting_date
 
-# from evaluation_jp.evaluation_period import EvaluationPeriod
+# from evaluation_jp.models.period import EvaluationPeriod
 
 # %%
 @dataclass
@@ -71,7 +72,7 @@ class EvaluationSlice:
 
     ### -- Class variables -- ###
     TYPE_NAME: ClassVar[str] = "slice"
-    DATA_INDEXES: ClassVar[]
+    # DATA_INDEXES: ClassVar[]
 
     ### -- Parameters set on __init__ -- ###
     ## Slice
@@ -105,7 +106,7 @@ class EvaluationSlice:
             self.TYPE_NAME,
             self.period.to_timestamp(how="S"),
             self.period.freq,
-            self.prefix,
+            # self.prefix,
         )
         self.data = {}
         self.get_seed_pop()

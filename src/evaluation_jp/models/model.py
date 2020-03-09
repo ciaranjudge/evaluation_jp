@@ -7,7 +7,7 @@ from typing import ClassVar, List, Set, Dict, Tuple, Optional
 import pandas as pd
 
 # Local packages
-from evaluation_jp.evaluation_slice import EvaluationSlice
+from evaluation_jp.models.slice import EvaluationSlice
 from evaluation_jp.data.persistence_helpers import (
     get_name,
     get_path,

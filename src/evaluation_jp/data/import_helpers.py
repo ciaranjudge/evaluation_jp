@@ -123,9 +123,7 @@ def get_ists_claims(
     df: pd.DataFrame
     """
     # Reset time to 00:00:00 and get relevant LR reporting date
-    date = date.normalize()
-    lookup_date = nearest_lr_date(date, how="previous")
-    # lookup_date = str(date.date())
+    lookup_date = nearest_lr_date(date.normalize(), how="previous")
 
     # Query to get columns based on date
     query = f"""select *
@@ -134,9 +132,6 @@ def get_ists_claims(
         on c.personal_id=p.id
         where lr_date = '{lookup_date}'
         """
-
-    print(query)
-
     datetime_cols = get_datetime_cols("ists_personal") + get_datetime_cols(
         "ists_claims"
     )
@@ -168,9 +163,9 @@ def get_ists_claims(
 
 #%%
 def get_les_data(columns: Optional[List] = None) -> pd.DataFrame:
-    query = """select client_group, ppsn, start_date  from les
+    query = """select client_group, ppsn, start_date from les
     """
-    sql_les = pd.read_sql(query, con=engine, parse_dates=datetime_cols)
+    sql_les = pd.read_sql(query, con=engine, parse_dates=get_datetime_cols("les"))
     sql_les["start_date"] = pd.to_datetime(sql_les["start_date"])
     sql_les["end_date"] = sql_les["start_date"] + pd.DateOffset(years=1)
     sql_les["start_month"] = sql_les["start_date"].dt.to_period("M")
@@ -180,20 +175,11 @@ def get_les_data(columns: Optional[List] = None) -> pd.DataFrame:
     return sql_les
 
 
-df_les = get_les_data()
-
 #%%
 def get_jobpath_data(columns: Optional[List] = None) -> pd.DataFrame:
     query = """select * from jobpath_referrals
     """
-    column_metadata = insp.get_columns("jobpath_referrals")
-    column_metadata = insp.get_columns("jobpath_referrals")
-    datetime_cols = [
-        col["name"]
-        for col in column_metadata
-        if type(col["type"]) == sa.sql.sqltypes.DATETIME
-    ]
-    sql_jobpath = pd.read_sql(query, con=engine, parse_dates=datetime_cols)
+    sql_jobpath = pd.read_sql(query, con=engine, parse_dates=get_datetime_cols("les"))
 
     sql_jobpath["jobpath_end_date"] = sql_jobpath["jobpath_end_date"].fillna(
         sql_jobpath["jobpath_start_date"] + pd.DateOffset(years=1)
@@ -207,82 +193,72 @@ def get_jobpath_data(columns: Optional[List] = None) -> pd.DataFrame:
     return sql_jobpath
 
 
-df_jobpath = get_jobpath_data(columns=["jobpath_start_month", "ppsn"])
-#%%
-# where QTR='2014Q1'
-query = """select * from Jobpath
-"""
-sql_Jobpath = pd.read_sql(query, con=engine)
-sql_Jobpath.head()
-#%%
+# def get_earnings(
+#     # date: pd.Timestamp,
+#     ids: pd.Index,
+#     columns: Optional[List] = None,
+# ) -> pd.DataFrame:
+#     """
+#     Given a series of IDs, return all available employment information for those IDs
+
+#     Parameters
+#     ----------
+#     ids: pd.Index = None
+#         IDs for lookup. 
+
+#     columns: Optional[List] = None
+#         Columns from the database to return. Default is all columns.
+
+#     Returns
+#     -------
+#     df: pd.DataFrame
+#     """
+#     query = f"('RSI_NO' in ({ids.to_list()}))"
+
+#     # print(query)
+
+#     with pd.HDFStore("data/interim/earnings.h5", mode="r") as store:
+#         df = store.select("/earnings", where=query, columns=columns)
+
+#     # Remove records with any error flags
+#     error_flags = [
+#         "PAY_ERR_IND",
+#         "PRSI_ERR_IND",
+#         "WIES_ERR_IND",
+#         "CLASS_ERR_IND",
+#         "PRSI_REFUND_IND",
+#         "CANCELLED_IND",
+#     ]
+#     no_error_flag = ~df[error_flags].any(axis="columns")
+#     df = df.loc[no_error_flag].drop(error_flags, axis="columns")
+
+#     # Rename columns
+#     # PRSI/earnings ratio
+#     return df
 
 
-def get_earnings(
-    # date: pd.Timestamp,
-    ids: pd.Index,
-    columns: Optional[List] = None,
-) -> pd.DataFrame:
-    """
-    Given a series of IDs, return all available employment information for those IDs
+# def get_sw_payments(ids: pd.Index, columns: Optional[List] = None) -> pd.DataFrame:
+#     """
+#     Given a series of IDs, return all available SW payment information for those IDs
 
-    Parameters
-    ----------
-    ids: pd.Index = None
-        IDs for lookup. 
+#     Parameters
+#     ----------
+#     ids: pd.Series = None
+#         Pandas Series with IDs for lookup. 
 
-    columns: Optional[List] = None
-        Columns from the database to return. Default is all columns.
+#     columns: Optional[List] = None
+#         Columns from the database to return. Default is all columns.
 
-    Returns
-    -------
-    df: pd.DataFrame
-    """
-    query = f"('RSI_NO' in ({ids.to_list()}))"
+#     Returns
+#     -------
+#     df: pd.DataFrame
+#     """
+#     query = f"('ppsn' in ({set(ids)}))"
 
-    # print(query)
+#     # print(query)
 
-    with pd.HDFStore("data/interim/earnings.h5", mode="r") as store:
-        df = store.select("/earnings", where=query, columns=columns)
+#     with pd.HDFStore("data/interim/master_data_store.h5", mode="r") as store:
+#         df = store.select("/payments", where=query, columns=columns)
 
-    # Remove records with any error flags
-    error_flags = [
-        "PAY_ERR_IND",
-        "PRSI_ERR_IND",
-        "WIES_ERR_IND",
-        "CLASS_ERR_IND",
-        "PRSI_REFUND_IND",
-        "CANCELLED_IND",
-    ]
-    no_error_flag = ~df[error_flags].any(axis="columns")
-    df = df.loc[no_error_flag].drop(error_flags, axis="columns")
-
-    # Rename columns
-    # PRSI/earnings ratio
-    return df
-
-
-def get_sw_payments(ids: pd.Index, columns: Optional[List] = None) -> pd.DataFrame:
-    """
-    Given a series of IDs, return all available SW payment information for those IDs
-
-    Parameters
-    ----------
-    ids: pd.Series = None
-        Pandas Series with IDs for lookup. 
-
-    columns: Optional[List] = None
-        Columns from the database to return. Default is all columns.
-
-    Returns
-    -------
-    df: pd.DataFrame
-    """
-    query = f"('ppsn' in ({set(ids)}))"
-
-    # print(query)
-
-    with pd.HDFStore("data/interim/master_data_store.h5", mode="r") as store:
-        df = store.select("/payments", where=query, columns=columns)
-
-    return df
+#     return df
 
