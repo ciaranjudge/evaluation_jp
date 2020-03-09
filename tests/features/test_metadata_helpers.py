@@ -1,7 +1,6 @@
-if __name__ == "__main__":
+
     import evaluation_jp.data.import_helpers
     import evaluation_jp.data.persistence_helpers
-    import evaluation_jp.features.build_features
     import evaluation_jp.features.metadata_helpers
     import evaluation_jp.features.selection_helpers
     import evaluation_jp.models.model
