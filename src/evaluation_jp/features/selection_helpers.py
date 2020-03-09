@@ -128,9 +128,6 @@ class EligibilityCheckManager:
         return checker.get_eligibility(date, ids)
 
 
-1
-
-
 @eligibility
 def check_age(
     date: pd.Timestamp,
