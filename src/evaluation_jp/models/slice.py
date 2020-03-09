@@ -7,17 +7,17 @@ from typing import ClassVar, List, Set, Dict, Tuple, Optional, Union
 import pandas as pd
 
 # Local packages
-from src.data.import_helpers import get_clusters, get_vital_statistics, get_ists_claims
-from src.data.persistence_helpers import (
+from evaluation_jp.data.import_helpers import get_clusters, get_vital_statistics, get_ists_claims
+from evaluation_jp.data.persistence_helpers import (
     get_name,
     populate,
     save_data,
     load_data,
 )
-from src.features.selection_helpers import EligibilityChecker, EligibilityCheckManager
-from src.features.metadata_helpers import lr_reporting_date
+from evaluation_jp.features.selection_helpers import EligibilityChecker, EligibilityCheckManager
+from evaluation_jp.features.metadata_helpers import lr_reporting_date
 
-# from src.evaluation_period import EvaluationPeriod
+# from evaluation_jp.evaluation_period import EvaluationPeriod
 
 # %%
 @dataclass

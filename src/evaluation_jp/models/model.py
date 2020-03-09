@@ -7,15 +7,15 @@ from typing import ClassVar, List, Set, Dict, Tuple, Optional
 import pandas as pd
 
 # Local packages
-from src.evaluation_slice import EvaluationSlice
-from src.data.persistence_helpers import (
+from evaluation_jp.evaluation_slice import EvaluationSlice
+from evaluation_jp.data.persistence_helpers import (
     get_name,
     get_path,
     populate,
     save_data,
     load_data,
 )
-from src.features.selection_helpers import EligibilityChecker, EligibilityCheckManager
+from evaluation_jp.features.selection_helpers import EligibilityChecker, EligibilityCheckManager
 
 # %%
 @dataclass

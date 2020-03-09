@@ -7,11 +7,11 @@ from typing import ClassVar, List, Set, Dict, Tuple, Optional
 import pandas as pd
 
 # Local packages
-from src.data.import_helpers import get_ists_claims
-from src.data.persistence_helpers import get_logical_name, populate, save_data, load_data
-from src.features.selection_helpers import EligibilityChecker, EligibilityCheckManager
+from evaluation_jp.data.import_helpers import get_ists_claims
+from evaluation_jp.data.persistence_helpers import get_logical_name, populate, save_data, load_data
+from evaluation_jp.features.selection_helpers import EligibilityChecker, EligibilityCheckManager
 
-from src.features.metadata_helpers import lr_reporting_date
+from evaluation_jp.features.metadata_helpers import lr_reporting_date
 
 # %%
 @dataclass

@@ -1,5 +1,5 @@
 if __name__ == "__main__":
-    import evaluation_jp.data.import_helpers as import_helpers
+    import evaluation_jp.features.selection_helpers
 
 # returned_df = get_ists_claims(
 #     pd.Timestamp("2020-01-03"),

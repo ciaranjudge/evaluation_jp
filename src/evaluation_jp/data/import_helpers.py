@@ -10,7 +10,7 @@ import pandas as pd
 import sqlalchemy as sa
 
 #%%
-from src.features.metadata_helpers import nearest_lr_date
+from evaluation_jp.features.metadata_helpers import nearest_lr_date
 
 #%%
 engine = sa.create_engine(

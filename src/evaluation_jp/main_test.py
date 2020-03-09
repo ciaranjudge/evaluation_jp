@@ -6,8 +6,8 @@ from typing import ClassVar, List, Set, Dict, Tuple, Optional
 import pandas as pd
 
 ## Local packages
-from src.evaluation_model import EvaluationModel
-from src.features.selection_helpers import EligibilityChecker, EligibilityCheckManager
+from evaluation_jp.evaluation_model import EvaluationModel
+from evaluation_jp.features.selection_helpers import EligibilityChecker, EligibilityCheckManager
 
 slice_freq = 'Q'
 period_freq = 'M'
@@ -75,7 +75,7 @@ em = EvaluationModel(
 from typing import ClassVar, List, Set, Dict, Tuple, Optional
 from dataclasses import dataclass, Field, fields, asdict, astuple, is_dataclass
 import pandas as pd
-from src.data.persistence_helpers import get_name, get_path, populate
+from evaluation_jp.data.persistence_helpers import get_name, get_path, populate
 
 # @dataclass
 # class Metadata:
