@@ -1,8 +1,5 @@
 if __name__ == "__main__":
-    import sys, os
-    print(os.getcwd())
-    print('\n'.join(sys.path))
-    from src.data.import_helpers import get_ists_claims
+    import evaluation_jp.data.import_helpers as import_helpers
 
 # returned_df = get_ists_claims(
 #     pd.Timestamp("2020-01-03"),
