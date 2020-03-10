@@ -1,10 +1,11 @@
 
 from abc import ABCMeta, abstractmethod
-import futil as futil
 import datetime
 import os
 import sqlalchemy as sa
 from sqlalchemy import text
+
+import evaluation_jp.data.etl.pipeline.futil as futil
 
 
 class Data_file(metaclass=ABCMeta):
