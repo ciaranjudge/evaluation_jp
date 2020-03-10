@@ -5,9 +5,6 @@ from evaluation_jp.features.metadata_helpers import nearest_lr_date, lr_reportin
 print(nearest_lr_date(pd.Timestamp("2016-01-06")))
 
 # TODO test nearest_lr_date() with how == ["previous", "next", ""]
-# TODO test lr_reporting_date()
-# Use list comprehension to generate test outputs
-# test_outputs = [nearest_lr_date(date) for date in test_inputs]
 
 # From answer #25 here: https://stackoverflow.com/questions/50559078/generating-random-dates-within-a-given-range-in-pandas
 def random_dates(start, end, n=10):
@@ -23,6 +20,7 @@ def test_lr_reporting_date():
     end = pd.to_datetime("2020-03-01")
     test_inputs = random_dates(start, end)
     test_outputs = [lr_reporting_date(date) for date in test_inputs]
+    # Manually generated!
     expected_datelist = [
         "2018-08-31",
         "2016-02-26",
