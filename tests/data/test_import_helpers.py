@@ -1,4 +1,13 @@
-from evaluation_jp.data.import_helpers import get_datetime_cols, get_ists_claims
+from evaluation_jp.data.import_helpers import (
+    get_datetime_cols,
+    get_col_list,
+    # get_clusters,
+    get_ists_claims,
+    get_les_data,
+    get_jobpath_data,
+    #     get_earnings,
+    #     get_payments,
+)
 
 
 def test_get_datetime_cols():
@@ -7,7 +16,7 @@ def test_get_datetime_cols():
         table_name: set(get_datetime_cols(table_name)) for table_name in test_inputs
     }
     expected_outputs = {
-        "les": set(["start_date", "start_week"]),
+        "les": set(["start_date"]),
         "ists_personal": set(["date_of_birth"]),
         "jobpath_referrals": set(
             [
@@ -24,10 +33,55 @@ def test_get_datetime_cols():
     assert test_outputs == expected_outputs
 
 
-# TODO test get_clusters()
-# TODO test get_ists_claims()
-# TODO test get_les_data()
-# TODO test get_jobpath_data()
+def test_get_col_list():
+    test_inputs = ["les", "ists_claims"]
+    test_outputs = {
+        table_name: set(get_col_list(table_name, columns=None))
+        for table_name in test_inputs
+    }
+    expected_outputs = {
+        "les": set(['index', 'client_group', 'ppsn', 'start_date']),
+        "ists_claims": set(
+            [
+                "id",
+                "lr_code",
+                "lr_flag",
+                "lls_code",
+                "clm_reg_date",
+                "clm_comm_date",
+                "location",
+                "CLM_STATUS",
+                "CLM_SUSP_DTL_REAS_CODE",
+                "CDAS",
+                "ada_code",
+                "JobPath_Flag",
+                "JobPathHold",
+                "PERS_RATE",
+                "ADA_AMT",
+                "CDA_AMT",
+                "MEANS",
+                "EMEANS",
+                "NEMEANS",
+                "NET_FLAT",
+                "FUEL",
+                "RRA",
+                "WEEKLY_RATE",
+                "Recip_flag",
+                "lr_date",
+                "personal_id",
+            ]
+        ),
+    }
+    assert test_outputs == expected_outputs
+
+
+# # TODO test get_clusters()
+# # TODO test get_ists_claims()
+def test_get_les_data():
+    pass
+
+
+# # TODO test get_jobpath_data()
 # TODO test get_earnings()
 # TODO test get_payments()
 
