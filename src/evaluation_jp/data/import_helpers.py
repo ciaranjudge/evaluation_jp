@@ -1,8 +1,5 @@
 # %%
 from typing import List, Set, Dict, Tuple, Optional
-import datetime as dt
-import calendar
-import dateutil.relativedelta as rd
 
 import numpy as np
 import pandas as pd
@@ -28,15 +25,33 @@ def get_datetime_cols(table_name):
     return datetime_cols
 
 
-def get_col_list(table_name, columns):
-    if columns is None:
-        column_metadata = insp.get_columns(table_name)
-        columns = [col["name"] for col in column_metadata]
-        return [col for col in columns if col not in ["index", "id"]]
+def get_col_list(table_name, columns=None, required_columns=None):
+    column_metadata = insp.get_columns(table_name)
+    table_columns = [col["name"] for col in column_metadata]
+    if columns is not None:
+        ok_columns = (set(columns) | set(required_columns)) & set(table_columns)
+    else:
+        ok_columns = table_columns
+    return [col for col in ok_columns if col not in ["index", "id"]]
 
 
 def unpack(listlike):
-    return ", ".join(listlike)
+    return ", ".join([str(i) for i in listlike])
+
+
+def compose_query(table, ids, columns, required_columns):
+    col_list = get_col_list(table, columns, required_columns)
+    if ids is not None:
+        query_text = f"""select {unpack(col_list)} from {table} where ppsn in :ids"""
+        query = sa.sql.text(query_text).bindparams(
+            sa.sql.expression.bindparam("ids", expanding=True)
+        )
+        params = {"ids": ids.to_list()}
+    else:
+        query = f"""select {unpack(col_list)} from {table}"""
+        params = None
+    datetime_cols = get_datetime_cols(table)
+    return query, params, datetime_cols
 
 
 #%%
@@ -175,38 +190,42 @@ def get_ists_claims(
 def get_les_data(
     ids: Optional[pd.Index] = None, columns: Optional[List] = None
 ) -> pd.DataFrame:
-    unpacked_columns = unpack(get_col_list("les", columns))
-    if ids is not None:
-        query_text = f"""select {unpacked_columns} from les where ppsn in :ids"""
-        query = sa.sql.text(query_text).bindparams(
-            sa.sql.expression.bindparam("ids", expanding=True)
-        )
-        params = {"ids": ids.to_list()}
-        sql_les = pd.read_sql(
-            query, con=engine, params=params, parse_dates=get_datetime_cols("les")
-        )
-    else:
-        query = f"""select {unpacked_columns} from les"""
-        sql_les = pd.read_sql(query, con=engine, parse_dates=get_datetime_cols("les"))
-    sql_les["start_date"] = pd.to_datetime(sql_les["start_date"])
-    sql_les["end_date"] = sql_les["start_date"] + pd.DateOffset(years=1)
-    sql_les["start_month"] = sql_les["start_date"].dt.to_period("M")
+    required_columns = ["ppsn", "start_date"]
+    query, params, datetime_cols = compose_query(
+        table="les", ids=ids, columns=columns, required_columns=required_columns
+    )
+    sql_les = pd.read_sql(query, con=engine, params=params, parse_dates=datetime_cols)
+    if columns is None or (columns is not None and "end_date" in columns):
+        sql_les["end_date"] = sql_les["start_date"] + pd.DateOffset(years=1)
+    if columns is None or (columns is not None and "start_month" in columns):
+        sql_les["start_month"] = sql_les["start_date"].dt.to_period("M")
+    if columns is not None:
+        sql_les = sql_les[columns]
     return sql_les
 
 
 #%%
-def get_jobpath_data(columns: Optional[List] = None) -> pd.DataFrame:
-    query = """select * from jobpath_referrals
-    """
-    sql_jobpath = pd.read_sql(query, con=engine, parse_dates=get_datetime_cols("les"))
-
-    sql_jobpath["jobpath_end_date"] = sql_jobpath["jobpath_end_date"].fillna(
-        sql_jobpath["jobpath_start_date"] + pd.DateOffset(years=1)
+def get_jobpath_data(
+    ids: Optional[pd.Index] = None, columns: Optional[List] = None
+) -> pd.DataFrame:
+    required_columns = ["ppsn", "jobpath_start_date"]
+    query, params, datetime_cols = compose_query(
+        table="jobpath_referrals",
+        ids=ids,
+        columns=columns,
+        required_columns=required_columns,
     )
-    sql_jobpath["jobpath_start_month"] = sql_jobpath["jobpath_start_date"].dt.to_period(
-        "M"
+    sql_jobpath = pd.read_sql(
+        query, con=engine, params=params, parse_dates=datetime_cols,
     )
-    sql_jobpath["ppsn"] = sql_jobpath["ppsn"].str.strip()
+    if columns is None or (columns is not None and "jobpath_end_date" in columns):
+        sql_jobpath["jobpath_end_date"] = sql_jobpath["jobpath_end_date"].fillna(
+            sql_jobpath["jobpath_start_date"] + pd.DateOffset(years=1)
+        )
+    if columns is None or (columns is not None and "jobpath_start_month" in columns):
+        sql_jobpath["jobpath_start_month"] = sql_jobpath[
+            "jobpath_start_date"
+        ].dt.to_period("M")
     if columns is not None:
         sql_jobpath = sql_jobpath[columns]
     return sql_jobpath
@@ -281,3 +300,5 @@ def get_jobpath_data(columns: Optional[List] = None) -> pd.DataFrame:
 
 #     return df
 
+
+# %%
