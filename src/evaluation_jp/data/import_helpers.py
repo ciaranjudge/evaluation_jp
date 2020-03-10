@@ -52,44 +52,44 @@ def decode_bytestrings(series: pd.Series) -> pd.Series:
         return series
 
 
-# def get_clusters(date: pd.Timestamp) -> pd.DataFrame:
-#     """
-#     Given a date, returns a dataframe with all available IDs and clusters for that date
+def get_clusters(date: pd.Timestamp) -> pd.DataFrame:
+    """
+    Given a date, returns a dataframe with all available IDs and clusters for that date
 
-#     Parameters
-#     ----------
-#     date: pd.Timestamp
-#         Exact date of cluster slice
+    Parameters
+    ----------
+    date: pd.Timestamp
+        Exact date of cluster slice
 
-#     Returns
-#     -------
-#     df: pd.DataFrame
-#         Columns returned: "ppsn", "date", "cluster"
-#     """
-#     # Reset time to 00:00:00
-#     date = date.normalize()
+    Returns
+    -------
+    df: pd.DataFrame
+        Columns returned: "ppsn", "date", "cluster"
+    """
+    # Reset time to 00:00:00
+    date = date.normalize()
 
-#     engine = sa.create_engine("sqlite:///./data/interim/jobpath.db")
-#     metadata = sa.MetaData()
-#     column_list = ["ppsn", "date", "cluster"]
-#     columns = ",".join(str(x) for x in column_list)
-#     query = (
-#         f"""SELECT {columns}
-#                 FROM jld_q_clusters 
-#                 WHERE date(date) = date('{date}')"""
-#     ).replace("\n", "\r\n")
-#     print(query)
-#     df = pd.read_sql_query(query, engine, parse_dates=True)
+    engine = sa.create_engine("sqlite:///./data/interim/jobpath.db")
+    metadata = sa.MetaData()
+    column_list = ["ppsn", "date", "cluster"]
+    columns = ",".join(str(x) for x in column_list)
+    query = (
+        f"""SELECT {columns}
+                FROM jld_q_clusters 
+                WHERE date(date) = date('{date}')"""
+    ).replace("\n", "\r\n")
+    print(query)
+    df = pd.read_sql_query(query, engine, parse_dates=True)
 
-#     # Parse dates explicitly if they weren't already parsed by pd.read_sql_query
-#     for col in [col for col in df.columns.to_list() if "date" in col.lower()]:
-#         df[col] = pd.to_datetime(df[col], infer_datetime_format=True)
+    # Parse dates explicitly if they weren't already parsed by pd.read_sql_query
+    for col in [col for col in df.columns.to_list() if "date" in col.lower()]:
+        df[col] = pd.to_datetime(df[col], infer_datetime_format=True)
 
-#     # Any bytestring-coded strings that snuck in from SAS? Decode them!
-#     for col in [col for col in df.columns if df[col].dtype == "object"]:
-#         df[col] = decode_bytestrings(df[col]).astype("category")
+    # Any bytestring-coded strings that snuck in from SAS? Decode them!
+    for col in [col for col in df.columns if df[col].dtype == "object"]:
+        df[col] = decode_bytestrings(df[col]).astype("category")
 
-#     return df
+    return df
 
 
 #%%

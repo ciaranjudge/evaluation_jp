@@ -83,7 +83,7 @@ class EvaluationModel:
     ### -- Other attributes -- ###
     ## Boilerplate
     name: str = field(init=False)
-    path: Path = field(init=False)
+    # path: Path = field(init=False)
     ## Data
     data: Dict[str, pd.DataFrame] = field(init=False)
     ## Slices managed by Manager
