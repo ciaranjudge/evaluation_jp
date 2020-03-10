@@ -9,10 +9,9 @@ import pandas as pd
 
 import sqlalchemy as sa
 
-#%%
 from evaluation_jp.features.metadata_helpers import nearest_lr_date
 
-#%%
+
 engine = sa.create_engine(
     "sqlite:///\\\\cskma0294\\F\\Evaluations\\data\\wwld.db", echo=False
 )
@@ -27,6 +26,17 @@ def get_datetime_cols(table_name):
         if type(col["type"]) == sa.sql.sqltypes.DATETIME
     ]
     return datetime_cols
+
+
+def get_col_list(table_name, columns):
+    if columns is None:
+        column_metadata = insp.get_columns(table_name)
+        columns = [col["name"] for col in column_metadata]
+        return [col for col in columns if col not in ["index", "id"]]
+
+
+def unpack(listlike):
+    return ", ".join(listlike)
 
 
 #%%
@@ -162,16 +172,25 @@ def get_ists_claims(
 
 
 #%%
-def get_les_data(columns: Optional[List] = None) -> pd.DataFrame:
-    query = """select client_group, ppsn, start_date from les
-    """
-    sql_les = pd.read_sql(query, con=engine, parse_dates=get_datetime_cols("les"))
+def get_les_data(
+    ids: Optional[pd.Index] = None, columns: Optional[List] = None
+) -> pd.DataFrame:
+    unpacked_columns = unpack(get_col_list("les", columns))
+    if ids is not None:
+        query_text = f"""select {unpacked_columns} from les where ppsn in :ids"""
+        query = sa.sql.text(query_text).bindparams(
+            sa.sql.expression.bindparam("ids", expanding=True)
+        )
+        params = {"ids": ids.to_list()}
+        sql_les = pd.read_sql(
+            query, con=engine, params=params, parse_dates=get_datetime_cols("les")
+        )
+    else:
+        query = f"""select {unpacked_columns} from les"""
+        sql_les = pd.read_sql(query, con=engine, parse_dates=get_datetime_cols("les"))
     sql_les["start_date"] = pd.to_datetime(sql_les["start_date"])
     sql_les["end_date"] = sql_les["start_date"] + pd.DateOffset(years=1)
     sql_les["start_month"] = sql_les["start_date"].dt.to_period("M")
-    sql_les["ppsn"] = sql_les["ppsn"].str.strip()
-    if columns is not None:
-        sql_les = sql_les[columns]
     return sql_les
 
 
@@ -204,7 +223,7 @@ def get_jobpath_data(columns: Optional[List] = None) -> pd.DataFrame:
 #     Parameters
 #     ----------
 #     ids: pd.Index = None
-#         IDs for lookup. 
+#         IDs for lookup.
 
 #     columns: Optional[List] = None
 #         Columns from the database to return. Default is all columns.
@@ -244,7 +263,7 @@ def get_jobpath_data(columns: Optional[List] = None) -> pd.DataFrame:
 #     Parameters
 #     ----------
 #     ids: pd.Series = None
-#         Pandas Series with IDs for lookup. 
+#         Pandas Series with IDs for lookup.
 
 #     columns: Optional[List] = None
 #         Columns from the database to return. Default is all columns.

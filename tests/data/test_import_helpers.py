@@ -32,7 +32,8 @@ def test_get_datetime_cols():
     }
     assert test_outputs == expected_outputs
 
-
+# TODO Parameterised test with and without actual list of columns
+# TODO Move data to fixtures
 def test_get_col_list():
     test_inputs = ["les", "ists_claims"]
     test_outputs = {
@@ -40,10 +41,9 @@ def test_get_col_list():
         for table_name in test_inputs
     }
     expected_outputs = {
-        "les": set(['index', 'client_group', 'ppsn', 'start_date']),
+        "les": set(['client_group', 'ppsn', 'start_date']),
         "ists_claims": set(
             [
-                "id",
                 "lr_code",
                 "lr_flag",
                 "lls_code",
