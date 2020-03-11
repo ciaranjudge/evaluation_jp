@@ -39,19 +39,19 @@ def unpack(listlike):
     return ", ".join([str(i) for i in listlike])
 
 
-def compose_query(table, ids, columns, required_columns):
-    col_list = get_col_list(table, columns, required_columns)
+def get_parameterized_query(query_text, ids=None):
+    params = {}
     if ids is not None:
-        query_text = f"""select {unpack(col_list)} from {table} where ppsn in :ids"""
+        query_text += f"""\
+            {"WHERE" if "WHERE" not in query_text else "AND"} ppsn in :ids
+        """
+        params["ids"] = ids.to_list()
         query = sa.sql.text(query_text).bindparams(
             sa.sql.expression.bindparam("ids", expanding=True)
         )
-        params = {"ids": ids.to_list()}
     else:
-        query = f"""select {unpack(col_list)} from {table}"""
-        params = None
-    datetime_cols = get_datetime_cols(table)
-    return query, params, datetime_cols
+        query = query_text
+    return query, params
 
 
 #%%
@@ -77,6 +77,7 @@ def decode_bytestrings(series: pd.Series) -> pd.Series:
         return series
 
 
+# TODO Implement get_clusters
 def get_clusters(date: pd.Timestamp) -> pd.DataFrame:
     """
     Given a date, returns a dataframe with all available IDs and clusters for that date
@@ -91,30 +92,7 @@ def get_clusters(date: pd.Timestamp) -> pd.DataFrame:
     df: pd.DataFrame
         Columns returned: "ppsn", "date", "cluster"
     """
-    # Reset time to 00:00:00
-    date = date.normalize()
-
-    engine = sa.create_engine("sqlite:///./data/interim/jobpath.db")
-    metadata = sa.MetaData()
-    column_list = ["ppsn", "date", "cluster"]
-    columns = ",".join(str(x) for x in column_list)
-    query = (
-        f"""SELECT {columns}
-                FROM jld_q_clusters 
-                WHERE date(date) = date('{date}')"""
-    ).replace("\n", "\r\n")
-    print(query)
-    df = pd.read_sql_query(query, engine, parse_dates=True)
-
-    # Parse dates explicitly if they weren't already parsed by pd.read_sql_query
-    for col in [col for col in df.columns.to_list() if "date" in col.lower()]:
-        df[col] = pd.to_datetime(df[col], infer_datetime_format=True)
-
-    # Any bytestring-coded strings that snuck in from SAS? Decode them!
-    for col in [col for col in df.columns if df[col].dtype == "object"]:
-        df[col] = decode_bytestrings(df[col]).astype("category")
-
-    return df
+    pass
 
 
 #%%
@@ -147,40 +125,70 @@ def get_ists_claims(
     -------
     df: pd.DataFrame
     """
-    # Reset time to 00:00:00 and get relevant LR reporting date
-    lookup_date = nearest_lr_date(date.normalize(), how="previous")
-
-    # Query to get columns based on date
-    query = f"""select *
-        from ists_claims c
-        join ists_personal p
-        on c.personal_id=p.id
-        where lr_date = '{lookup_date}'
-        """
-    datetime_cols = get_datetime_cols("ists_personal") + get_datetime_cols(
-        "ists_claims"
+    col_list = unpack(
+        get_col_list("ists_claims", columns=columns, required_columns=["lr_flag"])
+        + ["ppsn"]
     )
-    sql_ists = pd.read_sql(query, con=engine, parse_dates=datetime_cols)
-
-    duplicated = sql_ists["ppsn"].duplicated(keep="first")
-    sql_ists = sql_ists[~duplicated]
-
-    # for col in [col for col in sql_ists.columns if sql_ists[col].dtype == "object"]:
-    #     sql_ists[col] = sql_ists[col].astype("category")
-    if ids is not None:
-        selected_ids = sql_ists["ppsn"].isin(ids)
-        sql_ists = sql_ists.loc[selected_ids]
-
-    if lr_flag == True:
-        on_lr = sql_ists["lr_flag"] == 1
-        sql_ists = sql_ists.loc[on_lr]
-
-    if columns is not None:
-        columns.append("ppsn")
-        sql_ists = sql_ists[columns]
+    lookup_date = nearest_lr_date(date.normalize(), how="previous").date()
+    query_text = f"""\
+        SELECT {col_list} 
+            FROM ists_claims c
+            JOIN ists_personal p
+            ON c.personal_id=p.id
+            WHERE lr_date = '{lookup_date}'
+        """
+    if lr_flag:
+        query_text += """\
+            AND lr_flag is true
+        """
+    query, params = get_parameterized_query(query_text, ids)
+    ists = pd.read_sql(
+        query, con=engine, params=params, parse_dates=get_datetime_cols("ists_claims"),
+    ).drop_duplicates("ppsn", keep="first")
 
     return (
-        sql_ists.dropna(axis=0, how="all")
+        ists.dropna(axis=0, how="all")
+        .reset_index(drop=True)
+        .set_index("ppsn", verify_integrity=True)
+    )
+
+
+# %%
+def get_vital_statistics(
+    ids: Optional[pd.Index] = None, columns: Optional[List] = None
+) -> pd.DataFrame:
+    """
+    Given an (optional) series of IDs, return a df with vital statistics
+
+    Parameters
+    ----------
+    ids: Optional[pd.Index]
+        IDs for lookup. If None, return all records for date.
+    columns: Optional[List]
+        Columns from the ISTS claim database to return. Default is all columns.
+    Returns
+    -------
+    df: pd.DataFrame
+        Columns returned are given in `columns`
+    """
+    col_list = unpack(
+        get_col_list("ists_personal", columns=columns, required_columns=["ppsn"])
+    )
+    query_text = f"""\
+        SELECT {col_list} 
+            FROM ists_personal
+        """
+    query, params = get_parameterized_query(query_text, ids)
+    print(query)
+    ists_personal = pd.read_sql(
+        query,
+        con=engine,
+        params=params,
+        parse_dates=get_datetime_cols("ists_personal"),
+    ).drop_duplicates("ppsn", keep="first")
+
+    return (
+        ists_personal.dropna(axis=0, how="all")
         .reset_index(drop=True)
         .set_index("ppsn", verify_integrity=True)
     )
@@ -190,18 +198,24 @@ def get_ists_claims(
 def get_les_data(
     ids: Optional[pd.Index] = None, columns: Optional[List] = None
 ) -> pd.DataFrame:
-    required_columns = ["ppsn", "start_date"]
-    query, params, datetime_cols = compose_query(
-        table="les", ids=ids, columns=columns, required_columns=required_columns
+    col_list = unpack(
+        get_col_list("les", columns=columns, required_columns=["ppsn", "start_date"])
     )
-    sql_les = pd.read_sql(query, con=engine, params=params, parse_dates=datetime_cols)
-    if columns is None or (columns is not None and "end_date" in columns):
-        sql_les["end_date"] = sql_les["start_date"] + pd.DateOffset(years=1)
-    if columns is None or (columns is not None and "start_month" in columns):
-        sql_les["start_month"] = sql_les["start_date"].dt.to_period("M")
-    if columns is not None:
-        sql_les = sql_les[columns]
-    return sql_les
+    query_text = f"""\
+        SELECT {col_list} 
+            FROM les
+        """
+    query, params = get_parameterized_query(query_text, ids)
+    les = pd.read_sql(
+        query, con=engine, params=params, parse_dates=get_datetime_cols("les"),
+    )
+
+    # Add calculated columns if needed
+    if not columns or (columns and "end_date" in columns):
+        les["end_date"] = les["start_date"] + pd.DateOffset(years=1)
+    if not columns or (columns and "start_month" in columns):
+        les["start_month"] = les["start_date"].dt.to_period("M")
+    return les
 
 
 #%%
@@ -209,26 +223,27 @@ def get_jobpath_data(
     ids: Optional[pd.Index] = None, columns: Optional[List] = None
 ) -> pd.DataFrame:
     required_columns = ["ppsn", "jobpath_start_date"]
-    query, params, datetime_cols = compose_query(
-        table="jobpath_referrals",
-        ids=ids,
-        columns=columns,
-        required_columns=required_columns,
+    col_list = unpack(get_col_list("jobpath_referrals", columns, required_columns))
+    query_text = f"""\
+        SELECT {col_list} 
+            FROM jobpath_referrals
+        """
+    query, params = get_parameterized_query(query_text, ids)
+    jobpath = pd.read_sql(
+        query,
+        con=engine,
+        params=params,
+        parse_dates=get_datetime_cols("jobpath_referrals"),
     )
-    sql_jobpath = pd.read_sql(
-        query, con=engine, params=params, parse_dates=datetime_cols,
-    )
+
+    # Add calculated columns
     if columns is None or (columns is not None and "jobpath_end_date" in columns):
-        sql_jobpath["jobpath_end_date"] = sql_jobpath["jobpath_end_date"].fillna(
-            sql_jobpath["jobpath_start_date"] + pd.DateOffset(years=1)
+        jobpath["jobpath_end_date"] = jobpath["jobpath_end_date"].fillna(
+            jobpath["jobpath_start_date"] + pd.DateOffset(years=1)
         )
     if columns is None or (columns is not None and "jobpath_start_month" in columns):
-        sql_jobpath["jobpath_start_month"] = sql_jobpath[
-            "jobpath_start_date"
-        ].dt.to_period("M")
-    if columns is not None:
-        sql_jobpath = sql_jobpath[columns]
-    return sql_jobpath
+        jobpath["jobpath_start_month"] = jobpath["jobpath_start_date"].dt.to_period("M")
+    return jobpath
 
 
 # def get_earnings(

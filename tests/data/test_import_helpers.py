@@ -1,13 +1,16 @@
 import pandas as pd
 import sqlalchemy as sa
 
+from IPython.display import display
+
 from evaluation_jp.data.import_helpers import (
     get_datetime_cols,
     get_col_list,
     # unpack,
-    # compose_query,
+    # parameterized_query,
     # get_clusters,
     get_ists_claims,
+    get_vital_statistics,
     get_les_data,
     get_jobpath_data,
     # get_earnings,
@@ -89,11 +92,62 @@ def test_get_col_list():
 
 # TODO test unpack()
 
-# TODO test compose_query()
+# TODO test parameterized_query()
 
 # TODO test get_clusters()
 
-# TODO test get_ists_claims()
+
+def test_get_ists_claims():
+    date = pd.Timestamp("2016-01-01")
+    query = f"""\
+        SELECT ppsn, lr_code, clm_comm_date, lr_flag
+            FROM ists_claims c
+            JOIN ists_personal p
+            ON c.personal_id=p.id
+            WHERE lr_date = '{date.date()}'
+            AND lr_flag is true
+        """
+    sample = (
+        pd.read_sql(query, con=engine, parse_dates=["clm_comm_date"],)
+        .drop_duplicates("ppsn", keep="first")
+        .set_index("ppsn")
+        .sample(n=100, random_state=0)
+        .sort_index()
+    )
+
+    results = get_ists_claims(
+        date=date, ids=sample.index, columns=["lr_code", "clm_comm_date"]
+    ).sort_index()[["lr_code", "clm_comm_date", "lr_flag"]]
+
+    expected = sample
+    # print("Results:")
+    # display(results)
+    # print("Expected:")
+    # display(expected)
+    # print(f"Are they the same? {results.equals(expected)}")
+
+    assert results.equals(expected)
+
+
+def test_get_vital_statistics():
+    query = f"""\
+        SELECT ppsn, date_of_birth, sex
+            FROM ists_personal 
+        """
+    sample = (
+        pd.read_sql(query, con=engine, parse_dates=["date_of_birth"],)
+        .drop_duplicates("ppsn", keep="first")
+        .set_index("ppsn")
+        .sample(n=100, random_state=0)
+        .sort_index()
+    )
+    results = get_vital_statistics(
+        ids=sample.index,
+        columns=["date_of_birth", "sex"]
+    ).sort_index()
+    expected = sample
+
+    assert results.equals(expected)
 
 
 def test_get_les_data():
@@ -116,6 +170,13 @@ def test_get_les_data():
                     3: "5092934S",
                     4: "8420262S",
                 },
+                "start_date": {
+                    0: pd.Timestamp("2017-01-02 00:00:00"),
+                    1: pd.Timestamp("2017-01-03 00:00:00"),
+                    2: pd.Timestamp("2017-01-03 00:00:00"),
+                    3: pd.Timestamp("2017-01-03 00:00:00"),
+                    4: pd.Timestamp("2017-01-03 00:00:00"),
+                },
                 "end_date": {
                     0: pd.Timestamp("2018-01-02 00:00:00"),
                     1: pd.Timestamp("2018-01-03 00:00:00"),
@@ -133,11 +194,15 @@ def test_get_les_data():
 
 
 def test_get_jobpath_data():
-    test_sample = pd.read_sql(
-        "select ppsn, jobpath_start_date from jobpath_referrals",
-        con=engine,
-        parse_dates=["jobpath_start_date"],
-    ).drop_duplicates("ppsn", keep="first").sample(n=100, random_state=0)
+    test_sample = (
+        pd.read_sql(
+            "select ppsn, jobpath_start_date from jobpath_referrals",
+            con=engine,
+            parse_dates=["jobpath_start_date"],
+        )
+        .drop_duplicates("ppsn", keep="first")
+        .sample(n=100, random_state=0)
+    )
     test_inputs = pd.Index(test_sample["ppsn"].tolist())
     results = (
         get_jobpath_data(ids=test_inputs, columns=["ppsn", "jobpath_start_date"])
