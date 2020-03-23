@@ -315,5 +315,26 @@ def get_jobpath_data(
 
 #     return df
 
+# %%
+def get_sw_payments(
+    ids: Optional[pd.Index] = None, columns: Optional[List] = None
+) -> pd.DataFrame:
+    required_columns = ["ppsn"]
+    col_list = unpack(get_col_list("payments", columns, required_columns))
+    query_text = f"""\
+        SELECT {col_list} 
+            FROM payments
+            WHERE QTR = "2019Q1"
+        """
+    query, params = get_parameterized_query(query_text, ids)
+    payments = pd.read_sql(
+        query,
+        con=engine,
+        params=params,
+        parse_dates=get_datetime_cols("payments"),
+    )
+    return payments
+
+
 
 # %%
