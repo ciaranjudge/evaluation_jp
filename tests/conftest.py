@@ -1,3 +1,8 @@
+from dataclasses import dataclass
+
+import numpy as np
+
+np.random.seed(0)
 # import pandas as pd
 # import pytest
 # import sqlalchemy as sa
