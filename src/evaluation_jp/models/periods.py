@@ -1,43 +1,49 @@
 # %%
 # Standard library
-import collections
 from dataclasses import dataclass, field, InitVar
-from typing import List, Set
 
 # External packages
 import pandas as pd
 
 # Local packages
+from evaluation_jp.features.setup_steps import NearestKeyDict, SetupSteps
 
 
 @dataclass
 class EvaluationPeriod:
+    # Init only
+    setup_steps: InitVar[SetupSteps]
+    period: InitVar[pd.Period]
     population: InitVar[pd.Index]
-    rules: InitVar[dict]
-    period: InitVar[pd.Timestamp]
 
+    # Set up post-init
     data: pd.DataFrame = field(init=False)
 
-    def __post_init__(self, population, rules, period):
-        # TODO Run rules at setup
-        self.data = pd.DataFrame(population)
+    def __post_init__(self, setup_steps, period, population):
+        self.data = setup_steps.run(date=period.to_timestamp(), data=population)
 
 
 @dataclass
-class PeriodParams:
+class PeriodManager:
+    setup_steps_by_date: dict
     end: pd.Period
     freq: str = "M"
-    rules_by_date: dict = None
 
-    def periods(self, start):
+    # TODO Make this a property that can be set at any time
+    def __post_init__(self):
+        self.setup_steps_by_date = NearestKeyDict(self.setup_steps_by_date)
+
+    def period_range(self, start):
         return pd.period_range(start=start, end=self.end, freq=self.freq)
 
-
-class PeriodManager(collections.UserDict):
-    def __init__(self, population, period_params, start):
-        for period in period_params.periods(start):
-            self.data[period] = EvaluationPeriod(
-                population, period_params.rules_by_date[period.to_timestamp()], period
+    def run(self, start, population):
+        periods = {}
+        for period in self.period_range(start):
+            periods[period] = EvaluationPeriod(
+                self.setup_steps_by_date[period.to_timestamp()],
+                period,
+                population,
             )
             # Use survivors from previous period as pop for next period
-            population = self.data[period].data.index
+            population = periods[period].data
+        return periods
