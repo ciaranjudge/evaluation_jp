@@ -38,7 +38,7 @@ class NearestKeyDict(collections.UserDict):
         del self.data[self.__keytransform__(key)]
 
     def __keytransform__(self, key):
-        if self.how is not "min_after":
+        if self.how != "min_after":
             if len(candidate_keys := [k for k in sorted(self.data) if k <= key]):
                 return max(candidate_keys)
             else:
@@ -56,19 +56,22 @@ class SetupStep(abc.ABC):
 
     # Setup method
     @abc.abstractmethod
-    def setup(self, data=None, date=None):
+    def run(self, date=None, data=None):
         """Do something and return data"""
+        pass
 
 
-class SetupSteps(collections.UserList):
+@dataclass
+class SetupSteps:
     """Ordered sequence of setup steps, each represented by a dataclass
-    Each dataclass should have a setup(data) method
+    Each dataclass should have a run(data) method
     """
+    steps: List
 
-    def setup(self, df: pd.DataFrame = None, date: pd.Timestamp = None):
-        for step in self.data:
-            df = step.setup(df, date)
-        return df
+    def run(self, date: pd.Timestamp = None, data: pd.DataFrame = None):
+        for step in self.steps:
+            data = step.run(date=date, data=data)
+        return data
 
 
 
