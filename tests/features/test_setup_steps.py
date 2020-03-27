@@ -14,7 +14,7 @@ def test_SetupStep(fixture_RandomPopulation):
 def test_SetupSteps(fixture_RandomPopulation, fixture_SampleFromPopulation):
     ss = SetupSteps([fixture_RandomPopulation(), fixture_SampleFromPopulation(0.1),])
     results = ss.run()
-    assert results.shape == (10, 4)
+    assert results.shape == (10, 5)
 
 
 # TODO Parameterize this properly
