@@ -15,6 +15,7 @@ class RandomPopulation(SetupStep):
     data: pd.DataFrame = pd.DataFrame(
         np.random.randint(0, 100, size=(100, 4)), columns=list("ABCD")
     )
+    data["date"] = pd.date_range("2016-01-01", periods=8, freq="QS")[0]
 
     # Setup method
     def run(self, date=None, data=None):
@@ -22,9 +23,11 @@ class RandomPopulation(SetupStep):
             return self.data
         else:
             if date is not None:
-                return data.loc[data["date"] == date]
-            else:
-                return data
+                df = data.loc[data["date"] == date]
+                if not df.empty:
+                    return df
+        # Default is just give back data that's been passed in
+        return data
 
 
 @pytest.fixture
@@ -67,13 +70,18 @@ def fixture_random_date_range_df():
 @pytest.fixture
 def fixture_setup_steps_by_date():
     return {
-        pd.Timestamp("2016-01-01"): SetupSteps([SampleFromPopulation(frac=0.9)]),
-        pd.Timestamp("2017-01-01"): SetupSteps([SampleFromPopulation(frac=0.8)]),
+        pd.Timestamp("2016-01-01"): SetupSteps(
+            [RandomPopulation(), SampleFromPopulation(frac=0.9)]
+        ),
+        pd.Timestamp("2017-01-01"): SetupSteps(
+            [RandomPopulation(), SampleFromPopulation(frac=0.8)]
+        ),
     }
+
 
 # @pytest.fixture
 # def fixture_starting_population(fixture_random_date_range_df):
-#     data = 
+#     data =
 
 
 # import pandas as pd

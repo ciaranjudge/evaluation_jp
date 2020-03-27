@@ -23,13 +23,12 @@ def test_EvaluationPeriod(
 
 def test_PeriodManager(fixture_setup_steps_by_date, fixture_RandomPopulation):
     period_manager = PeriodManager(
-        setup_steps_by_date=fixture_setup_steps_by_date, end=pd.Timestamp("2018-12-31")
+        setup_steps_by_date=fixture_setup_steps_by_date, end=pd.Timestamp("2016-03-31")
     )
     random_population = fixture_RandomPopulation()
     results = period_manager.run(
         start=pd.Timestamp("2016-01-01"), population=random_population.run()
     )
-    print(results)
-    assert results[pd.Period('2016-06', 'M')].data.shape == (53, 4)
+    assert results[pd.Period('2016-02', 'M')].data.shape == (81, 5)
 
 
