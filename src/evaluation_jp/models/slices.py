@@ -24,7 +24,6 @@ class EvaluationSlice:
     def __post_init__(self, setup_steps, date):
         self.data = setup_steps.run(date=date)
 
-    # # TODO Add add_periods code
     def add_periods(self, period_manager: PeriodManager, start: pd.Timestamp):
         self.periods = period_manager.run(start, self.data)
 
@@ -45,9 +44,7 @@ class SliceManager:
     def run(self):
         slices = {
             date: EvaluationSlice(self.setup_steps_by_date[date], date)
-            for date in self.date_range()
+            for date in self.date_range
         }
-        # TODO Move this to models.py
-        population = set().union(*(s.data.index for s in slices.values()))
-        return(slices, population)
+        return slices
 
