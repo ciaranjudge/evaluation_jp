@@ -138,13 +138,13 @@ def test_get_vital_statistics():
         pd.read_sql(query, con=engine, parse_dates=["date_of_birth"],)
         .drop_duplicates("ppsn", keep="first")
         .set_index("ppsn")
-        .sample(n=100, random_state=0)
+        .sample(n=100)
         .sort_index()
-    )
+    )[["date_of_birth", "sex"]]
     results = get_vital_statistics(
         ids=sample.index,
         columns=["date_of_birth", "sex"]
-    ).sort_index()
+    ).sort_index()[["date_of_birth", "sex"]]
     expected = sample
 
     assert results.equals(expected)
