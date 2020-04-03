@@ -15,11 +15,11 @@ def random_dates(start, end, n=10):
     return pd.to_datetime(np.random.randint(start_u, end_u, n), unit="s")
 
 
-def test_lr_reporting_date():
+def test__lr_reporting_date():
     start = pd.to_datetime("2012-01-01")
     end = pd.to_datetime("2020-03-01")
-    test_inputs = random_dates(start, end)
-    test_outputs = [lr_reporting_date(date) for date in test_inputs]
+    test__inputs = random_dates(start, end)
+    test__outputs = [lr_reporting_date(date) for date in test__inputs]
     # Manually generated!
     expected_datelist = [
         "2018-08-31",
@@ -34,5 +34,5 @@ def test_lr_reporting_date():
         "2014-11-28"
     ]
     expected_outputs = [pd.Timestamp(date) for date in expected_datelist]
-    assert test_outputs == expected_outputs
+    assert test__outputs == expected_outputs
 

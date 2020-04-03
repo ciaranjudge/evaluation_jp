@@ -25,10 +25,10 @@ insp = sa.engine.reflection.Inspector.from_engine(engine)
 # TODO Move data to fixtures
 
 
-def test_get_datetime_cols():
-    test_inputs = ["les", "ists_personal", "jobpath_referrals"]
+def test___get_datetime_cols():
+    test___inputs = ["les", "ists_personal", "jobpath_referrals"]
     results = {
-        table_name: set(get_datetime_cols(table_name)) for table_name in test_inputs
+        table_name: set(get_datetime_cols(table_name)) for table_name in test___inputs
     }
     expected = {
         "les": set(["start_date"]),
@@ -49,11 +49,11 @@ def test_get_datetime_cols():
 
 
 # TODO Parameterised test with and without actual list of columns
-def test_get_col_list():
-    test_inputs = ["les", "ists_claims"]
+def test__get_col_list():
+    test__inputs = ["les", "ists_claims"]
     results = {
         table_name: set(get_col_list(table_name, columns=None))
-        for table_name in test_inputs
+        for table_name in test__inputs
     }
     expected = {
         "les": set(["client_group", "ppsn", "start_date"]),
@@ -97,7 +97,7 @@ def test_get_col_list():
 # TODO test get_clusters()
 
 
-def test_get_ists_claims():
+def test__get_ists_claims():
     date = pd.Timestamp("2016-01-01")
     query = f"""\
         SELECT ppsn, lr_code, clm_comm_date, lr_flag
@@ -129,7 +129,7 @@ def test_get_ists_claims():
     assert results.equals(expected)
 
 
-def test_get_vital_statistics():
+def test__get_vital_statistics():
     query = f"""\
         SELECT ppsn, date_of_birth, sex
             FROM ists_personal 
@@ -150,12 +150,12 @@ def test_get_vital_statistics():
     assert results.equals(expected)
 
 
-def test_get_les_data():
-    test_inputs = pd.Index(
+def test__get_les_data():
+    test__inputs = pd.Index(
         ["6892436U", "5051366B", "6049367W", "5092934S", "8420262S",]
     )
     results = (
-        get_les_data(ids=test_inputs, columns=["ppsn", "end_date"])
+        get_les_data(ids=test__inputs, columns=["ppsn", "end_date"])
         .drop_duplicates("ppsn", keep="first")
         .set_index("ppsn")
         .sort_index()
@@ -193,8 +193,8 @@ def test_get_les_data():
     assert results.equals(expected)
 
 
-def test_get_jobpath_data():
-    test_sample = (
+def test__get_jobpath_data():
+    test__sample = (
         pd.read_sql(
             "select ppsn, jobpath_start_date from jobpath_referrals",
             con=engine,
@@ -203,15 +203,15 @@ def test_get_jobpath_data():
         .drop_duplicates("ppsn", keep="first")
         .sample(n=100, random_state=0)
     )
-    test_inputs = pd.Index(test_sample["ppsn"].tolist())
+    test__inputs = pd.Index(test__sample["ppsn"].tolist())
     results = (
-        get_jobpath_data(ids=test_inputs, columns=["ppsn", "jobpath_start_date"])
+        get_jobpath_data(ids=test__inputs, columns=["ppsn", "jobpath_start_date"])
         .drop_duplicates("ppsn", keep="first")
         .set_index("ppsn")
         .sort_index()
     )
     expected = (
-        test_sample.drop_duplicates("ppsn", keep="first").set_index("ppsn").sort_index()
+        test__sample.drop_duplicates("ppsn", keep="first").set_index("ppsn").sort_index()
     )
 
     assert results.equals(expected)

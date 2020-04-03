@@ -5,6 +5,8 @@ import pandas as pd
 import pytest
 
 from evaluation_jp.features.setup_steps import SetupStep, SetupSteps
+from evaluation_jp.models.slices import SliceManager
+from evaluation_jp.models.periods import PeriodManager
 
 np.random.seed(0)
 
@@ -19,9 +21,11 @@ class RandomPopulation(SetupStep):
 
     # Setup method
     def run(self, date=None, data=None):
+        # Generate data if none has been passed in
         if data is None:
             return self.data
         else:
+        # If data and date both passed in, look up that date in the data
             if date is not None:
                 df = data.loc[data["date"] == date]
                 if not df.empty:
@@ -31,7 +35,7 @@ class RandomPopulation(SetupStep):
 
 
 @pytest.fixture
-def fixture_RandomPopulation():
+def fixture__RandomPopulation():
     return RandomPopulation
 
 
@@ -46,12 +50,12 @@ class SampleFromPopulation(SetupStep):
 
 
 @pytest.fixture
-def fixture_SampleFromPopulation():
+def fixture__SampleFromPopulation():
     return SampleFromPopulation
 
 
 @pytest.fixture
-def fixture_random_date_range_df():
+def fixture__random_date_range_df():
     # Random df for each date in date range then append
     dates = pd.date_range("2016-01-01", periods=8, freq="QS")
     data = None
@@ -68,19 +72,36 @@ def fixture_random_date_range_df():
 
 
 @pytest.fixture
-def fixture_setup_steps_by_date():
+def fixture__setup_steps_by_date():
     return {
         pd.Timestamp("2016-01-01"): SetupSteps(
-            [RandomPopulation(), SampleFromPopulation(frac=0.9)]
+            [RandomPopulation(), SampleFromPopulation(frac=0.9),]
         ),
         pd.Timestamp("2017-01-01"): SetupSteps(
-            [RandomPopulation(), SampleFromPopulation(frac=0.8)]
+            [RandomPopulation(), SampleFromPopulation(frac=0.8),]
         ),
     }
 
 
+@pytest.fixture
+def fixture__slice_manager(fixture__setup_steps_by_date):
+    slice_manager = SliceManager(
+        setup_steps_by_date=fixture__setup_steps_by_date,
+        start=pd.Timestamp("2016-01-01"),
+        end=pd.Timestamp("2017-12-31"),
+    )
+    return slice_manager
+
+
+@pytest.fixture
+def fixture__period_manager(fixture__setup_steps_by_date):
+    period_manager = PeriodManager(
+        setup_steps_by_date=fixture__setup_steps_by_date, end=pd.Timestamp("2017-12-31")
+    )
+    return period_manager
+
 # @pytest.fixture
-# def fixture_starting_population(fixture_random_date_range_df):
+# def fixture__starting_population(fixture__random_date_range_df):
 #     data =
 
 
