@@ -38,13 +38,13 @@ class PeriodManager:
 
     def run(self, start, population):
         periods = {}
-        for period in self.period_range(start):
+        for _period in self.period_range(start):
             evaluation_period = EvaluationPeriod(
-                self.setup_steps_by_date[period.to_timestamp()],
-                period,
+                self.setup_steps_by_date[_period.to_timestamp()],
+                _period,
                 population,
             )
-            periods[period] = evaluation_period
+            periods[_period] = evaluation_period
             # Use survivors from previous period as pop for next period
             population = evaluation_period.data
 

@@ -45,12 +45,13 @@ def get_parameterized_query(query_text, ids=None):
         query_text += f"""\
             {"WHERE" if "WHERE" not in query_text else "AND"} ppsn in :ids
         """
-        params["ids"] = ids.to_list()
+        params["ids"] = list(set(ids))
         query = sa.sql.text(query_text).bindparams(
             sa.sql.expression.bindparam("ids", expanding=True)
         )
     else:
         query = query_text
+    print(query)
     return query, params
 
 
@@ -317,24 +318,25 @@ def get_jobpath_data(
 
 # %%
 def get_sw_payments(
-    ids: Optional[pd.Index] = None, columns: Optional[List] = None
+    ids: Optional[pd.Index] = None,
+    period: Optional[pd.Period] = None,
+    columns: Optional[List] = None,
 ) -> pd.DataFrame:
     required_columns = ["ppsn"]
     col_list = unpack(get_col_list("payments", columns, required_columns))
     query_text = f"""\
         SELECT {col_list} 
             FROM payments
-            WHERE QTR = "2019Q1"
+        """
+    if period:
+        query_text += f"""\
+            WHERE QTR = '{period}'
         """
     query, params = get_parameterized_query(query_text, ids)
     payments = pd.read_sql(
-        query,
-        con=engine,
-        params=params,
-        parse_dates=get_datetime_cols("payments"),
+        query, con=engine, params=params, parse_dates=get_datetime_cols("payments"),
     )
     return payments
-
 
 
 # %%

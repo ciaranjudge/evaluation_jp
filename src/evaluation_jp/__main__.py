@@ -12,6 +12,7 @@ from evaluation_jp.features.selection_helpers import EligibilityChecker, Eligibi
 slice_freq = 'Q'
 period_freq = 'M'
 
+
 slice_evaluation_eligibility_checker = EligibilityCheckManager(
     checks_by_startdate={
         pd.Timestamp("2016-01-01"): EligibilityChecker(

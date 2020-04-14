@@ -3,10 +3,25 @@
 from typing import List, Set, Dict, Tuple, Optional, Callable, Union
 from pathlib import Path
 from functools import wraps
+from dataclasses import dataclass
 
 # External packages
 import pandas as pd
 
+@dataclass
+class PersistenceManager:
+    """Set up with where, how, and when to store stuff.
+    Use as decorator for setup steps (how to pass in?!)
+    For now, assume backend is a database with sqlalchemy connection.
+    
+    """
+    engine: str = None ## path/URL for databae engine
+    rebuild_all: bool = False
+
+    # TODO def load(self, data, )
+    # Each dataset written to table with (1) timestamp and (2) 'current' bool
+
+    pass
 
 def get_name(
     type_name: str, start_date: pd.Timestamp, freq: str = None, prefix: str = None

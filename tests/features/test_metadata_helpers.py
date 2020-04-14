@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from evaluation_jp.features.metadata_helpers import nearest_lr_date, lr_reporting_date
+from evaluation_jp.features import nearest_lr_date, lr_reporting_date
 
 print(nearest_lr_date(pd.Timestamp("2016-01-06")))
 
