@@ -28,7 +28,7 @@ class TreatmentPeriod:
 
 
 @dataclass
-class TreatmentPeriodManager:
+class TreatmentPeriodGenerator:
     setup_steps_by_date: dict
     end: pd.Period
     freq: str = "M"
@@ -40,7 +40,7 @@ class TreatmentPeriodManager:
     def treatment_period_range(self, start):
         return pd.period_range(start=start, end=self.end, freq=self.freq)
 
-    def generate_treatment_periods(self, start, population):
+    def __call__(self, start, population):
         for time_period in self.treatment_period_range(start):
             treatment_period = TreatmentPeriod(
                 time_period=time_period,

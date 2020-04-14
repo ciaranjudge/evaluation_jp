@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 
 from evaluation_jp.features import SetupStep, SetupSteps
-from evaluation_jp.models import TreatmentPeriod, TreatmentPeriodManager
+from evaluation_jp.models import TreatmentPeriod, TreatmentPeriodGenerator
 
 
 def test__TreatmentPeriod(
@@ -23,14 +23,14 @@ def test__TreatmentPeriod(
     assert results.data.shape == (10, 5)
 
 
-def test__TreatmentPeriodManager(
-    fixture__treatment_period_manager, fixture__RandomPopulation
+def test__TreatmentPeriodGenerator(
+    fixture__treatment_period_generator, fixture__RandomPopulation
 ):
-    treatment_period_manager = fixture__treatment_period_manager
+    treatment_period_generator = fixture__treatment_period_generator
     random_population = fixture__RandomPopulation()
     results = {
         treatment_period.time_period: treatment_period
-        for treatment_period in treatment_period_manager.generate_treatment_periods(
+        for treatment_period in treatment_period_generator(
             start=pd.Timestamp("2016-01-01"), population=random_population.run()
         )
     }

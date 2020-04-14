@@ -7,9 +7,9 @@ from typing import ClassVar, List, Set, Dict, Tuple, Optional
 import pandas as pd
 
 # Local packages
-from evaluation_jp.data.persistence_helpers import PersistenceManager
-from evaluation_jp.models.slices import SliceManager
-from evaluation_jp.models.periods import PeriodManager
+from evaluation_jp.data import PersistenceManager
+from evaluation_jp.models import PopulationSliceGenerator
+from evaluation_jp.models import TreatmentPeriodGenerator
 
 # from evaluation_jp.data.persistence_helpers import (
 #     get_name,
@@ -28,8 +28,8 @@ class EvaluationModel:
     name: str
     # TODO input_data_manager
     persistence_manager: PersistenceManager = None
-    slice_manager: SliceManager = None
-    period_manager: PeriodManager = None
+    population_slice_generator: PopulationSliceGenerator = None
+    treatment_period_generator: TreatmentPeriodGenerator = None
     # outcome_manager: OutcomeManager = None
 
     # Attributes
@@ -37,7 +37,7 @@ class EvaluationModel:
     slices: dict = None
 
     def add_slices(self):
-        self.slices = self.slice_manager.run()
+        self.slices = self.population_slice_generator()
 
     # TODO Create background and outcome data (self.data) for slices.population
     # def add_population_data():
@@ -46,7 +46,7 @@ class EvaluationModel:
     def add_periods(self):
         for _date, _slice in self.slices.items():
             _slice.add_periods(
-                period_manager=self.period_manager, start=_date
+                treatment_period_generator=self.treatment_period_generator, start=_date
             )
 
     # TODO Run weighting algorithm for periods

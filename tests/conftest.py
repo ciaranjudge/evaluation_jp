@@ -5,7 +5,7 @@ import pandas as pd
 import pytest
 
 from evaluation_jp.features import SetupStep, SetupSteps
-from evaluation_jp.models import PopulationSliceManager, TreatmentPeriodManager
+from evaluation_jp.models import PopulationSliceGenerator, TreatmentPeriodGenerator
 
 np.random.seed(0)
 
@@ -83,21 +83,21 @@ def fixture__setup_steps_by_date():
 
 
 @pytest.fixture
-def fixture__population_slice_manager(fixture__setup_steps_by_date):
-    slice_manager = PopulationSliceManager(
+def fixture__population_slice_generator(fixture__setup_steps_by_date):
+    population_slice_generator = PopulationSliceGenerator(
         setup_steps_by_date=fixture__setup_steps_by_date,
         start=pd.Timestamp("2016-01-01"),
         end=pd.Timestamp("2017-12-31"),
     )
-    return slice_manager
+    return population_slice_generator
 
 
 @pytest.fixture
-def fixture__treatment_period_manager(fixture__setup_steps_by_date):
-    treatment_period_manager = TreatmentPeriodManager(
+def fixture__treatment_period_generator(fixture__setup_steps_by_date):
+    treatment_period_generator = TreatmentPeriodGenerator(
         setup_steps_by_date=fixture__setup_steps_by_date, end=pd.Timestamp("2017-12-31")
     )
-    return treatment_period_manager
+    return treatment_period_generator
 
 # @pytest.fixture
 # def fixture__starting_population(fixture__random_date_range_df):
