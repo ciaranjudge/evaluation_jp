@@ -26,6 +26,7 @@ class EvaluationModel:
 
     # Init parameters
     name: str
+    # TODO input_data_manager
     persistence_manager: PersistenceManager = None
     slice_manager: SliceManager = None
     period_manager: PeriodManager = None

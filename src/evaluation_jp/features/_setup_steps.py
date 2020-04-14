@@ -7,7 +7,7 @@ from typing import ClassVar, List, Set, Dict, Tuple, Optional
 import numpy as np
 import pandas as pd
 
-from evaluation_jp.data.import_helpers import (
+from evaluation_jp.data import (
     get_les_data,
     get_jobpath_data,
     get_ists_claims,

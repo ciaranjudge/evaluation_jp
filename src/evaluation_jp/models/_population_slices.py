@@ -7,29 +7,36 @@ from typing import List, Set
 import pandas as pd
 
 # Local packages
-from evaluation_jp.models.periods import PeriodManager
-from evaluation_jp.features.setup_steps import NearestKeyDict, SetupSteps
+from evaluation_jp.models import TreatmentPeriodManager
+from evaluation_jp.features import NearestKeyDict, SetupSteps
 
 
 @dataclass
-class EvaluationSlice:
+class PopulationSlice:
     # Init only
     setup_steps: InitVar[SetupSteps]
-    date: InitVar[pd.Timestamp]
+
+    # Parameters
+    date: pd.Timestamp
 
     # Set up post-init
     data: pd.DataFrame = field(init=False)
-    periods: PeriodManager = None
+    treatment_periods: dict = None
 
     def __post_init__(self, setup_steps, date):
         self.data = setup_steps.run(date=date)
 
-    def add_periods(self, period_manager: PeriodManager, start: pd.Timestamp):
-        self.periods = period_manager.run(start, self.data)
+    def add_treatment_periods(self, treatment_period_manager: TreatmentPeriodManager):
+        self.treatment_periods = {
+            treatment_period.time_period: treatment_period
+            for treatment_period in treatment_period_manager.generate_treatment_periods(
+                start=self.date, population=self.data
+            )
+        }
 
 
 @dataclass
-class SliceManager:
+class PopulationSliceManager:
     setup_steps_by_date: dict
     start: InitVar[pd.Timestamp]
     end: InitVar[pd.Timestamp]
@@ -43,8 +50,7 @@ class SliceManager:
 
     def run(self):
         slices = {
-            date: EvaluationSlice(self.setup_steps_by_date[date], date)
+            date: PopulationSlice(self.setup_steps_by_date[date], date)
             for date in self.date_range
         }
         return slices
-
