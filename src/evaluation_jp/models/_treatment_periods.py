@@ -22,9 +22,13 @@ class TreatmentPeriod:
     data: pd.DataFrame = field(init=False)
 
     def __post_init__(self, setup_steps, population):
-        self.data = setup_steps.run(
+        self.data = self.setup(setup_steps, population)
+
+    def setup(self, setup_steps, population):
+        return setup_steps.run(
             date=self.time_period.to_timestamp(), data=population
         )
+
 
 
 @dataclass
