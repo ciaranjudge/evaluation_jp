@@ -17,9 +17,17 @@ class PersistenceManager:
     """
     engine: str = None ## path/URL for databae engine
     rebuild_all: bool = False
+    name: str  ## Database name (could also be a folder)
 
     # TODO def load(self, data, )
     # Each dataset written to table with (1) timestamp and (2) 'current' bool
+
+    # Start engine
+    # Does database `name` exist? If not, create it!
+    # Given a valid table name (`population_data`, `population_slices`, `treatment_periods`)
+    # ...does the table exist? If not, create it!
+    # Given the table exists, can the ID of this item be found?
+    
 
     pass
 

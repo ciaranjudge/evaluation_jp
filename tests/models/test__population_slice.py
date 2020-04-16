@@ -5,8 +5,6 @@ import pandas as pd
 
 from evaluation_jp.features import SetupSteps
 from evaluation_jp.models import (
-    TreatmentPeriod,
-    TreatmentPeriodGenerator,
     PopulationSlice,
     PopulationSliceGenerator,
 )
@@ -18,19 +16,6 @@ def test__PopulationSlice(fixture__RandomPopulation, fixture__SampleFromPopulati
     )
     results = PopulationSlice(date=pd.Timestamp("2016-01-01"), setup_steps=setup_steps,)
     assert results.data.shape == (10, 5)
-
-
-def test__PopulationSlice__add_periods(
-    fixture__RandomPopulation,
-    fixture__treatment_period_generator,
-    fixture__setup_steps_by_date,
-):
-    setup_steps = SetupSteps([fixture__RandomPopulation()])
-    results = PopulationSlice(setup_steps=setup_steps, date=pd.Timestamp("2016-01-01"))
-    results.add_treatment_periods(
-        treatment_period_generator=fixture__treatment_period_generator
-    )
-    assert results.treatment_periods[pd.Period("2016-06", "M")].data.shape == (53, 5)
 
 
 def test__PopulationSliceGenerator(

@@ -1,5 +1,5 @@
-from ._treatment_periods import TreatmentPeriod, TreatmentPeriodGenerator
-from ._population_slices import PopulationSlice, PopulationSliceGenerator
-from ._evaluation_models import EvaluationModel
+from ._population_slice import PopulationSlice, PopulationSliceGenerator
+from ._treatment_period import TreatmentPeriod, TreatmentPeriodGenerator
+from ._evaluation_model import EvaluationModel
 
 

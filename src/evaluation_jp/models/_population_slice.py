@@ -7,7 +7,6 @@ from typing import List, Set
 import pandas as pd
 
 # Local packages
-from evaluation_jp.models import TreatmentPeriodGenerator
 from evaluation_jp.features import NearestKeyDict, SetupSteps
 
 
@@ -21,20 +20,10 @@ class PopulationSlice:
 
     # Set up post-init
     data: pd.DataFrame = field(init=False)
-    treatment_periods: dict = None
+    # treatment_periods: dict = None
 
     def __post_init__(self, setup_steps):
         self.data = setup_steps.run(date=self.date)
-
-    def add_treatment_periods(
-        self, treatment_period_generator: TreatmentPeriodGenerator
-    ):
-        self.treatment_periods = {
-            treatment_period.time_period: treatment_period
-            for treatment_period in treatment_period_generator(
-                start=self.date, population=self.data
-            )
-        }
 
 
 @dataclass
