@@ -99,17 +99,28 @@ def fixture__treatment_period_generator(fixture__setup_steps_by_date):
     )
     return treatment_period_generator
 
-# @pytest.fixture
-# def fixture__starting_population(fixture__random_date_range_df):
-#     data =
+@pytest.fixture
+def fixture__population_slice(fixture__RandomPopulation):
+    setup_steps = SetupSteps(
+        [fixture__RandomPopulation(), fixture__SampleFromPopulation(0.1),]
+    )
+    population_slice = PopulationSlice(date=pd.Timestamp("2016-01-01"), setup_steps=setup_steps,)
+    return population_slice
 
+@pytest.fixture
+def fixture__treatment_period(
+    fixture__random_date_range_df,
+    fixture__RandomPopulation,
+    fixture__SampleFromPopulation,
+):
+    setup_steps = SetupSteps(
+        [fixture__RandomPopulation()]
+    )
+    treatment_period = TreatmentPeriod(
+        population_slice_date=pd.Timestamp("2016-01-01"),
+        time_period=pd.Period("2016Q1"),
+        setup_steps=setup_steps,
+        init_data=fixture__random_date_range_df,
+    )
+    return treatment_period
 
-# import pandas as pd
-# import pytest
-# import sqlalchemy as sa
-
-# @pytest.fixture(scope="module")
-# engine = sa.create_engine(
-#     "sqlite:///\\\\cskma0294\\F\\Evaluations\\data\\wwld.db", echo=False
-# )
-# insp = sa.engine.reflection.Inspector.from_engine(engine)

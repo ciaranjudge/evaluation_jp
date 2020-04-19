@@ -11,7 +11,7 @@ import sqlalchemy as sa
 import sqlalchemy_utils
 
 @dataclass
-class PersistenceManager:
+class ModelDataManager:
     """Set up with where, how, and when to store stuff.
     Use as decorator for setup steps (how to pass in?!)
     For now, assume backend is a database with sqlalchemy connection.
