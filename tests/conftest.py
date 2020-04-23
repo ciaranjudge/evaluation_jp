@@ -5,7 +5,11 @@ import pandas as pd
 import pytest
 
 from evaluation_jp.features import SetupStep, SetupSteps
-from evaluation_jp.models import PopulationSliceGenerator, TreatmentPeriodGenerator
+from evaluation_jp.models import (
+    PopulationSlice,
+    PopulationSliceGenerator,
+    TreatmentPeriodGenerator,
+)
 
 np.random.seed(0)
 
@@ -19,12 +23,12 @@ class RandomPopulation(SetupStep):
     data["date"] = pd.date_range("2016-01-01", periods=8, freq="QS")[0]
 
     # Setup method
-    def run(self, date=None, data=None):
+    def __call__(self, date=None, data=None):
         # Generate data if none has been passed in
         if data is None:
             return self.data
         else:
-        # If data and date both passed in, look up that date in the data
+            # If data and date both passed in, look up that date in the data
             if date is not None:
                 df = data.loc[data["date"] == date]
                 if not df.empty:
@@ -44,7 +48,7 @@ class SampleFromPopulation(SetupStep):
     frac: float
 
     # Setup method
-    def run(self, date=None, data=None):
+    def __call__(self, date=None, data=None):
         return data.sample(frac=self.frac, replace=True, random_state=0)
 
 
@@ -99,13 +103,17 @@ def fixture__treatment_period_generator(fixture__setup_steps_by_date):
     )
     return treatment_period_generator
 
+
 @pytest.fixture
-def fixture__population_slice(fixture__RandomPopulation):
+def fixture__population_slice(fixture__RandomPopulation, fixture__SampleFromPopulation):
     setup_steps = SetupSteps(
         [fixture__RandomPopulation(), fixture__SampleFromPopulation(0.1),]
     )
-    population_slice = PopulationSlice(date=pd.Timestamp("2016-01-01"), setup_steps=setup_steps,)
+    population_slice = PopulationSlice(
+        date=pd.Timestamp("2016-01-01"), setup_steps=setup_steps,
+    )
     return population_slice
+
 
 @pytest.fixture
 def fixture__treatment_period(
@@ -113,9 +121,7 @@ def fixture__treatment_period(
     fixture__RandomPopulation,
     fixture__SampleFromPopulation,
 ):
-    setup_steps = SetupSteps(
-        [fixture__RandomPopulation()]
-    )
+    setup_steps = SetupSteps([fixture__RandomPopulation()])
     treatment_period = TreatmentPeriod(
         population_slice_date=pd.Timestamp("2016-01-01"),
         time_period=pd.Period("2016Q1"),
@@ -123,4 +129,3 @@ def fixture__treatment_period(
         init_data=fixture__random_date_range_df,
     )
     return treatment_period
-

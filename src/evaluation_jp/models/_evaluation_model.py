@@ -15,7 +15,7 @@ from evaluation_jp.models import PopulationSliceGenerator, TreatmentPeriodGenera
 class EvaluationModel:
 
     # Init parameters
-    persistence_manager: PersistenceManager = None
+    # persistence_manager: ModelDataManager = None
     population_slice_generator: PopulationSliceGenerator = None
     treatment_period_generator: TreatmentPeriodGenerator = None
     # outcome_manager: OutcomeManager = None
