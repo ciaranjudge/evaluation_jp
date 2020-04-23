@@ -7,14 +7,6 @@ from typing import ClassVar, List, Set, Dict, Tuple, Optional
 import numpy as np
 import pandas as pd
 
-from evaluation_jp.data import (
-    get_les_data,
-    get_jobpath_data,
-    get_ists_claims,
-    get_vital_statistics
-)
-
-
 
 # %%
 class NearestKeyDict(collections.UserDict):
@@ -56,7 +48,7 @@ class SetupStep(abc.ABC):
 
     # Setup method
     @abc.abstractmethod
-    def run(self, date=None, data=None):
+    def __call__(self, date=None, data=None):
         """Do something and return data"""
         pass
 
@@ -66,15 +58,24 @@ class SetupSteps:
     """Ordered sequence of setup steps, each represented by a dataclass
     Each dataclass should have a run(data) method
     """
+
     steps: List
 
-    def run(self, date: pd.Timestamp = None, data: pd.DataFrame = None):
+    def __call__(self, date: pd.Timestamp = None, data: pd.DataFrame = None):
         for step in self.steps:
-            data = step.run(date=date, data=data)
+            data = step(date=date, data=data)
         return data
 
 
+@dataclass
+class LiveRegister:
+    # Parameters
+    columns: List[str]
 
+    # Setup method
+    def run(self, date=None, data=None):
+        """Do something and return data"""
+        pass
 
 
 # def check_age(
@@ -84,7 +85,7 @@ class SetupSteps:
 #     max_age: pd.DateOffset = None,
 # ) -> pd.Series(bool):
 #     """
-#     Given a reference date, an ID series, and a min and/or max age (in years), 
+#     Given a reference date, an ID series, and a min and/or max age (in years),
 #     return a boolean series that is True for each date of birth within the min/max range
 
 #     Parameters
@@ -127,18 +128,17 @@ class SetupSteps:
 #     return at_least_min_age & under_max_age
 
 
-
 # def check_code(
 #     date: pd.Timestamp, ids: pd.Index, eligible_codes: Tuple[str] = None
 # ) -> pd.Series(bool):
 #     """
-#     Given a reference date, an ID series, and a tuple of codes, 
+#     Given a reference date, an ID series, and a tuple of codes,
 #     return True for each id that has an eligible code on that date, else False
 
 #     Parameters
 #     ----------
 #     date: pd.Timestamp
-#         Reference date for lookup of ids 
+#         Reference date for lookup of ids
 
 #     ids : pd.Index
 #         Need unique IDs - should be pd.Index but will work with list or set
@@ -160,7 +160,6 @@ class SetupSteps:
 #         return code_data.isin(eligible_codes)
 #     else:
 #         return pd.Series(data=True, index=ids)
-
 
 
 # def check_duration(
@@ -212,7 +211,6 @@ class SetupSteps:
 #     return at_least_min_duration & less_than_max_duration
 
 
-
 # def on_les(
 #     date: pd.Timestamp,
 #     ids: pd.Index,
@@ -224,7 +222,7 @@ class SetupSteps:
 #     Parameters
 #     ----------
 #     date: pd.Timestamp
-#         Reference date for lookup of ids 
+#         Reference date for lookup of ids
 
 #     ids : pd.Index
 #         Need unique IDs - should be pd.Index but will work with list or set
@@ -253,7 +251,6 @@ class SetupSteps:
 #         return pd.Series(data=False, index=ids)
 
 
-
 # def on_jobpath(
 #     date: pd.Timestamp,
 #     ids: pd.Index,
@@ -263,14 +260,14 @@ class SetupSteps:
 #     combine: str = "either",  # Can be "either" or "both"
 # ) -> pd.Series:
 #     """
-#     Given a date and an id_series, return a series which is 
+#     Given a date and an id_series, return a series which is
 #     True for every record with any previous JobPath history and False otherwise
 
 #     Parameters
 #     ----------
 #     date : pd.Timestamp
 #         Lookup date
-    
+
 #     id_series : pd.Series
 #         Pandas Series with IDs for lookup
 
@@ -321,7 +318,6 @@ class SetupSteps:
 #             return on_jobpath_jobpath | on_jobpath_ists
 
 
-
 # def les_starts(date: pd.Timestamp, ids: pd.Index, period_type: str = "M") -> pd.Series:
 #     """
 #     Given a start_date, an id_series, and an optional period_type (defaults to "M")
@@ -331,7 +327,7 @@ class SetupSteps:
 #     ----------
 #     date: pd.Timestamp
 #         Start of this period
-    
+
 #     ids: pd.Series
 #         Pandas Series with IDs for lookup
 
@@ -356,7 +352,6 @@ class SetupSteps:
 #     return les_starts
 
 
-
 # def jobpath_starts(
 #     date: pd.Timestamp,
 #     ids: pd.Index,
@@ -373,7 +368,7 @@ class SetupSteps:
 #     ----------
 #     start_date: pd.Timestamp
 #         Start of this period
-    
+
 #     id_series: pd.Series
 #         Pandas Series with IDs for lookup
 
@@ -435,19 +430,18 @@ class SetupSteps:
 #         return jobpath_jobpath_starts | ists_jobpath_starts
 
 
-
 # def jobpath_hold(
 #     date: pd.Timestamp, ids: pd.Series, period_type: str = "M", when: str = "end"
 # ) -> pd.Series:
 #     """
-#     Given a time period and an id_series, 
+#     Given a time period and an id_series,
 #     return True for every record with a JobPath hold, False otherwise
 
 #     Parameters
 #     ----------
 #     start_date: pd.Timestamp
 #         Start of this period
-    
+
 #     id_series: pd.Series
 #         Pandas Series with IDs for lookup
 
@@ -456,7 +450,7 @@ class SetupSteps:
 
 #     when: str = "end"
 #         Specify when to measure JobPath hold status.
-#         Possible values are "start", "end", "both", "either". 
+#         Possible values are "start", "end", "both", "either".
 
 #     Returns
 #     -------
@@ -493,19 +487,18 @@ class SetupSteps:
 #     return jobpath_hold
 
 
-
 # def on_lr(
 #     date: pd.Timestamp, ids: pd.Series, period_type: str = "M", when: str = "end"
 # ) -> pd.Series:
 #     """
-#     Given a time period and an id_series, 
+#     Given a time period and an id_series,
 #     return True for every record with an on_lr flag, False otherwise
 
 #     Parameters
 #     ----------
 #     start_date: pd.Timestamp
 #         Start of this period
-    
+
 #     id_series: pd.Series
 #         Pandas Series with IDs for lookup
 
@@ -514,7 +507,7 @@ class SetupSteps:
 
 #     when: str = "end"
 #         Specify time(s) at which to measure status.
-#         Possible values are "start", "end", "both", "either". 
+#         Possible values are "start", "end", "both", "either".
 
 #     Returns
 #     -------
@@ -551,7 +544,6 @@ class SetupSteps:
 #     return on_lr
 
 
-
 # def programme_starts(
 #     date: pd.Timestamp,
 #     ids: pd.Index,
@@ -570,7 +562,7 @@ class SetupSteps:
 #     ----------
 #     start_date : pd.Timestamp
 #         Start of this period
-    
+
 #     id_series : pd.Series
 #         Pandas Series with IDs for lookup
 
@@ -613,4 +605,3 @@ class SetupSteps:
 #         les_starters = pd.Series(data=False, index=ids)
 
 #     return jobpath_starters | les_starters
-

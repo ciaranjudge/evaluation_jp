@@ -7,6 +7,7 @@ from typing import List, Set
 import pandas as pd
 
 # Local packages
+from evaluation_jp.data import ModelDataManager
 from evaluation_jp.features import NearestKeyDict, SetupSteps
 
 
@@ -17,12 +18,12 @@ class PopulationSlice:
 
     # Init only
     setup_steps: InitVar[SetupSteps]
+    data_manager: InitVar[ModelDataManager] = None
 
     # Set up post-init
     data: pd.DataFrame = field(init=False)
-    # treatment_periods: dict = None
 
-    def __post_init__(self, setup_steps):
+    def __post_init__(self, setup_steps, data_manager):
         self.data = setup_steps.run(date=self.date)
 
 
