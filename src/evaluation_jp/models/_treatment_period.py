@@ -27,7 +27,7 @@ class TreatmentPeriod:
         self.data = self.setup(setup_steps, init_data)
 
     def setup(self, setup_steps, init_data):
-        return setup_steps.run(
+        return setup_steps(
             date=self.time_period.to_timestamp(), data=init_data
         )
 

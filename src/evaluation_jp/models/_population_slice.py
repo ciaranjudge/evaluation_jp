@@ -24,7 +24,7 @@ class PopulationSlice:
     data: pd.DataFrame = field(init=False)
 
     def __post_init__(self, setup_steps, data_manager):
-        self.data = setup_steps.run(date=self.date)
+        self.data = setup_steps(date=self.date)
 
 
 @dataclass

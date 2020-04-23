@@ -73,7 +73,7 @@ class LiveRegister:
     columns: List[str]
 
     # Setup method
-    def run(self, date=None, data=None):
+    def __call__(self, date=None, data=None):
         """Do something and return data"""
         pass
 
