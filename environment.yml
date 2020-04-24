@@ -22,6 +22,7 @@ dependencies:
   - marshmallow # Data marshalling & schema validation https://marshmallow.readthedocs.io
   - prefect # 
   - pytest
+  - pytest-xdist
 
   # Jupyter 
   - ipykernel
