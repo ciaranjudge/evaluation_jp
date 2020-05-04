@@ -7,7 +7,7 @@ from typing import ClassVar, List, Set, Dict, Tuple, Optional
 import pandas as pd
 
 # Local packages
-from evaluation_jp.data import ModelDataManager
+from evaluation_jp.data import ModelDataHandler
 from evaluation_jp.models import PopulationSliceGenerator, TreatmentPeriodGenerator
 
 
@@ -15,7 +15,7 @@ from evaluation_jp.models import PopulationSliceGenerator, TreatmentPeriodGenera
 class EvaluationModel:
 
     # Init parameters
-    # persistence_manager: ModelDataManager = None
+    # persistence_manager: ModelDataHandler = None
     population_slice_generator: PopulationSliceGenerator = None
     treatment_period_generator: TreatmentPeriodGenerator = None
     # outcome_manager: OutcomeManager = None
