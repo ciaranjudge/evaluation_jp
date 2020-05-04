@@ -6,6 +6,7 @@ import pytest
 
 from evaluation_jp.features import SetupStep, SetupSteps
 from evaluation_jp.models import (
+    PopulationSliceID,
     PopulationSlice,
     PopulationSliceGenerator,
     TreatmentPeriodGenerator,
@@ -23,14 +24,14 @@ class RandomPopulation(SetupStep):
     data["date"] = pd.date_range("2016-01-01", periods=8, freq="QS")[0]
 
     # Setup method
-    def __call__(self, date=None, data=None):
+    def run(self, data_id=None, data=None):
         # Generate data if none has been passed in
         if data is None:
             return self.data
         else:
             # If data and date both passed in, look up that date in the data
-            if date is not None:
-                df = data.loc[data["date"] == date]
+            if data_id is not None:
+                df = data.loc[data["date"] == data_id["date"]]
                 if not df.empty:
                     return df
         # Default is just give back data that's been passed in
@@ -48,7 +49,7 @@ class SampleFromPopulation(SetupStep):
     frac: float
 
     # Setup method
-    def __call__(self, date=None, data=None):
+    def run(self, data_id=None, data=None):
         return data.sample(frac=self.frac, replace=True, random_state=0)
 
 
@@ -87,9 +88,17 @@ def fixture__setup_steps_by_date():
 
 
 @pytest.fixture
-def fixture__population_slice_generator(fixture__setup_steps_by_date):
+def fixture__treatment_period_setup_steps_by_date():
+    return {
+        pd.Timestamp("2016-01-01"): SetupSteps([SampleFromPopulation(frac=0.9),]),
+        pd.Timestamp("2017-01-01"): SetupSteps([SampleFromPopulation(frac=0.8),]),
+    }
+
+
+@pytest.fixture
+def fixture__population_slice_generator(fixture__treatment_period_setup_steps_by_date):
     population_slice_generator = PopulationSliceGenerator(
-        setup_steps_by_date=fixture__setup_steps_by_date,
+        setup_steps_by_date=fixture__treatment_period_setup_steps_by_date,
         start=pd.Timestamp("2016-01-01"),
         end=pd.Timestamp("2017-12-31"),
     )
@@ -97,9 +106,10 @@ def fixture__population_slice_generator(fixture__setup_steps_by_date):
 
 
 @pytest.fixture
-def fixture__treatment_period_generator(fixture__setup_steps_by_date):
+def fixture__treatment_period_generator(fixture__treatment_period_setup_steps_by_date):
     treatment_period_generator = TreatmentPeriodGenerator(
-        setup_steps_by_date=fixture__setup_steps_by_date, end=pd.Timestamp("2017-12-31")
+        setup_steps_by_date=fixture__treatment_period_setup_steps_by_date,
+        end=pd.Timestamp("2017-12-31"),
     )
     return treatment_period_generator
 
@@ -110,7 +120,7 @@ def fixture__population_slice(fixture__RandomPopulation, fixture__SampleFromPopu
         [fixture__RandomPopulation(), fixture__SampleFromPopulation(0.1),]
     )
     population_slice = PopulationSlice(
-        date=pd.Timestamp("2016-01-01"), setup_steps=setup_steps,
+        id=PopulationSliceID(date=pd.Timestamp("2016-01-01")), setup_steps=setup_steps,
     )
     return population_slice
 
@@ -118,13 +128,15 @@ def fixture__population_slice(fixture__RandomPopulation, fixture__SampleFromPopu
 @pytest.fixture
 def fixture__treatment_period(
     fixture__random_date_range_df,
-    fixture__RandomPopulation,
+    fixture__population_slice,
     fixture__SampleFromPopulation,
 ):
     setup_steps = SetupSteps([fixture__RandomPopulation()])
     treatment_period = TreatmentPeriod(
-        population_slice_date=pd.Timestamp("2016-01-01"),
-        time_period=pd.Period("2016Q1"),
+        id=TreatmentPeriodID(
+            population_slice_id=fixture__population_slice.id,
+            time_period=pd.Period("2016Q1"),
+        ),
         setup_steps=setup_steps,
         init_data=fixture__random_date_range_df,
     )

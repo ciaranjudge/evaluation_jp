@@ -1,7 +1,7 @@
 # %%
 # Standard library
-from dataclasses import dataclass, field, InitVar
-from typing import List, Set
+from dataclasses import dataclass, field, InitVar, asdict
+from typing import List, Set, Dict
 
 # External packages
 import pandas as pd
@@ -11,14 +11,19 @@ from evaluation_jp.data import ModelDataHandler
 from evaluation_jp.features import NearestKeyDict, SetupSteps
 
 
+@dataclass(frozen=True)
+class PopulationSliceID:
+    date: pd.Timestamp
+
+
 @dataclass
 class PopulationSlice:
     # Parameters
-    date: pd.Timestamp
+    id: PopulationSliceID
 
     # Init only
     setup_steps: InitVar[SetupSteps]
-    data_manager: InitVar[ModelDataHandler] = None
+    data_handler: InitVar[ModelDataHandler] = None
 
     # Set up post-init
     data: pd.DataFrame = field(init=False)
@@ -27,13 +32,15 @@ class PopulationSlice:
     def class_name(self):
         return type(self).__name__
 
-    def __post_init__(self, setup_steps, data_manager=None):
-        if data_manager is not None:
-            self.data = data_manager(
-                data_type=self.class_name, data_id={"date": self.date}, setup_steps=setup_steps
+    def __post_init__(self, setup_steps, data_handler=None):
+        if data_handler is not None:
+            self.data = data_handler.run(
+                data_type=self.class_name,
+                data_id=asdict(self.id),
+                setup_steps=setup_steps,
             )
         else:
-            self.data = setup_steps(date=self.date)
+            self.data = setup_steps.run(data_id=self.id)
 
 
 @dataclass
@@ -49,9 +56,14 @@ class PopulationSliceGenerator:
         self.setup_steps_by_date = NearestKeyDict(self.setup_steps_by_date)
         self.date_range = pd.date_range(start=start, end=end, freq=freq)
 
-    def __call__(self):
+    def run(self, data_handler=None):
         for date in self.date_range:
             population_slice = PopulationSlice(
-                date=date, setup_steps=self.setup_steps_by_date[date]
+                id=PopulationSliceID(date),
+                setup_steps=self.setup_steps_by_date[date],
+                data_handler=data_handler,
             )
             yield population_slice
+
+
+# %%

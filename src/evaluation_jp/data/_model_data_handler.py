@@ -1,34 +1,83 @@
 # %%
 # Standard library
+from datetime import datetime
 from typing import List, Set, Dict, Tuple, Optional, Callable, Union
 from pathlib import Path
 from functools import wraps
-from dataclasses import dataclass, field, InitVar
+from dataclasses import dataclass, field, InitVar, asdict
 
 # External packages
 import pandas as pd
 import sqlalchemy as sa
 import sqlalchemy_utils
 
+
 class ModelDataHandlerError(Exception):
     """Generic exception handler for ModelDataHandler
     """
+
     pass
+
 
 class TableNotFoundError(ModelDataHandlerError):
     """Couldn't find the specified table!
     """
+
     pass
+
 
 class DataNotFoundError(ModelDataHandlerError):
     """Table doesn't contain requested data!
     """
+
     pass
 
+
+def is_number(s):
+    try:
+        float(str(s))
+        return True
+    except ValueError:
+        return False
+
+
+def sql_format(thing):
+    if is_number(thing):
+        return thing
+    elif isinstance(thing, datetime):
+        return str(thing.date())
+    else:
+        return str(thing)
+
+
+def sql_where_format(thing):
+    if is_number(thing):
+        return thing
+    else:
+        return f"'{sql_format(thing)}'"
+
+
+def sql_where_clause_from_dict(dictionary):
+    where_clause = ""
+    first = True
+    for key, value in dictionary.items():
+        if first:
+            where_clause += f"WHERE {key} = {sql_where_format(value)}"
+        else:
+            where_clause += f"\n    AND {key} = {sql_where_format(value)}"
+        first = False
+    return where_clause
 
 
 # TODO ABC and concrete classes for various database and file-based storage options
 # ? Should constructor work with partial type + path + name or full data_path?
+
+# TODO Fix pandas datatypes when reading from storage!
+
+# TODO Add index for every data_id column if it doesn't exist already
+
+# TODO Implement flattening for complex `data_id`s
+
 @dataclass
 class ModelDataHandler:
     """Manages storage and retrieval of model data.
@@ -46,26 +95,26 @@ class ModelDataHandler:
         # TODO Add exception handling if data connection can't be set up
         self.engine = sa.create_engine(data_path)
 
-    def table_exists(self, table_type):
+    def table_exists(self, data_type):
         insp = sa.engine.reflection.Inspector.from_engine(self.engine)
-        if table_type in insp.get_table_names():
+        if data_type in insp.get_table_names():
             return True
         else:
             return False
 
-    def read(self, table_type, data_id):
+    def read(self, data_type, data_id):
         """Load dataframe from records in `table` matching `id`
         """
-        if self.table_exists(table_type):
+        if self.table_exists(data_type):
             query = f"""\
                 SELECT * 
-                    FROM {table_type}
+                    FROM {data_type}
                 """
-            for key, value in data_id.items():
-                query += f"""\
-                    {"WHERE" if "WHERE" not in query else "AND"} {key} = '{value}''
-                """
-            data = pd.read_sql(query, con="engine").drop(data_id.keys(), axis="columns")
+            sql_data_id = {f"data_id_{key}": value for key, value in data_id.items()}
+            query += sql_where_clause_from_dict(sql_data_id)
+            data = pd.read_sql(query, con=self.engine).drop(
+                list(sql_data_id) + ["index"], axis="columns"
+            )
             if not data.empty:
                 return data
             else:
@@ -75,41 +124,44 @@ class ModelDataHandler:
 
         # TODO Implement read from archive (in memory and into live database)
 
-    def _delete(self, table_type, data_id):
+    def _delete(self, data_type, data_id):
         # If the table exists, delete any previous rows with this data_id
-        if self.table_exists(table_type):
-            delete_query = f"""\
-                DELETE FROM {table_type}
-                    {[f"WHERE {key}='{value}'" for key, value in data_id.items()]}
-                """
+        if self.table_exists(data_type):
+            query = f"""\
+                DELETE FROM {data_type}
+            """
+            query += sql_where_clause_from_dict(
+                {f"data_id_{key}": value for key, value in data_id.items()}
+            )
             with self.engine.connect() as conn:
-                conn.execute(delete_query)
+                conn.execute(query)
 
-    def _write_live(self, table_type, data_id, data):
-        self._delete(table_type, data_id)
+    def _write_live(self, data_type, data_id, data, index=True):
+        self._delete(data_type, data_id)
         for key, value in data_id.items():
-            data[key] = value
-        data.to_sql(table_type, con=self.engine, if_exists="append")
+            data[f"data_id_{key}"] = sql_format(value)
+
+        data.to_sql(data_type, con=self.engine, if_exists="append", index=index)
 
     # TODO Implement _write_archive()
 
-    def write(self, table_type, data_id, data):
-        self._write_live(table_type, data_id, data)
+    def write(self, data_type, data_id, data, index=True):
+        self._write_live(data_type, data_id, data.copy(), index)
 
-    def __call__(self, table_type, data_id, setup_steps=None, initial_data=None):
+    def run(self, data_type, data_id, setup_steps=None, init_data=None, index=True):
         """Given a valid table name (`population_data`, `population_slices`, `treatment_periods`)
         ...does the table exist? If not, create it!
         Given the table exists, can the ID of this item be found?
         """
         try:
-            data = self.read(table_type, data_id)
+            data = self.read(data_type, data_id)
         except ModelDataHandlerError:
-            data = setup_steps(data_id, initial_data)
-            self.write(table_type, data_id, data)
+            data = setup_steps.run(data_id, init_data)
+            self.write(data_type, data_id, data, index)
         return data
 
-
     # TODO Implement an alternate constructor to copy existing
+    # ? Use alembic ?
     # @classmethod
     # def copy_existing(cls, old_data_path, new_data_path, rebuild_all):
     #     # Make copy of old database at new_data_path

@@ -48,7 +48,7 @@ class SetupStep(abc.ABC):
 
     # Setup method
     @abc.abstractmethod
-    def __call__(self, date=None, data=None):
+    def run(self, data_id, data=None):
         """Do something and return data"""
         pass
 
@@ -59,11 +59,11 @@ class SetupSteps:
     Each dataclass should have a run(data) method
     """
 
-    steps: List
+    steps: List[SetupStep]
 
-    def __call__(self, date: pd.Timestamp = None, data: pd.DataFrame = None):
+    def run(self, data_id=None, data: pd.DataFrame = None):
         for step in self.steps:
-            data = step(date=date, data=data)
+            data = step.run(data_id, data=data)
         return data
 
 
@@ -73,7 +73,7 @@ class LiveRegister:
     columns: List[str]
 
     # Setup method
-    def __call__(self, date=None, data=None):
+    def run(self, date=None, data=None):
         """Do something and return data"""
         pass
 
