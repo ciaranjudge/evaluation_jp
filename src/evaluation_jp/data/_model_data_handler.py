@@ -98,6 +98,7 @@ def flatten(d, sep="_"):
 # TODO ABC and concrete classes for various database and file-based storage options
 # ? Should constructor work with partial type + path + name or full data_path?
 
+
 @dataclass
 class ModelDataHandler:
     """Manages storage and retrieval of model data.
@@ -182,10 +183,6 @@ class ModelDataHandler:
                     """
                 with self.engine.connect() as conn:
                     conn.execute(query)
-
-
-
-
 
     # TODO Implement _write_archive()
 
