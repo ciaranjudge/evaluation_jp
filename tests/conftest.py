@@ -96,9 +96,9 @@ def fixture__treatment_period_setup_steps_by_date():
 
 
 @pytest.fixture
-def fixture__population_slice_generator(fixture__treatment_period_setup_steps_by_date):
+def fixture__population_slice_generator(fixture__setup_steps_by_date):
     population_slice_generator = PopulationSliceGenerator(
-        setup_steps_by_date=fixture__treatment_period_setup_steps_by_date,
+        setup_steps_by_date=fixture__setup_steps_by_date,
         start=pd.Timestamp("2016-01-01"),
         end=pd.Timestamp("2017-12-31"),
     )

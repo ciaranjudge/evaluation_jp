@@ -14,8 +14,6 @@ from evaluation_jp.models import (
 
 def test__TreatmentPeriod(
     fixture__population_slice,
-    fixture__random_date_range_df,
-    fixture__RandomPopulation,
     fixture__SampleFromPopulation,
 ):
     setup_steps = SetupSteps([fixture__SampleFromPopulation(0.9),])

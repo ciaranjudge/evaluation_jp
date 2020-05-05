@@ -35,10 +35,11 @@ def test__ModelDataHandler__write__new(fixture__population_slice, tmpdir):
     )
     engine = sa.create_engine(data_path)
     df = pd.read_sql("PopulationSlice", con=engine)
-    display(df)
     results = df.loc[df["data_id_date"] == str(population_slice.id.date.date())].drop(
-        ["data_id_date"], axis="columns"
+        ["data_id_date", "index"], axis="columns"
     )
+    display(results)
+    display(population_slice.data)
     assert results.shape == population_slice.data.shape
 
 
@@ -70,8 +71,9 @@ def test__ModelDataHandler__write__overwrite(fixture__population_slice, tmpdir):
     engine = sa.create_engine(data_path)
     df = pd.read_sql("PopulationSlice", con=engine)
     display(df)
-    results = df.loc[df["data_id_date"] == str(population_slice.id.date.date())].drop(
-        ["data_id_date"], axis="columns"
+    display(df.info())
+    results = df.loc[df["data_id_date"] == population_slice.id.date].drop(
+        ["data_id_date", "index"], axis="columns"
     )
 
     assert results.shape == population_slice.data.shape
