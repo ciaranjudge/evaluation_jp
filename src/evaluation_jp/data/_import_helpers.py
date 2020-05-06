@@ -146,7 +146,7 @@ def get_ists_claims(
         """
     query, params = get_parameterized_query(query_text, ids)
     ists = pd.read_sql(
-        query, con=engine, params=params, parse_dates=datetime_cols(insp, "ists_claims"),
+        query, con=engine, params=params, parse_dates=datetime_cols(engine, "ists_claims"),
     ).drop_duplicates("ppsn", keep="first")
 
     return (
@@ -187,7 +187,7 @@ def get_vital_statistics(
         query,
         con=engine,
         params=params,
-        parse_dates=datetime_cols(insp, "ists_personal"),
+        parse_dates=datetime_cols(engine, "ists_personal"),
     ).drop_duplicates("ppsn", keep="first")
 
     return (
@@ -210,7 +210,7 @@ def get_les_data(
         """
     query, params = get_parameterized_query(query_text, ids)
     les = pd.read_sql(
-        query, con=engine, params=params, parse_dates=datetime_cols(insp, "les"),
+        query, con=engine, params=params, parse_dates=datetime_cols(engine, "les"),
     )
 
     # Add calculated columns if needed
@@ -236,7 +236,7 @@ def get_jobpath_data(
         query,
         con=engine,
         params=params,
-        parse_dates=datetime_cols(insp, "jobpath_referrals"),
+        parse_dates=datetime_cols(engine, "jobpath_referrals"),
     )
 
     # Add calculated columns
@@ -336,7 +336,7 @@ def get_sw_payments(
         """
     query, params = get_parameterized_query(query_text, ids)
     payments = pd.read_sql(
-        query, con=engine, params=params, parse_dates=datetime_cols(insp, "payments"),
+        query, con=engine, params=params, parse_dates=datetime_cols(engine, "payments"),
     )
     return payments
 

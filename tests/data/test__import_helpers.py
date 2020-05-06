@@ -28,7 +28,7 @@ insp = sa.engine.reflection.Inspector.from_engine(engine)
 def test__datetime_cols():
     test__inputs = ["les", "ists_personal", "jobpath_referrals"]
     results = {
-        table_name: set(datetime_cols(table_name)) for table_name in test__inputs
+        table_name: set(datetime_cols(engine, table_name)) for table_name in test__inputs
     }
     expected = {
         "les": set(["start_date"]),
@@ -52,7 +52,7 @@ def test__datetime_cols():
 def test__get_col_list():
     test__inputs = ["les", "ists_claims"]
     results = {
-        table_name: set(get_col_list(table_name, columns=None))
+        table_name: set(get_col_list(engine, table_name, columns=None))
         for table_name in test__inputs
     }
     expected = {
