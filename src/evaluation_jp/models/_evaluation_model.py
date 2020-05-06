@@ -15,7 +15,7 @@ from evaluation_jp.models import PopulationSliceGenerator, TreatmentPeriodGenera
 class EvaluationModel:
 
     # Init parameters
-    # persistence_manager: ModelDataHandler = None
+    data_handler: ModelDataHandler = None
     population_slice_generator: PopulationSliceGenerator = None
     treatment_period_generator: TreatmentPeriodGenerator = None
     # outcome_manager: OutcomeManager = None
@@ -27,8 +27,8 @@ class EvaluationModel:
 
     def add_population_slices(self):
         self.population_slices = {
-            population_slice.date: population_slice
-            for population_slice in self.population_slice_generator()
+            population_slice.id: population_slice
+            for population_slice in self.population_slice_generator.run(self.data_handler)
         }
 
     # TODO Create background and outcome data (self.data) for slices.population
@@ -38,10 +38,10 @@ class EvaluationModel:
     def add_treatment_periods(self):
         self.treatment_periods = {}
         for population_slice in self.population_slices.values():
-            for t_period in self.treatment_period_generator(population_slice):
-                self.treatment_periods[
-                    (t_period.population_slice_date, t_period.time_period,)
-                ] = t_period
+            for t_period in self.treatment_period_generator.run(
+                population_slice, self.data_handler
+            ):
+                self.treatment_periods[t_period.id] = t_period
 
     # TODO Run weighting algorithm for periods
 

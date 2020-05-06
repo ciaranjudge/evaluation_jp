@@ -5,7 +5,9 @@ import pandas as pd
 
 from evaluation_jp.models import (
     EvaluationModel,
+    PopulationSliceID,
     PopulationSliceGenerator,
+    TreatmentPeriodID,
     TreatmentPeriodGenerator,
 )
 
@@ -31,7 +33,7 @@ def test__EvaluationModel__add_slices(fixture__population_slice_generator,):
     )
     evaluation_model.add_population_slices()
     results = evaluation_model.population_slices[
-        pd.Timestamp("2016-07-01 00:00:00", freq="QS-JAN")
+        PopulationSliceID(pd.Timestamp("2016-07-01 00:00:00", freq="QS-JAN"))
     ]
     assert results.data.shape == (90, 5,)
 
@@ -46,7 +48,12 @@ def test__EvaluationModel__add_periods(
     evaluation_model.add_population_slices()
     evaluation_model.add_treatment_periods()
     results = evaluation_model.treatment_periods[
-        (pd.Timestamp("2016-01-01", freq="QS-JAN"), pd.Period("2016-06", "M"))
+        TreatmentPeriodID(
+            population_slice_id=PopulationSliceID(
+                pd.Timestamp("2016-01-01", freq="QS-JAN")
+            ),
+            time_period=pd.Period("2016-06", "M"),
+        )
     ]
     assert results.data.shape == (48, 5)
 
