@@ -113,19 +113,13 @@ class ModelDataHandler:
     database_type: InitVar[str] = None
     username: InitVar[str] = None
     password: InitVar[str] = None
-    database_location: InitVar[str] = None
-    database_name: InitVar[str] = None
+    location: InitVar[str] = None
+    name: InitVar[str] = None
 
     engine: sa.engine.Engine = field(init=False)
 
     def __post_init__(
-        self,
-        data_path,
-        database_type,
-        username,
-        password,
-        database_location,
-        database_name,
+        self, data_path, database_type, username, password, location, name,
     ):
         """Convert data_path into instantiated data connection
         """
@@ -134,9 +128,7 @@ class ModelDataHandler:
             self.engine = sa.create_engine(data_path)
         else:
             if database_type == "sqlite":
-                connection_string = (
-                    f"sqlite:///{Path(database_location)}/{database_name}.db"
-                )
+                connection_string = f"sqlite:///{Path(location)}/{name}.db"
             # TODO Implement connection strings for MSSQL and other databases
             self.engine = sa.create_engine(connection_string)
 

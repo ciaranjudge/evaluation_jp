@@ -14,7 +14,7 @@ def test__ModelDataHandler__init(tmpdir):
     """Simple test to make sure everything gets initiated correctly
     """
     results = ModelDataHandler(
-        database_type="sqlite", database_location=tmpdir, database_name="test"
+        database_type="sqlite", location=tmpdir, name="test"
     )
     assert results.engine.name == sa.create_engine(f"sqlite:///{tmpdir}/test.db").name
 
