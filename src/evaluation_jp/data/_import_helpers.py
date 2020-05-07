@@ -6,7 +6,7 @@ import pandas as pd
 
 import sqlalchemy as sa
 
-from evaluation_jp.features import nearest_lr_date
+from evaluation_jp.data import nearest_lr_date, datetime_cols
 
 
 engine = sa.create_engine(
@@ -15,15 +15,6 @@ engine = sa.create_engine(
 
 
 
-def datetime_cols(engine, table_name):
-    insp = sa.engine.reflection.Inspector.from_engine(engine)
-    column_metadata = insp.get_columns(table_name)
-    datetime_cols = [
-        col["name"]
-        for col in column_metadata
-        if type(col["type"]) == sa.sql.sqltypes.DATETIME
-    ]
-    return datetime_cols
 
 
 def get_col_list(engine, table_name, columns=None, required_columns=None):
@@ -130,7 +121,7 @@ def get_ists_claims(
     """
     col_list = unpack(
         get_col_list(engine, "ists_claims", columns=columns, required_columns=["lr_flag"])
-        + ["ppsn"]
+        + get_col_list(engine, "ists_personal", columns=columns, required_columns=["ppsn"])
     )
     lookup_date = nearest_lr_date(date.normalize(), how="previous").date()
     query_text = f"""\
