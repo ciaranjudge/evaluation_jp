@@ -7,6 +7,8 @@ from typing import ClassVar, List, Set, Dict, Tuple, Optional
 import numpy as np
 import pandas as pd
 
+from evaluation_jp.data import get_ists_claims, get_les_data, get_jobpath_data
+
 
 # %%
 class NearestKeyDict(collections.UserDict):
@@ -68,14 +70,16 @@ class SetupSteps:
 
 
 @dataclass
-class LiveRegister:
+class LiveRegisterPopulation(SetupStep):
+    """Get `columns` about people on Live Register on `data_id.date`
+    Assume this is for EvaluationSlice, so data_id.date exists and is a date
+    """
     # Parameters
     columns: List[str]
 
     # Setup method
-    def run(self, date=None, data=None):
-        """Do something and return data"""
-        pass
+    def run(self, data_id):
+        return get_ists_claims(data_id.date, columns=self.columns)
 
 
 # def check_age(

@@ -11,7 +11,7 @@ from evaluation_jp.models import (
     PopulationSliceGenerator,
     TreatmentPeriodGenerator,
 )
-from evaluation_jp.features import SetupSteps
+from evaluation_jp.features import SetupSteps, LiveRegisterPopulation
 from evaluation_jp.data import ModelDataHandler
 
 
@@ -28,7 +28,16 @@ em = EvaluationModel(
         setup_steps_by_date={
             pd.Timestamp("2016-01-01"): SetupSteps(
                 steps=[
-                    # LiveRegisterPopulation(cols=[SPECIFY]),
+                    LiveRegisterPopulation(
+                        columns=[
+                            "lr_code",
+                            "clm_comm_date",
+                            "JobPath_Flag",
+                            "JobPathHold",
+                            "date_of_birth",
+                            "sex",
+                        ]
+                    ),
                     # AgeEligible(max_eligible=(60, "years")),
                     # ClaimCodeEligible(eligible_codes=["UA", "UB"]),
                     # ClaimDurationEligible(min_eligible=(1, "years")),
