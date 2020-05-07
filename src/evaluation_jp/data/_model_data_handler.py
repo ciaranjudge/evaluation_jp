@@ -96,7 +96,6 @@ def flatten(d, sep="_"):
 
 
 # TODO ABC and concrete classes for various database and file-based storage options
-# ? Should constructor work with partial type + path + name or full data_path?
 
 
 @dataclass
@@ -106,15 +105,40 @@ class ModelDataHandler:
     
     """
 
-    data_path: InitVar[str]
+    # Feed in the parts of the database URL:
+    # dialect+driver://username:password@host:port/database
+    # From https://docs.sqlalchemy.org/en/13/core/engines.html
+
+    data_path: InitVar[str] = None
+    database_type: InitVar[str] = None
+    username: InitVar[str] = None
+    password: InitVar[str] = None
+    database_location: InitVar[str] = None
+    database_name: InitVar[str] = None
 
     engine: sa.engine.Engine = field(init=False)
 
-    def __post_init__(self, data_path):
+    def __post_init__(
+        self,
+        data_path,
+        database_type,
+        username,
+        password,
+        database_location,
+        database_name,
+    ):
         """Convert data_path into instantiated data connection
         """
         # TODO Add exception handling if data connection can't be set up
-        self.engine = sa.create_engine(data_path)
+        if data_path:
+            self.engine = sa.create_engine(data_path)
+        else:
+            if database_type == "sqlite":
+                connection_string = (
+                    f"sqlite:///{Path(database_location)}/{database_name}.db"
+                )
+            # TODO Implement connection strings for MSSQL and other databases
+            self.engine = sa.create_engine(connection_string)
 
     def table_exists(self, data_type):
         insp = sa.engine.reflection.Inspector.from_engine(self.engine)
