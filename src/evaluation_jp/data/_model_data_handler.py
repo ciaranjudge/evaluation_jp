@@ -12,8 +12,6 @@ import pandas as pd
 import sqlalchemy as sa
 import sqlalchemy_utils
 
-from evaluation_jp.data import datetime_cols
-
 
 class ModelDataHandlerError(Exception):
     """Generic exception handler for ModelDataHandler
@@ -34,6 +32,17 @@ class DataNotFoundError(ModelDataHandlerError):
     """
 
     pass
+
+
+def datetime_cols(engine, table_name):
+    insp = sa.engine.reflection.Inspector.from_engine(engine)
+    column_metadata = insp.get_columns(table_name)
+    datetime_cols = [
+        col["name"]
+        for col in column_metadata
+        if type(col["type"]) == sa.sql.sqltypes.DATETIME
+    ]
+    return datetime_cols
 
 
 def is_number(s):
