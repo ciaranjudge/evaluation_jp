@@ -45,10 +45,14 @@ class PopulationSlice:
 
 @dataclass
 class PopulationSliceGenerator:
-    setup_steps_by_date: dict
-    start: InitVar[pd.Timestamp]
+
+    # Init only
+    start: InitVar[pd.Timestamp] 
     end: InitVar[pd.Timestamp]
     freq: InitVar[str] = "QS"
+
+    # Attributes
+    setup_steps_by_date: NearestKeyDict = None
 
     date_range: pd.DatetimeIndex = field(init=False)
 

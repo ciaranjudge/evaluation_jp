@@ -11,7 +11,7 @@ from evaluation_jp.data import ModelDataHandler
 from evaluation_jp.features import NearestKeyDict, SetupSteps
 from evaluation_jp.models import PopulationSliceID, PopulationSlice
 
-
+# TODO Use dataclass metadata to implement choice of id attrs for TreatmentPeriod and EvaluationSlice
 @dataclass(frozen=True)
 class TreatmentPeriodID:
     population_slice_id: PopulationSliceID
@@ -47,10 +47,11 @@ class TreatmentPeriod:
             self.data = setup_steps.run(data_id=self.id, data=init_data)
 
 
+# TODO TreatmentPeriodGenerator starting at different times (e.g. slice + 1 year)
 @dataclass
 class TreatmentPeriodGenerator:
-    setup_steps_by_date: dict
-    end: pd.Period
+    setup_steps_by_date: dict = None
+    end: pd.Period = None
     freq: str = "M"
 
     def __post_init__(self):
