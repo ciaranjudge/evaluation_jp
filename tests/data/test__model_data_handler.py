@@ -6,9 +6,32 @@ import numpy as np
 import pandas as pd
 import sqlalchemy as sa
 
-from evaluation_jp.data import ModelDataHandler
+from evaluation_jp.data import ModelDataHandler, datetime_cols
 from evaluation_jp.models import PopulationSlice, PopulationSliceID
 
+
+
+def test__datetime_cols():
+    test__inputs = ["les", "ists_personal", "jobpath_referrals"]
+    results = {
+        table_name: set(datetime_cols(engine, table_name)) for table_name in test__inputs
+    }
+    expected = {
+        "les": set(["start_date"]),
+        "ists_personal": set(["date_of_birth"]),
+        "jobpath_referrals": set(
+            [
+                "referral_date",
+                "jobpath_start_date",
+                "jobpath_end_date",
+                "cancellation_date",
+                "pause_date",
+                "resume_date",
+                "ppp_agreed_date",
+            ]
+        ),
+    }
+    assert results == expected
 
 def test__ModelDataHandler__init(tmpdir):
     """Simple test to make sure everything gets initiated correctly

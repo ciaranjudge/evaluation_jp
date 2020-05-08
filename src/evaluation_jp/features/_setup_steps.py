@@ -44,6 +44,33 @@ class NearestKeyDict(collections.UserDict):
                 raise KeyError(f"No data key found after {key}")
 
 
+def date_between_durations(
+    date_series: pd.Series,
+    ref_date: pd.Timestamp,
+    min_duration: pd.DateOffset = None,
+    max_duration: pd.DateOffset = None,
+    output_series_name: str = None,
+) -> pd.Series:
+    """Return boolean series for records with dates between specified limits.
+    True if `min_duration` < (`ref_date` - `date_series`) < `max_duration`, False otherwise.
+    Returns series named `out_series_name`.
+    """
+    durations = ref_date - date_series
+    if min_duration:
+        ge_min_duration = durations >= min_duration
+    else:
+        ge_min_date = pd.Series(data=True, index=date_series.index)
+
+    if max_duration:
+        max_date = ref_date - max_duration
+        lt_max_date = date_series < 
+    else:
+        lt_max_eligible = pd.Series(data=True, index=data.index)
+
+    data["age_eligible"] = ge_min_eligible & lt_max_eligible
+    return data
+
+
 @dataclass
 class SetupStep(abc.ABC):
     # Parameters
@@ -74,6 +101,7 @@ class LiveRegisterPopulation(SetupStep):
     """Get `columns` about people on Live Register on `data_id.date`
     Assume this is for EvaluationSlice, so data_id.date exists and is a date
     """
+
     # Parameters
     columns: List[str]
 
@@ -81,11 +109,13 @@ class LiveRegisterPopulation(SetupStep):
     def run(self, data_id):
         return get_ists_claims(data_id.date, columns=self.columns)
 
+
 @dataclass
 class AgeEligible(SetupStep):
     """Add bool "age_eligible" col to `data`. True if `min_eligible` <= `date_of_birth_col` < `max_eligible`
     `min_eligible` and `max_eligible` are both optional.
     """
+
     date_of_birth_col: str
     min_eligible: Dict[str, int] = None
     max_eligible: Dict[str, int] = None
@@ -110,13 +140,14 @@ class AgeEligible(SetupStep):
         data["age_eligible"] = ge_min_eligible & lt_max_eligible
         return data
 
+
 @dataclass
 class ClaimCodeEligible(SetupStep):
     """Add bool "claim_code_eligible" col to `data`. True if `code_col` in `eligible codes`, False otherwise
     """
+
     code_col: str
     eligible_codes: list = None
-
 
     def run(self, data_id, data):
         if self.eligible_codes:
@@ -127,8 +158,34 @@ class ClaimCodeEligible(SetupStep):
         return data
 
 
+# @dataclass
+# class ClaimDurationEligible(SetupStep):
+#     """Add bool "claim_duration_eligible" col to `data`.
+#     True if `claim_start_col` , False otherwise
+#     """
+#     claim_start_col: str
+#     min_eligible: Dict[str, int] = None
+#     max_eligible: Dict[str, int] = None
 
+#     def run(self, data_id, data):
+#         date = data_id.date
+#         claim_starts = data[self.claim_start_col]
+#         if self.min_eligible:
+#             min_duration = pd.DateOffset(**self.min_eligible)
+#             min_date_of_birth = date - min_duration
+#             ge_min_eligible = dates_of_birth <= min_date_of_birth
+#         else:
+#             ge_min_eligible = pd.Series(data=True, index=data.index)
 
+#         if self.max_eligible:
+#             max_age = pd.DateOffset(**self.max_eligible)
+#             max_date_of_birth = date - max_age
+#             lt_max_eligible = max_date_of_birth < dates_of_birth
+#         else:
+#             lt_max_eligible = pd.Series(data=True, index=data.index)
+
+#         data["age_eligible"] = ge_min_eligible & lt_max_eligible
+#         return data
 
 
 

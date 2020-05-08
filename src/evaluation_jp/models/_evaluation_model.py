@@ -10,7 +10,7 @@ import pandas as pd
 from evaluation_jp.data import ModelDataHandler
 from evaluation_jp.models import PopulationSliceGenerator, TreatmentPeriodGenerator
 
-
+# TODO Read EvaluationModel parameters from yml file
 @dataclass
 class EvaluationModel:
 
@@ -18,7 +18,7 @@ class EvaluationModel:
     data_handler: ModelDataHandler = None
     population_slice_generator: PopulationSliceGenerator = None
     treatment_period_generator: TreatmentPeriodGenerator = None
-    # outcome_manager: OutcomeManager = None
+    # outcome_generator: OutcomeGenerator = None
 
     # Attributes - set up post init
     data: pd.DataFrame = None

@@ -11,7 +11,14 @@ from evaluation_jp.models import (
     PopulationSliceGenerator,
     TreatmentPeriodGenerator,
 )
-from evaluation_jp.features import SetupSteps, LiveRegisterPopulation, AgeEligible, ClaimCodeEligible
+from evaluation_jp.features import (
+    SetupSteps,
+    LiveRegisterPopulation,
+    AgeEligible,
+    ClaimCodeEligible,
+    ClaimDurationEligible,
+    
+)
 from evaluation_jp.data import ModelDataHandler
 
 
@@ -37,9 +44,13 @@ em = EvaluationModel(
                             "date_of_birth",
                         ]
                     ),
-                    AgeEligible(date_of_birth_col="date_of_birth", max_eligible={"years": 60}),
+                    AgeEligible(
+                        date_of_birth_col="date_of_birth", max_eligible={"years": 60}
+                    ),
                     ClaimCodeEligible(code_col="lr_code", eligible_codes=["UA", "UB"]),
-                    # ClaimDurationEligible(min_eligible=(1, "years")),
+                    ClaimDurationEligible(
+                        start_date_col="clm_comm_date", min_eligible={"years": 60}
+                    ),
                     # OnLES(assumed_episode_length=(1, "years")),
                     # OnJobPath(
                     #     assumed_episode_length=(1, "years"), data_source="jobpath",
