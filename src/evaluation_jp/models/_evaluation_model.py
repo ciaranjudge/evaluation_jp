@@ -10,7 +10,7 @@ import pandas as pd
 from evaluation_jp.data import ModelDataHandler
 from evaluation_jp.models import PopulationSliceGenerator, TreatmentPeriodGenerator
 
-# TODO Read EvaluationModel parameters from yml file
+# //TODO Read EvaluationModel parameters from yml file
 @dataclass
 class EvaluationModel:
 
@@ -31,7 +31,7 @@ class EvaluationModel:
             for population_slice in self.population_slice_generator.run(self.data_handler)
         }
 
-    # TODO Create background and outcome data (self.data) for slices.population
+    # //TODO Create background and outcome data (self.data) for slices.population
     # def add_population_data():
     # population = set().union(*(s.data.index for s in slices.values()))
 
@@ -43,8 +43,8 @@ class EvaluationModel:
             ):
                 self.treatment_periods[t_period.id] = t_period
 
-    # TODO Run weighting algorithm for periods
+    # //TODO Run weighting algorithm for periods
 
-    # TODO Back-propagations of weights through periods
+    # //TODO Back-propagations of weights through periods
 
-    # TODO Add outcomes with weighting
+    # //TODO Add outcomes with weighting
