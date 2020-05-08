@@ -44,31 +44,31 @@ class NearestKeyDict(collections.UserDict):
                 raise KeyError(f"No data key found after {key}")
 
 
-def date_between_durations(
-    date_series: pd.Series,
+def dates_between_durations(
+    dates: pd.Series,
     ref_date: pd.Timestamp,
     min_duration: pd.DateOffset = None,
     max_duration: pd.DateOffset = None,
-    output_series_name: str = None,
 ) -> pd.Series:
     """Return boolean series for records with dates between specified limits.
-    True if `min_duration` < (`ref_date` - `date_series`) < `max_duration`, False otherwise.
-    Returns series named `out_series_name`.
+    True if `min_duration` < (`ref_date` - `date`) < `max_duration`, False otherwise.
+    Assume all dates are in the past.
     """
-    durations = ref_date - date_series
     if min_duration:
-        ge_min_duration = durations >= min_duration
+        latest_possible_date = ref_date - min_duration
+        # If duration is longer, date must be earlier!
+        ge_min_duration = dates <= latest_possible_date
     else:
-        ge_min_date = pd.Series(data=True, index=date_series.index)
+        ge_min_duration = pd.Series(data=True, index=dates.index)
 
     if max_duration:
-        max_date = ref_date - max_duration
-        lt_max_date = date_series < 
+        earliest_possible_date = ref_date - max_duration
+        # If duration is longer, date must be earlier!
+        lt_max_duration = earliest_possible_date < dates
     else:
-        lt_max_eligible = pd.Series(data=True, index=data.index)
+        lt_max_duration = pd.Series(data=True, index=dates.index)
 
-    data["age_eligible"] = ge_min_eligible & lt_max_eligible
-    return data
+    return ge_min_duration & lt_max_duration
 
 
 @dataclass
@@ -121,23 +121,23 @@ class AgeEligible(SetupStep):
     max_eligible: Dict[str, int] = None
 
     def run(self, data_id, data):
-        date = data_id.date
-        dates_of_birth = data[self.date_of_birth_col]
+
         if self.min_eligible:
             min_age = pd.DateOffset(**self.min_eligible)
-            min_date_of_birth = date - min_age
-            ge_min_eligible = dates_of_birth <= min_date_of_birth
         else:
-            ge_min_eligible = pd.Series(data=True, index=data.index)
+            min_age = None
 
         if self.max_eligible:
             max_age = pd.DateOffset(**self.max_eligible)
-            max_date_of_birth = date - max_age
-            lt_max_eligible = max_date_of_birth < dates_of_birth
         else:
-            lt_max_eligible = pd.Series(data=True, index=data.index)
+            max_age = None
 
-        data["age_eligible"] = ge_min_eligible & lt_max_eligible
+        data["age_eligible"] = dates_between_durations(
+            dates=data[self.date_of_birth_col],
+            ref_date=data_id.date,
+            min_duration=min_age,
+            max_duration=max_age,
+        )
         return data
 
 
@@ -158,84 +158,35 @@ class ClaimCodeEligible(SetupStep):
         return data
 
 
-# @dataclass
-# class ClaimDurationEligible(SetupStep):
-#     """Add bool "claim_duration_eligible" col to `data`.
-#     True if `claim_start_col` , False otherwise
-#     """
-#     claim_start_col: str
-#     min_eligible: Dict[str, int] = None
-#     max_eligible: Dict[str, int] = None
+@dataclass
+class ClaimDurationEligible(SetupStep):
+    """Add bool "claim_duration_eligible" col to `data`.
+    True if `claim_start_col` , False otherwise
+    """
 
-#     def run(self, data_id, data):
-#         date = data_id.date
-#         claim_starts = data[self.claim_start_col]
-#         if self.min_eligible:
-#             min_duration = pd.DateOffset(**self.min_eligible)
-#             min_date_of_birth = date - min_duration
-#             ge_min_eligible = dates_of_birth <= min_date_of_birth
-#         else:
-#             ge_min_eligible = pd.Series(data=True, index=data.index)
+    claim_start_col: str
+    min_eligible: Dict[str, int] = None
+    max_eligible: Dict[str, int] = None
 
-#         if self.max_eligible:
-#             max_age = pd.DateOffset(**self.max_eligible)
-#             max_date_of_birth = date - max_age
-#             lt_max_eligible = max_date_of_birth < dates_of_birth
-#         else:
-#             lt_max_eligible = pd.Series(data=True, index=data.index)
+    def run(self, data_id, data):
 
-#         data["age_eligible"] = ge_min_eligible & lt_max_eligible
-#         return data
+        if self.min_eligible:
+            min_duration = pd.DateOffset(**self.min_eligible)
+        else:
+            min_duration = None
 
+        if self.max_eligible:
+            max_duration = pd.DateOffset(**self.max_eligible)
+        else:
+            max_duration = None
 
-
-# def check_duration(
-#     date: pd.Timestamp,
-#     ids: pd.Index,
-#     min_duration: pd.DateOffset = None,
-#     max_duration: pd.DateOffset = None,
-# ) -> pd.Series(bool):
-#     """
-#     Given a reference date, an ID series, and checks for min and/or max duration,
-#     return True for each id that has an eligible code on that date, else False
-
-#     Parameters
-#     ----------
-#     date: pd.Timestamp
-#         Reference date for lookup of ids and calculating duration
-
-#     ids : pd.Index
-#         Need unique IDs - should be pd.Index but will work with list or set
-
-#     min_duration : pd.DateOffset = None
-
-#     max_duration : pd.DateOffset = None
-
-#     Returns
-#     -------
-#     pd.Series(bool):
-#         Boolean series with same index as original durations series.
-#         True for each record between given min/max durations, False otherwise.
-#     """
-#     if (min_duration is not None) or (max_duration is not None):
-#         print(f"Check duration using min: {min_duration} and max: {max_duration}")
-#         claim_start_dates = get_ists_claims(
-#             date, ids, columns=["clm_comm_date"]
-#         ).squeeze(axis="columns")
-
-#     if min_duration is not None:
-#         date_of_min_duration = date - min_duration
-#         at_least_min_duration = claim_start_dates <= date_of_min_duration
-#     else:
-#         at_least_min_duration = pd.Series(data=True, index=claim_start_dates.index)
-
-#     if max_duration is not None:
-#         date_of_max_duration = date - max_duration
-#         less_than_max_duration = date_of_max_duration < claim_start_dates
-#     else:
-#         less_than_max_duration = pd.Series(data=True, index=claim_start_dates.index)
-
-#     return at_least_min_duration & less_than_max_duration
+        data["claim_duration_eligible"] = dates_between_durations(
+            dates=data[self.claim_start_col],
+            ref_date=data_id.date,
+            min_duration=min_duration,
+            max_duration=max_duration,
+        )
+        return data
 
 
 # def on_les(

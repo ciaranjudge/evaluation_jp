@@ -8,6 +8,7 @@ from evaluation_jp.features import (
     LiveRegisterPopulation,
     AgeEligible,
     ClaimCodeEligible,
+    ClaimDurationEligible,
 )
 from evaluation_jp.models import PopulationSliceID
 
@@ -91,5 +92,28 @@ def test__ClaimCodeEligible():
     assert results.loc[results["claim_code_eligible"]].shape == (2, 2)
 
 
+@pytest.fixture
+def fixture__claim_duration_df():
+    date_range = pd.date_range(start="2000-01-01", end="2015-12-31", periods=30)
+    claim_duration_df = pd.DataFrame(pd.Series(date_range, name="clm_comm_date"))
+    return claim_duration_df
+
+
+def test__ClaimDurationEligible__lt_max(fixture__claim_duration_df):
+    eligible = ClaimDurationEligible(claim_start_col="clm_comm_date", max_eligible={"years": 5})
+    results = eligible.run(
+        PopulationSliceID(date=pd.Timestamp("2016-01-01")),
+        data=fixture__claim_duration_df,
+    )
+    assert results.loc[results["claim_duration_eligible"]].shape == (10, 2)
+
+
+def test__ClaimDurationEligible__ge_min(fixture__claim_duration_df):
+    eligible = ClaimDurationEligible(claim_start_col="clm_comm_date", min_eligible={"years": 1})
+    results = eligible.run(
+        PopulationSliceID(date=pd.Timestamp("2016-01-01")),
+        data=fixture__claim_duration_df,
+    )
+    assert results.loc[results["claim_duration_eligible"]].shape == (28, 2)
 
 

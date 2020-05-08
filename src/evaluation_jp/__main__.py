@@ -17,6 +17,10 @@ from evaluation_jp.features import (
     AgeEligible,
     ClaimCodeEligible,
     ClaimDurationEligible,
+    OnLES,
+    OnJobPath,
+    OnLiveRegister,
+
     
 )
 from evaluation_jp.data import ModelDataHandler
@@ -49,12 +53,12 @@ em = EvaluationModel(
                     ),
                     ClaimCodeEligible(code_col="lr_code", eligible_codes=["UA", "UB"]),
                     ClaimDurationEligible(
-                        start_date_col="clm_comm_date", min_eligible={"years": 60}
+                        claim_start_col="clm_comm_date", min_eligible={"years": 1}
                     ),
-                    # OnLES(assumed_episode_length=(1, "years")),
-                    # OnJobPath(
-                    #     assumed_episode_length=(1, "years"), data_source="jobpath",
-                    # ),
+                    OnLES(assumed_episode_length={"years": 1}),
+                    OnJobPath(
+                        assumed_episode_length={"years": 1}, data_source="jobpath",
+                    ),
                     # EvaluationEligible(
                     #     eligibility_criteria={
                     #         "age_eligible": True,
