@@ -83,7 +83,8 @@ class LiveRegisterPopulation(SetupStep):
 
 @dataclass
 class AgeEligible(SetupStep):
-    """Add a boolean column that is True if age between min and max eligible. 
+    """Add bool "age_eligible" col to `data`. True if `min_eligible` <= `date_of_birth_col` < `max_eligible`
+    `min_eligible` and `max_eligible` are both optional.
     """
     date_of_birth_col: str
     min_eligible: Dict[str, int] = None
@@ -109,39 +110,26 @@ class AgeEligible(SetupStep):
         data["age_eligible"] = ge_min_eligible & lt_max_eligible
         return data
 
+@dataclass
+class ClaimCodeEligible(SetupStep):
+    """Add bool "claim_code_eligible" col to `data`. True if `code_col` in `eligible codes`, False otherwise
+    """
+    code_col: str
+    eligible_codes: list = None
 
-# def check_code(
-#     date: pd.Timestamp, ids: pd.Index, eligible_codes: Tuple[str] = None
-# ) -> pd.Series(bool):
-#     """
-#     Given a reference date, an ID series, and a tuple of codes,
-#     return True for each id that has an eligible code on that date, else False
 
-#     Parameters
-#     ----------
-#     date: pd.Timestamp
-#         Reference date for lookup of ids
+    def run(self, data_id, data):
+        if self.eligible_codes:
+            claim_code_eligible = data[self.code_col].isin(self.eligible_codes)
+        else:
+            claim_code_eligible = pd.Series(data=True, index=data.index)
+        data["claim_code_eligible"] = claim_code_eligible
+        return data
 
-#     ids : pd.Index
-#         Need unique IDs - should be pd.Index but will work with list or set
 
-#     eligible : Tuple(str)
-#         Tuple of eligible codes
 
-#     Returns
-#     -------
-#     pd.Series(bool)
-#         Boolean series with original id index, True for each id with eligible code
-#     """
 
-#     if (eligible_codes is not None) and (len(eligible_codes) > 0):
-#         print(f"Check codes using eligible: {eligible_codes}")
-#         code_data = get_ists_claims(date, ids, columns=["lr_code"]).squeeze(
-#             axis="columns"
-#         )
-#         return code_data.isin(eligible_codes)
-#     else:
-#         return pd.Series(data=True, index=ids)
+
 
 
 # def check_duration(

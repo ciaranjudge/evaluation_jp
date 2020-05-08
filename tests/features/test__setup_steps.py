@@ -7,6 +7,7 @@ from evaluation_jp.features import (
     SetupSteps,
     LiveRegisterPopulation,
     AgeEligible,
+    ClaimCodeEligible,
 )
 from evaluation_jp.models import PopulationSliceID
 
@@ -69,7 +70,7 @@ def test__AgeEligible__lt_max(fixture__date_of_birth_df):
     )
     # 22 out of 30 records have date_of_birth more than 60 years before date
     # Should be 2 columns in results df (date_of_birth and age_eligible)
-    assert results.loc[results["age_eligible"] == True].shape == (22, 2)
+    assert results.loc[results["age_eligible"]].shape == (22, 2)
 
 
 def test__AgeEligible__ge_min(fixture__date_of_birth_df):
@@ -80,4 +81,15 @@ def test__AgeEligible__ge_min(fixture__date_of_birth_df):
     )
     # 22 out of 30 records have date_of_birth more than 60 years before date
     # Should be 2 columns in results df (date_of_birth and age_eligible)
-    assert results.loc[results["age_eligible"] == True].shape == (25, 2)
+    assert results.loc[results["age_eligible"]].shape == (25, 2)
+
+
+def test__ClaimCodeEligible():
+    data = pd.DataFrame({"lr_code": ["UA", "UB", "UC", "UD", "UE", "UA2", "UB2", "UC2", "UD2", "UE2"]})
+    eligible = ClaimCodeEligible(code_col="lr_code", eligible_codes=["UA", "UB"])
+    results = eligible.run(PopulationSliceID(date=pd.Timestamp("2016-01-01")), data=data)
+    assert results.loc[results["claim_code_eligible"]].shape == (2, 2)
+
+
+
+
