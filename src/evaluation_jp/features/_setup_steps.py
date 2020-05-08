@@ -81,55 +81,33 @@ class LiveRegisterPopulation(SetupStep):
     def run(self, data_id):
         return get_ists_claims(data_id.date, columns=self.columns)
 
+@dataclass
+class AgeEligible(SetupStep):
+    """Add a boolean column that is True if age between min and max eligible. 
+    """
+    date_of_birth_col: str
+    min_eligible: Dict[str, int] = None
+    max_eligible: Dict[str, int] = None
 
-# def check_age(
-#     date: pd.Timestamp,
-#     ids: pd.Index,
-#     min_age: pd.DateOffset = None,
-#     max_age: pd.DateOffset = None,
-# ) -> pd.Series(bool):
-#     """
-#     Given a reference date, an ID series, and a min and/or max age (in years),
-#     return a boolean series that is True for each date of birth within the min/max range
+    def run(self, data_id, data):
+        date = data_id.date
+        dates_of_birth = data[self.date_of_birth_col]
+        if self.min_eligible:
+            min_age = pd.DateOffset(**self.min_eligible)
+            min_date_of_birth = date - min_age
+            ge_min_eligible = dates_of_birth <= min_date_of_birth
+        else:
+            ge_min_eligible = pd.Series(data=True, index=data.index)
 
-#     Parameters
-#     ----------
-#     date: pd.Timestamp
-#         Reference date for calculating ages
+        if self.max_eligible:
+            max_age = pd.DateOffset(**self.max_eligible)
+            max_date_of_birth = date - max_age
+            lt_max_eligible = max_date_of_birth < dates_of_birth
+        else:
+            lt_max_eligible = pd.Series(data=True, index=data.index)
 
-#     ids: pd.Index
-#         Need unique IDs - should be pd.Index but will work with list or set
-
-#     min_age : pd.DateOffset
-
-#     max_age : pd.DateOffset
-
-#     Returns
-#     -------
-#     pd.Series(bool):
-#         Boolean series with same index as original id_series
-#         True for each record between given min/max ages, False otherwise.
-#     """
-
-#     if (min_age is not None) or (max_age is not None):
-#         print(f"Check age using min: {min_age} and max: {max_age}")
-#         dates_of_birth = get_ists_claims(
-#             date, ids, columns=["date_of_birth"]
-#         ).squeeze(axis="columns")
-
-#     if min_age is not None:
-#         min_age_date_of_birth = date - min_age
-#         at_least_min_age = dates_of_birth <= min_age_date_of_birth
-#     else:
-#         at_least_min_age = pd.Series(data=True, index=ids)
-
-#     if max_age is not None:
-#         max_age_date_of_birth = date - max_age
-#         under_max_age = max_age_date_of_birth < dates_of_birth
-#     else:
-#         under_max_age = pd.Series(data=True, index=ids)
-
-#     return at_least_min_age & under_max_age
+        data["age_eligible"] = ge_min_eligible & lt_max_eligible
+        return data
 
 
 # def check_code(

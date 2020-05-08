@@ -1,7 +1,14 @@
 import numpy as np
 import pandas as pd
+import pytest
 
-from evaluation_jp.features import SetupStep, SetupSteps, LiveRegisterPopulation
+from evaluation_jp.features import (
+    SetupStep,
+    SetupSteps,
+    LiveRegisterPopulation,
+    AgeEligible,
+)
+from evaluation_jp.models import PopulationSliceID
 
 # TODO test__NearestKeyDict()
 
@@ -45,3 +52,32 @@ def test__LiveRegisterPopulation(fixture__population_slice):
     )
     results = live_register_population.run(data_id=fixture__population_slice.id)
     assert results.shape == (321373, 7)
+
+
+@pytest.fixture
+def fixture__date_of_birth_df():
+    date_range = pd.date_range(start="1940-01-01", end="1999-12-31", periods=30)
+    date_of_birth_df = pd.DataFrame(pd.Series(date_range, name="date_of_birth"))
+    return date_of_birth_df
+
+
+def test__AgeEligible__lt_max(fixture__date_of_birth_df):
+    lt_max = AgeEligible(date_of_birth_col="date_of_birth", max_eligible={"years": 60})
+    results = lt_max.run(
+        PopulationSliceID(date=pd.Timestamp("2016-01-01")),
+        data=fixture__date_of_birth_df,
+    )
+    # 22 out of 30 records have date_of_birth more than 60 years before date
+    # Should be 2 columns in results df (date_of_birth and age_eligible)
+    assert results.loc[results["age_eligible"] == True].shape == (22, 2)
+
+
+def test__AgeEligible__ge_min(fixture__date_of_birth_df):
+    ge_min = AgeEligible(date_of_birth_col="date_of_birth", min_eligible={"years": 25})
+    results = ge_min.run(
+        PopulationSliceID(date=pd.Timestamp("2016-01-01")),
+        data=fixture__date_of_birth_df,
+    )
+    # 22 out of 30 records have date_of_birth more than 60 years before date
+    # Should be 2 columns in results df (date_of_birth and age_eligible)
+    assert results.loc[results["age_eligible"] == True].shape == (25, 2)
