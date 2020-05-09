@@ -9,6 +9,7 @@ from evaluation_jp.features import (
     AgeEligible,
     ClaimCodeEligible,
     ClaimDurationEligible,
+    OnLES,
 )
 from evaluation_jp.models import PopulationSliceID
 
@@ -39,9 +40,8 @@ def test__SetupSteps_with_data_and_data_id(
     assert results.shape == (10, 5)
 
 
-def test__LiveRegisterPopulation(fixture__population_slice):
-    """Check that number of people on LR == official total per CSO, and correct columns generated
-    """
+@pytest.fixture
+def fixture__live_register_population(fixture__population_slice):
     live_register_population = LiveRegisterPopulation(
         columns=[
             "lr_code",
@@ -52,7 +52,13 @@ def test__LiveRegisterPopulation(fixture__population_slice):
             "sex",
         ]
     )
-    results = live_register_population.run(data_id=fixture__population_slice.id)
+    return live_register_population.run(data_id=fixture__population_slice.id)
+
+
+def test__LiveRegisterPopulation(fixture__live_register_population):
+    """Check that number of people on LR == official total per CSO, and correct columns generated
+    """
+    results = fixture__live_register_population
     assert results.shape == (321373, 7)
 
 
@@ -86,9 +92,13 @@ def test__AgeEligible__ge_min(fixture__date_of_birth_df):
 
 
 def test__ClaimCodeEligible():
-    data = pd.DataFrame({"lr_code": ["UA", "UB", "UC", "UD", "UE", "UA2", "UB2", "UC2", "UD2", "UE2"]})
+    data = pd.DataFrame(
+        {"lr_code": ["UA", "UB", "UC", "UD", "UE", "UA2", "UB2", "UC2", "UD2", "UE2"]}
+    )
     eligible = ClaimCodeEligible(code_col="lr_code", eligible_codes=["UA", "UB"])
-    results = eligible.run(PopulationSliceID(date=pd.Timestamp("2016-01-01")), data=data)
+    results = eligible.run(
+        PopulationSliceID(date=pd.Timestamp("2016-01-01")), data=data
+    )
     assert results.loc[results["claim_code_eligible"]].shape == (2, 2)
 
 
@@ -100,7 +110,9 @@ def fixture__claim_duration_df():
 
 
 def test__ClaimDurationEligible__lt_max(fixture__claim_duration_df):
-    eligible = ClaimDurationEligible(claim_start_col="clm_comm_date", max_eligible={"years": 5})
+    eligible = ClaimDurationEligible(
+        claim_start_col="clm_comm_date", max_eligible={"years": 5}
+    )
     results = eligible.run(
         PopulationSliceID(date=pd.Timestamp("2016-01-01")),
         data=fixture__claim_duration_df,
@@ -109,21 +121,25 @@ def test__ClaimDurationEligible__lt_max(fixture__claim_duration_df):
 
 
 def test__ClaimDurationEligible__ge_min(fixture__claim_duration_df):
-    eligible = ClaimDurationEligible(claim_start_col="clm_comm_date", min_eligible={"years": 1})
+    eligible = ClaimDurationEligible(
+        claim_start_col="clm_comm_date", min_eligible={"years": 1}
+    )
     results = eligible.run(
         PopulationSliceID(date=pd.Timestamp("2016-01-01")),
         data=fixture__claim_duration_df,
     )
     assert results.loc[results["claim_duration_eligible"]].shape == (28, 2)
 
-# //TODO Add test__OnLES
 
+def test__OnLES(fixture__population_slice, fixture__live_register_population):
+    eligible = OnLES(assumed_episode_length={"years": 1})
+    results = eligible.run(
+        data_id=fixture__population_slice.id, data=fixture__live_register_population
+    )
+    # Only 1 
+    assert results.loc[results["on_les"]].shape == (1, 8)
 
 # //TODO Add test__OnJobPath
 
 
 # //TODO ADd test__OnLR
-
-
-
-
