@@ -71,6 +71,21 @@ def dates_between_durations(
     return ge_min_duration & lt_max_duration
 
 
+class DataIDKeyMissing(KeyError):
+    """Can't find field in a data ID object.
+    """
+    pass
+
+
+def ref_date_from_id(data_id, how="End"):
+    if data_id.date:
+        return data_id.date
+    elif data_id.time_period:
+        return data_id.time_period.to_timestamp(how=how)
+    else:
+        raise DataIDKeyMissing
+
+
 @dataclass
 class SetupStep(abc.ABC):
     # Parameters
@@ -107,7 +122,7 @@ class LiveRegisterPopulation(SetupStep):
 
     # Setup method
     def run(self, data_id):
-        return get_ists_claims(data_id.date, columns=self.columns)
+        return get_ists_claims(ref_date_from_id(data_id), columns=self.columns)
 
 
 @dataclass
@@ -134,7 +149,7 @@ class AgeEligible(SetupStep):
 
         data["age_eligible"] = dates_between_durations(
             dates=data[self.date_of_birth_col],
-            ref_date=data_id.date,
+            ref_date=ref_date_from_id(data_id),
             min_duration=min_age,
             max_duration=max_age,
         )
@@ -182,7 +197,7 @@ class ClaimDurationEligible(SetupStep):
 
         data["claim_duration_eligible"] = dates_between_durations(
             dates=data[self.claim_start_col],
-            ref_date=data_id.date,
+            ref_date=ref_date_from_id(data_id),
             min_duration=min_duration,
             max_duration=max_duration,
         )
@@ -197,7 +212,7 @@ class OnLES(SetupStep):
     assumed_episode_length: Dict[str, int]
 
     def run(self, data_id, data):
-        date = data_id.date
+        date = ref_date_from_id(data_id)
         episode_duration = pd.DateOffset(**self.assumed_episode_length)
         les = get_les_data(columns=["start_date"])
         ge_start = les["start_date"] <= date
