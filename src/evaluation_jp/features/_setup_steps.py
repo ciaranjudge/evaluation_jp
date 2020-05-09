@@ -189,44 +189,24 @@ class ClaimDurationEligible(SetupStep):
         return data
 
 
-# def on_les(
-#     date: pd.Timestamp,
-#     ids: pd.Index,
-#     episode_duration: pd.DateOffset = pd.DateOffset(years=1),
-# ) -> pd.Series:
-#     """
-#     Given a date and id_series, return True for every record on LES on that date
+@dataclass
+class OnLES(SetupStep):
+    """Given a data_id and data, return True for every record on LES on data_id reference date
+    """
 
-#     Parameters
-#     ----------
-#     date: pd.Timestamp
-#         Reference date for lookup of ids
+    assumed_episode_length: Dict[str, int]
 
-#     ids : pd.Index
-#         Need unique IDs - should be pd.Index but will work with list or set
-
-#     les_episode_duration : pd.DateOffset
-
-#     Returns
-#     -------
-#     pd.Series(bool)
-#         Boolean series with same index as original id_series.
-#     """
-
-#     if episode_duration is not None:
-#         print(f"Find people on LES using duration: {episode_duration}")
-#         les = get_les_data(columns=["ppsn", "start_date"])
-#         gte_start = les["start_date"] <= date
-#         lte_end = date <= les["start_date"] + episode_duration
-#         les.loc[gte_start & lte_end, "on_les"] = True
-#         on_les_on_date = (
-#             pd.pivot_table(les, values="on_les", index="ppsn", aggfunc=np.any)
-#             .squeeze(axis="columns")
-#             .reindex(ids, fill_value=False)
-#         )
-#         return on_les_on_date
-#     else:
-#         return pd.Series(data=False, index=ids)
+    def run(self, data_id, data):
+        date = data_id.date
+        episode_duration = pd.DateOffset(**self.assumed_episode_length)
+        les = get_les_data(columns=["start_date"])
+        ge_start = les["start_date"] <= date
+        lt_end = date < les["start_date"] + episode_duration
+        les["on_les"] = ge_start & lt_end
+        on_les = pd.pivot_table(les, values="on_les", index="ppsn", aggfunc=np.any)
+        data_on_les = pd.merge(data, on_les, left_index=True, right_index=True, how="left")
+        data_on_les["on_les"] = data_on_les["on_les"].fillna(False)
+        return data_on_les
 
 
 # def on_jobpath(

@@ -116,4 +116,14 @@ def test__ClaimDurationEligible__ge_min(fixture__claim_duration_df):
     )
     assert results.loc[results["claim_duration_eligible"]].shape == (28, 2)
 
+# //TODO Add test__OnLES
+
+
+# //TODO Add test__OnJobPath
+
+
+# //TODO ADd test__OnLR
+
+
+
 
