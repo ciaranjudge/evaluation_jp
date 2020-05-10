@@ -136,7 +136,7 @@ def test__OnLES(fixture__population_slice, fixture__live_register_population):
     results = eligible.run(
         data_id=fixture__population_slice.id, data=fixture__live_register_population
     )
-    # Only 1 
+    # Only 1 person in Dec 2015 LR is on the LES file for start of 2016!
     assert results.loc[results["on_les"]].shape == (1, 8)
 
 # //TODO Add test__OnJobPath

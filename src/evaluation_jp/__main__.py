@@ -57,7 +57,7 @@ em = EvaluationModel(
                     ),
                     OnLES(assumed_episode_length={"years": 1}),
                     OnJobPath(
-                        assumed_episode_length={"years": 1}, data_source="jobpath",
+                        assumed_episode_length={"years": 1}, data_sources=["jobpath"],
                     ),
                     # EvaluationEligible(
                     #     eligibility_criteria={
@@ -78,6 +78,7 @@ em = EvaluationModel(
         setup_steps_by_date={
             pd.Timestamp("2016-01-01"): SetupSteps(
                 steps=[
+                    # * Get LR data again!
                     # on_lr={"period_type": period_freq, "when": "end"},
                     # code={"eligible_codes": ("UA", "UB")},
                     # duration={"min_duration": pd.DateOffset(years=1)},
