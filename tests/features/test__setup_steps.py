@@ -14,7 +14,7 @@ from evaluation_jp.features import (
     OnJobPath,
     EligiblePopulation,
 )
-from evaluation_jp.models import PopulationSliceID
+from evaluation_jp.models import PopulationSliceID, PopulationSlice
 
 # TODO test__NearestKeyDict()
 
@@ -51,7 +51,6 @@ def fixture__live_register_population(fixture__population_slice):
             "JobPath_Flag",
             "JobPathHold",
             "date_of_birth",
-            "sex",
         ]
     )
     return live_register_population.run(data_id=fixture__population_slice.id)
@@ -61,7 +60,7 @@ def test__LiveRegisterPopulation(fixture__live_register_population):
     """Check that number of people on LR == official total per CSO, and correct columns generated
     """
     results = fixture__live_register_population
-    assert results.shape == (321373, 7)
+    assert results.shape == (321373, 5)
 
 
 # //TODO test__LiveRegisterPopulation__run_with_initial_data
@@ -142,7 +141,7 @@ def test__OnLES(fixture__population_slice, fixture__live_register_population):
         data_id=fixture__population_slice.id, data=fixture__live_register_population
     )
     # Only 1 person in Dec 2015 LR is on the LES file for start of 2016!
-    assert results.loc[results["on_les"]].shape == (1, 8)
+    assert results.loc[results["on_les"]].shape == (1, 6)
 
 
 def test__OnJobPath():
@@ -153,7 +152,7 @@ def test__OnJobPath():
     lrp = LiveRegisterPopulation(columns=["JobPath_Flag", "JobPathHold",])
     results = eligible.run(data_id=psid, data=lrp.run(psid))
     # Manually check number of people on JobPath at start of Feb 2016 == 1441
-    assert results.loc[results["on_jobpath"]].shape == (1441, 4)
+    assert results.loc[results["on_jobpath"]].shape == (1441, 3)
 
 
 # //TODO Add test__OnJobPath__ists_only
@@ -170,13 +169,54 @@ def test__EligiblePopulation():
         }
     )
     expected = data.copy()
-    expected["not_c"] = ~ expected["c"]
+    expected["not_c"] = ~expected["c"]
     expected["eligible_population"] = expected[["a", "b", "not_c"]].all(axis="columns")
     expected = expected.drop(["not_c"], axis="columns")
 
-    eligible = EligiblePopulation(eligibility_criteria={"a": True, "b": True, "c": False})
+    eligible = EligiblePopulation(
+        eligibility_criteria={"a": True, "b": True, "c": False}
+    )
     results = eligible.run(data_id=None, data=data)
     print(expected)
     print(results)
     assert results.equals(expected)
 
+
+def test__all_SetupSteps_for_Population_Slice():
+    setup_steps = SetupSteps(
+        steps=[
+            LiveRegisterPopulation(
+                columns=[
+                    "lr_code",
+                    "clm_comm_date",
+                    "JobPath_Flag",
+                    "JobPathHold",
+                    "date_of_birth",
+                ]
+            ),
+            AgeEligible(date_of_birth_col="date_of_birth", max_eligible={"years": 60}),
+            ClaimCodeEligible(code_col="lr_code", eligible_codes=["UA", "UB"]),
+            ClaimDurationEligible(
+                claim_start_col="clm_comm_date", min_eligible={"years": 1}
+            ),
+            OnLES(assumed_episode_length={"years": 1}),
+            OnJobPath(
+                assumed_episode_length={"years": 1},
+                use_jobpath_operational_data=True,
+                use_ists_claim_data=False,
+            ),
+            EligiblePopulation(
+                eligibility_criteria={
+                    "age_eligible": True,
+                    "claim_code_eligible": True,
+                    "claim_duration_eligible": True,
+                    "on_les": False,
+                    "on_jobpath": False,
+                }
+            ),
+        ]
+    )
+    results = PopulationSlice(
+        id=PopulationSliceID(date=pd.Timestamp("2016-07-01")), setup_steps=setup_steps
+    )
+    assert True

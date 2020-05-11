@@ -14,9 +14,6 @@ engine = sa.create_engine(
 )
 
 
-
-
-
 def get_col_list(engine, table_name, columns=None, required_columns=None):
     insp = sa.engine.reflection.Inspector.from_engine(engine)
     column_metadata = insp.get_columns(table_name)
@@ -120,8 +117,12 @@ def get_ists_claims(
     df: pd.DataFrame
     """
     col_list = unpack(
-        get_col_list(engine, "ists_claims", columns=columns, required_columns=["lr_flag"])
-        + get_col_list(engine, "ists_personal", columns=columns, required_columns=["ppsn"])
+        get_col_list(
+            engine, "ists_claims", columns=columns, required_columns=["lr_flag"]
+        )
+        + get_col_list(
+            engine, "ists_personal", columns=columns, required_columns=["ppsn"]
+        )
     )
     lookup_date = nearest_lr_date(date.normalize(), how="previous").date()
     query_text = f"""\
@@ -137,7 +138,11 @@ def get_ists_claims(
         """
     query, params = get_parameterized_query(query_text, ids)
     ists = pd.read_sql(
-        query, con=engine, params=params, parse_dates=datetime_cols(engine, "ists_claims"),
+        query,
+        con=engine,
+        params=params,
+        parse_dates=datetime_cols(engine, "ists_claims")
+        + datetime_cols(engine, "ists_personal"),
     ).drop_duplicates("ppsn", keep="first")
 
     return (
@@ -166,7 +171,9 @@ def get_vital_statistics(
         Columns returned are given in `columns`
     """
     col_list = unpack(
-        get_col_list(engine, "ists_personal", columns=columns, required_columns=["ppsn"])
+        get_col_list(
+            engine, "ists_personal", columns=columns, required_columns=["ppsn"]
+        )
     )
     query_text = f"""\
         SELECT {col_list} 
@@ -193,7 +200,9 @@ def get_les_data(
     ids: Optional[pd.Index] = None, columns: Optional[List] = None
 ) -> pd.DataFrame:
     col_list = unpack(
-        get_col_list(engine, "les", columns=columns, required_columns=["ppsn", "start_date"])
+        get_col_list(
+            engine, "les", columns=columns, required_columns=["ppsn", "start_date"]
+        )
     )
     query_text = f"""\
         SELECT {col_list} 
@@ -217,7 +226,9 @@ def get_jobpath_data(
     ids: Optional[pd.Index] = None, columns: Optional[List] = None
 ) -> pd.DataFrame:
     required_columns = ["ppsn", "jobpath_start_date"]
-    col_list = unpack(get_col_list(engine, "jobpath_referrals", columns, required_columns))
+    col_list = unpack(
+        get_col_list(engine, "jobpath_referrals", columns, required_columns)
+    )
     query_text = f"""\
         SELECT {col_list} 
             FROM jobpath_referrals

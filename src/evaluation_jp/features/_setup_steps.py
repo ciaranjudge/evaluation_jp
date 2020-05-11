@@ -137,6 +137,7 @@ class LiveRegisterPopulation(SetupStep):
             data = live_register_population.loc[
                 live_register_population.index.intersection(starting_pop.index)
             ]
+        data = data.drop({"lr_flag"}, axis="columns")
         return data
 
 

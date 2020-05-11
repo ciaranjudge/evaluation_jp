@@ -25,28 +25,6 @@ insp = sa.engine.reflection.Inspector.from_engine(engine)
 # TODO Move data to fixtures
 
 # TODO Move test__datetime_cols to test__ModelDataHandler
-def test__datetime_cols():
-    test__inputs = ["les", "ists_personal", "jobpath_referrals"]
-    results = {
-        table_name: set(datetime_cols(engine, table_name)) for table_name in test__inputs
-    }
-    expected = {
-        "les": set(["start_date"]),
-        "ists_personal": set(["date_of_birth"]),
-        "jobpath_referrals": set(
-            [
-                "referral_date",
-                "jobpath_start_date",
-                "jobpath_end_date",
-                "cancellation_date",
-                "pause_date",
-                "resume_date",
-                "ppp_agreed_date",
-            ]
-        ),
-    }
-    assert results == expected
-
 
 # TODO Parameterised test with and without actual list of columns
 def test__get_col_list():
@@ -100,7 +78,7 @@ def test__get_col_list():
 def test__get_ists_claims():
     date = pd.Timestamp("2016-01-01")
     query = f"""\
-        SELECT ppsn, lr_code, clm_comm_date, lr_flag
+        SELECT ppsn, lr_code, clm_comm_date, lr_flag, date_of_birth
             FROM ists_claims c
             JOIN ists_personal p
             ON c.personal_id=p.id
@@ -108,7 +86,7 @@ def test__get_ists_claims():
             AND lr_flag is true
         """
     sample = (
-        pd.read_sql(query, con=engine, parse_dates=["clm_comm_date"],)
+        pd.read_sql(query, con=engine, parse_dates=["clm_comm_date", "date_of_birth"],)
         .drop_duplicates("ppsn", keep="first")
         .set_index("ppsn")
         .sample(n=100, random_state=0)
@@ -116,17 +94,18 @@ def test__get_ists_claims():
     )
 
     results = get_ists_claims(
-        date=date, ids=sample.index, columns=["lr_code", "clm_comm_date"]
-    ).sort_index()[["lr_code", "clm_comm_date", "lr_flag"]]
+        date=date, ids=sample.index, columns=["lr_code", "clm_comm_date", "date_of_birth"]
+    ).sort_index()[["lr_code", "clm_comm_date", "lr_flag", "date_of_birth"]]
 
     expected = sample
-    # print("Results:")
-    # display(results)
-    # print("Expected:")
-    # display(expected)
-    # print(f"Are they the same? {results.equals(expected)}")
-
+    display(expected)
+    display(results)
     assert results.equals(expected)
+
+    # datetimes = ["date_of_birth", "clm_comm_date"]
+    # for col_name in datetimes:
+    #     assert str(results[col_name].dtype) == 'datetime64[ns]'
+
 
 
 def test__get_vital_statistics():

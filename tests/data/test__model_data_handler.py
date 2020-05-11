@@ -10,11 +10,14 @@ from evaluation_jp.data import ModelDataHandler, datetime_cols
 from evaluation_jp.models import PopulationSlice, PopulationSliceID
 
 
-
 def test__datetime_cols():
+    engine = sa.create_engine(
+        "sqlite:///\\\\cskma0294\\F\\Evaluations\\data\\wwld.db", echo=False
+    )
     test__inputs = ["les", "ists_personal", "jobpath_referrals"]
     results = {
-        table_name: set(datetime_cols(engine, table_name)) for table_name in test__inputs
+        table_name: set(datetime_cols(engine, table_name))
+        for table_name in test__inputs
     }
     expected = {
         "les": set(["start_date"]),
@@ -33,12 +36,11 @@ def test__datetime_cols():
     }
     assert results == expected
 
+
 def test__ModelDataHandler__init(tmpdir):
     """Simple test to make sure everything gets initiated correctly
     """
-    results = ModelDataHandler(
-        database_type="sqlite", location=tmpdir, name="test"
-    )
+    results = ModelDataHandler(database_type="sqlite", location=tmpdir, name="test")
     assert results.engine.name == sa.create_engine(f"sqlite:///{tmpdir}/test.db").name
 
 
