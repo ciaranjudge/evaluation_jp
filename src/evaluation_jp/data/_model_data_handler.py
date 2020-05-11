@@ -164,7 +164,7 @@ class ModelDataHandler:
                 query,
                 con=self.engine,
                 parse_dates=datetime_cols(self.engine, data_type),
-            ).drop(list(sql_data_id) + ["index"], axis="columns")
+            ).drop(list(sql_data_id), axis="columns")
             if not data.empty:
                 return data
             else:
@@ -184,7 +184,6 @@ class ModelDataHandler:
                 f"data_id_{key}": value for key, value in flatten(data_id).items()
             }
             query += sql_where_clause_from_dict(sql_data_id)
-            print(query)
             with self.engine.connect() as conn:
                 conn.execute(query)
 
@@ -195,10 +194,11 @@ class ModelDataHandler:
 
         data.to_sql(data_type, con=self.engine, if_exists="append")
         insp = sa.engine.reflection.Inspector.from_engine(self.engine)
-        if len(list(flatten(data_id))) > 1:
-            data_id_indexes = list(flatten(data_id)) + [list(flatten(data_id))]
+        data_id_cols = [f"data_id_{col}" for col in flatten(data_id)]
+        if len(data_id_cols) > 1:
+            data_id_indexes = data_id_cols + data_id_cols
         else:
-            data_id_indexes = list(flatten(data_id))
+            data_id_indexes = data_id_cols
         for idx in data_id_indexes:
             idx = idx if isinstance(idx, list) else [idx]
             if idx not in [d["column_names"] for d in insp.get_indexes(data_type)]:
