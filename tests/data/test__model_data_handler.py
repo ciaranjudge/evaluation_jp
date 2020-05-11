@@ -1,6 +1,5 @@
 from pathlib import Path
 from IPython.display import display
-from dataclasses import asdict
 
 import numpy as np
 import pandas as pd
@@ -56,7 +55,7 @@ def test__ModelDataHandler__write__new(fixture__population_slice, tmpdir):
     data_handler = ModelDataHandler(data_path)
     data_handler.write(
         data_type=population_slice.class_name,
-        data_id=asdict(population_slice.id),
+        data_id=population_slice.id,
         data=population_slice.data,
     )
     engine = sa.create_engine(data_path)
@@ -78,7 +77,7 @@ def test__ModelDataHandler__write__overwrite(fixture__population_slice, tmpdir):
     # Write first version of data
     data_handler.write(
         data_type=population_slice.class_name,
-        data_id=asdict(population_slice.id),
+        data_id=population_slice.id,
         data=population_slice.data,
     )
     # Change the data - it's ok for now to assume same number of columns!
@@ -90,7 +89,7 @@ def test__ModelDataHandler__write__overwrite(fixture__population_slice, tmpdir):
     # Now write the changed data to database
     data_handler.write(
         data_type=population_slice.class_name,
-        data_id=asdict(population_slice.id),
+        data_id=population_slice.id,
         data=population_slice.data,
     )
 
@@ -112,12 +111,12 @@ def test__ModelDataHandler__read(fixture__population_slice, tmpdir):
     data_handler = ModelDataHandler(data_path)
     data_handler.write(
         data_type=population_slice.class_name,
-        data_id=asdict(population_slice.id),
+        data_id=population_slice.id,
         data=population_slice.data,
     )
     display(population_slice.data)
     results = data_handler.read(
-        data_type=population_slice.class_name, data_id=asdict(population_slice.id),
+        data_type=population_slice.class_name, data_id=population_slice.id,
     )
     display(results)
     assert results.shape == population_slice.data.shape

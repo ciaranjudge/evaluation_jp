@@ -81,7 +81,7 @@ def sql_where_clause_from_dict(dictionary):
     return where_clause
 
 
-def flatten(d, sep="_"):
+def flatten(data_id, sep="_"):
     """Flatten a dict.
     Based on https://gist.github.com/jhsu98/188df03ec6286ad3a0f30b67cc0b8428
     """
@@ -99,7 +99,7 @@ def flatten(d, sep="_"):
         else:
             obj[parent_key] = t
 
-    recurse(d)
+    recurse(asdict(data_id))
 
     return obj
 

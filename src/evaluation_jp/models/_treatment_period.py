@@ -1,6 +1,6 @@
 # %%
 # Standard library
-from dataclasses import dataclass, field, InitVar, asdict
+from dataclasses import dataclass, field, InitVar
 
 
 # External packages
@@ -39,7 +39,7 @@ class TreatmentPeriod:
         if data_handler is not None:
             self.data = data_handler.run(
                 data_type=self.class_name,
-                data_id=asdict(self.id),
+                data_id=self.id,
                 setup_steps=setup_steps,
                 init_data=init_data,
             )

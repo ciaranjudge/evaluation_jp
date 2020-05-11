@@ -36,7 +36,7 @@ class PopulationSlice:
         if data_handler is not None:
             self.data = data_handler.run(
                 data_type=self.class_name,
-                data_id=asdict(self.id),
+                data_id=self.id,
                 setup_steps=setup_steps,
             )
         else:
