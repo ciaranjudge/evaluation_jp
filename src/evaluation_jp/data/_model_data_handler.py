@@ -187,12 +187,12 @@ class ModelDataHandler:
             with self.engine.connect() as conn:
                 conn.execute(query)
 
-    def _write_live(self, data_type, data_id, data):
+    def _write_live(self, data_type, data_id, data, index=True):
         self._delete(data_type, data_id)
         for key, value in flatten(data_id).items():
             data[f"data_id_{key}"] = sql_format(value)
 
-        data.to_sql(data_type, con=self.engine, if_exists="append")
+        data.to_sql(data_type, con=self.engine, if_exists="append", index=index)
         insp = sa.engine.reflection.Inspector.from_engine(self.engine)
         data_id_cols = [f"data_id_{col}" for col in flatten(data_id)]
         if len(data_id_cols) > 1:
@@ -211,10 +211,10 @@ class ModelDataHandler:
 
     # TODO Implement _write_archive()
 
-    def write(self, data_type, data_id, data):
-        self._write_live(data_type, data_id, data.copy())
+    def write(self, data_type, data_id, data, index=True):
+        self._write_live(data_type, data_id, data.copy(), index=index)
 
-    def run(self, data_type, data_id, setup_steps=None, init_data=None):
+    def run(self, data_type, data_id, setup_steps=None, init_data=None, index=True):
         """Given a valid table name (`population_data`, `population_slices`, `treatment_periods`)
         ...does the table exist? If not, create it!
         Given the table exists, can the ID of this item be found?
@@ -223,7 +223,7 @@ class ModelDataHandler:
             data = self.read(data_type, data_id)
         except ModelDataHandlerError:
             data = setup_steps.run(data_id, init_data)
-            self.write(data_type, data_id, data)
+            self.write(data_type, data_id, data, index)
         return data
 
     # TODO Implement an alternate constructor to copy existing

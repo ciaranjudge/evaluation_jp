@@ -113,6 +113,7 @@ def test__ModelDataHandler__read(fixture__population_slice, tmpdir):
         data_type=population_slice.class_name,
         data_id=population_slice.id,
         data=population_slice.data,
+        index=False,
     )
     display(population_slice.data)
     results = data_handler.read(
@@ -156,8 +157,8 @@ def test__ModelDataHandler__run__existing(
     key = PopulationSliceID(date=pd.Timestamp("2016-07-01", freq="QS-JAN"))
 
     assert (
-        first_population_slices[key].data.shape
-        == second_population_slices[key].data.shape
+        len(first_population_slices[key].data)
+        == len(second_population_slices[key].data)
     )
 
 
