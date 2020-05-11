@@ -317,6 +317,8 @@ class OnJobPath(SetupStep):
         return data
 
 
+# //TODO Add LESStarts
+
 # # # def les_starts(date: pd.Timestamp, ids: pd.Index, period_type: str = "M") -> pd.Series:
 # # #     """
 # # #     Given a start_date, an id_series, and an optional period_type (defaults to "M")
@@ -350,7 +352,7 @@ class OnJobPath(SetupStep):
 # # #     )
 # # #     return les_starts
 
-
+# //TODO Add JobPathStarts
 # # # def jobpath_starts(
 # # #     date: pd.Timestamp,
 # # #     ids: pd.Index,
@@ -428,7 +430,7 @@ class OnJobPath(SetupStep):
 # #     else:  # combine == "either" or only one source in use
 # #         return jobpath_jobpath_starts | ists_jobpath_starts
 
-
+# //TODO Add JobPathHold
 # # def jobpath_hold(
 # #     date: pd.Timestamp, ids: pd.Series, period_type: str = "M", when: str = "end"
 # # ) -> pd.Series:
@@ -486,121 +488,26 @@ class OnJobPath(SetupStep):
 # #     return jobpath_hold
 
 
-# # def on_lr(
-# #     date: pd.Timestamp, ids: pd.Series, period_type: str = "M", when: str = "end"
-# # ) -> pd.Series:
-# #     """
-# #     Given a time period and an id_series,
-# #     return True for every record with an on_lr flag, False otherwise
+# //TODO Recursive processing of nested dict with "all", "any" and "not" as keys
+# Values should be names of dataframe boolean columns
 
-# #     Parameters
-# #     ----------
-# #     start_date: pd.Timestamp
-# #         Start of this period
+@dataclass
+class EligiblePopulation(SetupStep):
+    eligibility_criteria: dict
 
-# #     id_series: pd.Series
-# #         Pandas Series with IDs for lookup
+    def run(self, data_id, data):
+        eligibility_cols = []
+        negative_cols = []
+        for key, value in self.eligibility_criteria.items():
+            if value is False:
+                eligibility_cols += [f"not_{key}"]
+                negative_cols += [f"not_{key}"]
+                data[f"not_{key}"] = ~data[key]
+            else:
+                eligibility_cols += key
+        data["eligible_population"] = data[eligibility_cols].all(axis="columns")
+        data = data.drop(negative_cols, axis="columns")
+        return data
 
-# #     period_type: str
-# #         Pandas period-type-identifying string. Default is 'M'.
+        # data["evaluation_population"] = data[]
 
-# #     when: str = "end"
-# #         Specify time(s) at which to measure status.
-# #         Possible values are "start", "end", "both", "either".
-
-# #     Returns
-# #     -------
-# #     pd.Series(bool):
-# #         Boolean series with same index as original id_series.
-# #     """
-
-# #     period = date.to_period(period_type)
-
-# #     print(f"Get LR status of people in period: {period}")
-
-# #     if when in ["start", "both", "either"]:
-# #         on_lr_at_start = (
-# #             get_ists_claims(period.to_timestamp(how="S"), ids, columns=["on_lr"])
-# #             .squeeze(axis="columns")
-# #             .astype(bool)
-# #         )
-# #     if when in ["end", "both", "either"]:
-# #         on_lr_at_end = (
-# #             get_ists_claims(period.to_timestamp(how="E"), ids, columns=["on_lr"])
-# #             .squeeze(axis="columns")
-# #             .astype(bool)
-# #         )
-
-# #     if when == "both":
-# #         on_lr = on_lr_at_start & on_lr_at_end
-# #     if when == "either":
-# #         on_lr = on_lr_at_start | on_lr_at_end
-# #     elif when == "start":
-# #         on_lr = on_lr_at_start
-# #     elif when == "end":
-# #         on_lr = on_lr_at_end
-
-# #     return on_lr
-
-
-# # def programme_starts(
-# #     date: pd.Timestamp,
-# #     ids: pd.Index,
-# #     period_type: str = "M",
-# #     programmes: Tuple[str] = ("jobpath_starts", "les_starts"),
-# #     combine: str = "any",
-# #     jobpath_use_jobpath_data: bool = True,
-# #     jobpath_use_ists_data: bool = True,
-# #     jobpath_combine: str = "either",  # Can be "either" or "both"
-# # ) -> pd.Series:
-# #     """
-# #     Given a start_date and an id_series, with optional period_type (default is 'M'):
-# #     return True for every record with a JobPath start in this period, False otherwise
-
-# #     Parameters
-# #     ----------
-# #     start_date : pd.Timestamp
-# #         Start of this period
-
-# #     id_series : pd.Series
-# #         Pandas Series with IDs for lookup
-
-# #     period_type : str
-# #         Pandas period-type-identifying string. Default is 'M'.
-
-# #     programmes : Tuple[str] = ("jobpath_starts", "les_starts")
-# #         Programmes to check starts for
-
-# #     combine : str = "any"
-# #         How to combine programme start information
-
-# #     jobpath_use_jobpath_data: bool = True
-
-# #     jobpath_use_ists_data: bool = False
-
-# #     jobpath_combine: str = "either"
-# #         Can be "either" or "both"
-
-# #     Returns
-# #     -------
-# #     pd.Series(bool):
-# #         Boolean series with same index as original id_series.
-# #     """
-# #     if "jobpath" in programmes:
-# #         jobpath_starters = jobpath_starts(
-# #             date,
-# #             ids,
-# #             period_type=period_type,
-# #             use_jobpath_data=jobpath_use_jobpath_data,
-# #             use_ists_data=jobpath_use_ists_data,
-# #             combine=jobpath_combine,
-# #         )
-# #     else:
-# #         jobpath_starters = pd.Series(data=False, index=ids)
-
-# #     if "les" in programmes:
-# #         les_starters = les_starts(date, ids, period_type=period_type)
-# #     else:
-# #         les_starters = pd.Series(data=False, index=ids)
-
-# #     return jobpath_starters | les_starters

@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import pytest
+from IPython import display
 
 from evaluation_jp.features import (
     SetupStep,
@@ -11,6 +12,7 @@ from evaluation_jp.features import (
     ClaimDurationEligible,
     OnLES,
     OnJobPath,
+    EligiblePopulation,
 )
 from evaluation_jp.models import PopulationSliceID
 
@@ -63,6 +65,7 @@ def test__LiveRegisterPopulation(fixture__live_register_population):
 
 
 # //TODO test__LiveRegisterPopulation__run_with_initial_data
+
 
 @pytest.fixture
 def fixture__date_of_birth_df():
@@ -142,26 +145,38 @@ def test__OnLES(fixture__population_slice, fixture__live_register_population):
     assert results.loc[results["on_les"]].shape == (1, 8)
 
 
-
 def test__OnJobPath():
     """Test basic case using just JobPath operational data and not ISTS flag.
     """
     eligible = OnJobPath(assumed_episode_length={"years": 1})
     psid = PopulationSliceID(date=pd.Timestamp("2016-02-01"))
-    lrp = LiveRegisterPopulation(columns=[
-            "JobPath_Flag",
-            "JobPathHold",
-        ]
-    )
-    results = eligible.run(
-        data_id=psid, data=lrp.run(psid)
-    )
+    lrp = LiveRegisterPopulation(columns=["JobPath_Flag", "JobPathHold",])
+    results = eligible.run(data_id=psid, data=lrp.run(psid))
     # Manually check number of people on JobPath at start of Feb 2016 == 1441
     assert results.loc[results["on_jobpath"]].shape == (1441, 4)
-    
+
 
 # //TODO Add test__OnJobPath__ists_only
 # //TODO Add test__OnJobPath__operational_and_ists_either
 # //TODO Add test__OnJobPath__operational_and_ists_both
 
-# //TODO Add test__OnLR
+
+def test__EligiblePopulation():
+    data = pd.DataFrame(
+        {
+            "a": [True] * 5 + [False] * 5,
+            "b": [True, False] * 5,
+            "c": [True] * 8 + [False] * 2,
+        }
+    )
+    expected = data.copy()
+    expected["not_c"] = ~ expected["c"]
+    expected["eligible_population"] = expected[["a", "b", "not_c"]].all(axis="columns")
+    expected = expected.drop(["not_c"], axis="columns")
+
+    eligible = EligiblePopulation(eligibility_criteria={"a": True, "b": True, "c": False})
+    results = eligible.run(data_id=None, data=data)
+    print(expected)
+    print(results)
+    assert results.equals(expected)
+
