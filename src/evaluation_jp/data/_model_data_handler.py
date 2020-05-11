@@ -34,7 +34,7 @@ class DataNotFoundError(ModelDataHandlerError):
     pass
 
 
-def datetime_cols(engine, table_name):
+def datetime_cols(engine, table_name) -> List:
     insp = sa.engine.reflection.Inspector.from_engine(engine)
     column_metadata = insp.get_columns(table_name)
     datetime_cols = [
