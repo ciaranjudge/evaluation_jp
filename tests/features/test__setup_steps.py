@@ -14,7 +14,13 @@ from evaluation_jp.features import (
     OnJobPath,
     EligiblePopulation,
 )
-from evaluation_jp.models import PopulationSliceID, PopulationSlice
+from evaluation_jp.models import (
+    PopulationSliceID,
+    PopulationSlice,
+    PopulationSliceGenerator,
+    EvaluationModel,
+)
+from evaluation_jp.data import ModelDataHandler
 
 # TODO test__NearestKeyDict()
 
@@ -182,9 +188,9 @@ def test__EligiblePopulation():
     assert results.equals(expected)
 
 
-def test__all_SetupSteps_for_Population_Slice():
-
-    setup_steps = SetupSteps(
+@pytest.fixture
+def fixture__population_slice_setup_steps():
+    return SetupSteps(
         steps=[
             LiveRegisterPopulation(
                 columns=[
@@ -217,8 +223,13 @@ def test__all_SetupSteps_for_Population_Slice():
             ),
         ]
     )
+
+
+def test__all_SetupSteps_for_PopulationSlice(fixture__population_slice_setup_steps):
+
     results = PopulationSlice(
-        id=PopulationSliceID(date=pd.Timestamp("2016-07-01")), setup_steps=setup_steps
+        id=PopulationSliceID(date=pd.Timestamp("2016-07-01")),
+        setup_steps=fixture__population_slice_setup_steps,
     )
     expected_columns = [
         "JobPathHold",
@@ -232,6 +243,50 @@ def test__all_SetupSteps_for_Population_Slice():
         "on_les",
         "on_jobpath",
         "eligible_population",
+    ]
+    assert set(results.data.columns) == set(expected_columns)
+    # Manually check how many people are on LR and eligible
+    assert len(results.data) == 315654
+    assert len(results.data[results.data["eligible_population"]]) == 86240
+
+
+def test__all_SetupSteps_for_EvaluationModel_population_slices(
+    fixture__population_slice_setup_steps, tmpdir,
+):
+
+    population_slice_generator = PopulationSliceGenerator(
+        setup_steps_by_date={
+            pd.Timestamp("2016-01-01"): fixture__population_slice_setup_steps
+        },
+        start=pd.Timestamp("2016-01-01"),
+        end=pd.Timestamp("2017-12-31"),
+    )
+
+    data_handler = ModelDataHandler(
+        database_type="sqlite", location=tmpdir, name="jobpath_evaluation",
+    )
+
+    evaluation_model = EvaluationModel(
+        data_handler=data_handler,
+        population_slice_generator=population_slice_generator,
+    )
+    evaluation_model.add_population_slices()
+
+    expected_columns = [
+        "JobPathHold",
+        "JobPath_Flag",
+        "clm_comm_date",
+        "lr_code",
+        "date_of_birth",
+        "age_eligible",
+        "claim_code_eligible",
+        "claim_duration_eligible",
+        "on_les",
+        "on_jobpath",
+        "eligible_population",
+    ]
+    results = evaluation_model.population_slices[
+        PopulationSliceID(date=pd.Timestamp("2016-07-01"))
     ]
     assert set(results.data.columns) == set(expected_columns)
     # Manually check how many people are on LR and eligible
