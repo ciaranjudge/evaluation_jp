@@ -505,7 +505,7 @@ class EligiblePopulation(SetupStep):
                 negative_cols += [f"not_{key}"]
                 data[f"not_{key}"] = ~data[key]
             else:
-                eligibility_cols += key
+                eligibility_cols += [key]
         data["eligible_population"] = data[eligibility_cols].all(axis="columns")
         data = data.drop(negative_cols, axis="columns")
         return data

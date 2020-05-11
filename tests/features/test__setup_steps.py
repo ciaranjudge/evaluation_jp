@@ -183,6 +183,7 @@ def test__EligiblePopulation():
 
 
 def test__all_SetupSteps_for_Population_Slice():
+
     setup_steps = SetupSteps(
         steps=[
             LiveRegisterPopulation(
@@ -219,4 +220,20 @@ def test__all_SetupSteps_for_Population_Slice():
     results = PopulationSlice(
         id=PopulationSliceID(date=pd.Timestamp("2016-07-01")), setup_steps=setup_steps
     )
-    assert True
+    expected_columns = [
+        "JobPathHold",
+        "JobPath_Flag",
+        "clm_comm_date",
+        "lr_code",
+        "date_of_birth",
+        "age_eligible",
+        "claim_code_eligible",
+        "claim_duration_eligible",
+        "on_les",
+        "on_jobpath",
+        "eligible_population",
+    ]
+    assert set(results.data.columns) == set(expected_columns)
+    # Manually check how many people are on LR and eligible
+    assert len(results.data) == 315654
+    assert len(results.data[results.data["eligible_population"]]) == 86240

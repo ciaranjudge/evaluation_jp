@@ -19,7 +19,7 @@ from evaluation_jp.features import (
     ClaimDurationEligible,
     OnLES,
     OnJobPath,
-    OnLiveRegister,
+    EligiblePopulation,
 )
 from evaluation_jp.data import ModelDataHandler
 
@@ -59,15 +59,15 @@ em = EvaluationModel(
                         use_jobpath_operational_data=True,
                         use_ists_claim_data=False,
                     ),
-                    # EvaluationEligible(
-                    #     eligibility_criteria={
-                    #         "age_eligible": True,
-                    #         "claim_code_eligible": True,
-                    #         "claim_duration_eligible": True,
-                    #         "on_les": False,
-                    #         "on_jobpath": False,
-                    #     }
-                    # ),
+                    EligiblePopulation(
+                        eligibility_criteria={
+                            "age_eligible": True,
+                            "claim_code_eligible": True,
+                            "claim_duration_eligible": True,
+                            "on_les": False,
+                            "on_jobpath": False,
+                        }
+                    ),
                 ]
             )
         },
