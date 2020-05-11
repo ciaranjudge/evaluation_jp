@@ -114,16 +114,30 @@ class SetupSteps:
 
 @dataclass
 class LiveRegisterPopulation(SetupStep):
-    """Get `columns` about people on Live Register on `data_id.date`
-    Assume this is for EvaluationSlice, so data_id.date exists and is a date
+    """Get `columns` about people on Live Register on `data_id.date`.
+    With initial data, restrict generated dataset to data[starting_pop_col]
     """
 
     # Parameters
     columns: List[str]
+    starting_pop_col: str = None
+    starting_pop_include_val: bool = True
 
     # Setup method
-    def run(self, data_id):
-        return get_ists_claims(ref_date_from_id(data_id), columns=self.columns)
+    def run(self, data_id, data=None):
+        if data is None:
+            data = get_ists_claims(ref_date_from_id(data_id), columns=self.columns)
+        else:
+            live_register_population = get_ists_claims(
+                ref_date_from_id(data_id), columns=self.columns
+            )
+            starting_pop = data.loc[
+                data[self.starting_pop_col] == self.starting_pop_include_val
+            ]
+            data = live_register_population.loc[
+                live_register_population.index.intersection(starting_pop.index)
+            ]
+        return data
 
 
 @dataclass
@@ -210,22 +224,21 @@ def open_episodes_on_ref_date(
     ref_date,
     start_date_col="start_date",
     end_date_col="end_date",
-    bool_col="open_episode",
     id_cols=None,
 ):
     """Given dataframe of `episodes`, return boolean series for all episodes open on ref_date
     """
-    episodes[bool_col] = (episodes[start_date_col] <= ref_date) & (
+    episodes["open_on_ref_date"] = (episodes[start_date_col] <= ref_date) & (
         ref_date <= episodes[end_date_col]
     )
     if id_cols:
         episodes_by_id = pd.pivot_table(
-            episodes, values=bool_col, index=id_cols, aggfunc=np.any
+            episodes, values="open_on_ref_date", index=id_cols, aggfunc=np.any
         )
-        return episodes_by_id[bool_col]
+        return episodes_by_id["open_on_ref_date"]
     else:
         # Assume episodes.index is already what's required by caller
-        return episodes[bool_col]
+        return episodes["open_on_ref_date"]
 
 
 @dataclass
@@ -240,128 +253,137 @@ class OnLES(SetupStep):
         les["end_date"] = les["start_date"] + pd.DateOffset(
             **self.assumed_episode_length
         )
-        open_on_ref_date = open_episodes_on_ref_date(
-            episodes=les,
-            ref_date=ref_date_from_id(data_id),
-            bool_col="on_les",
-            id_cols="ppsn",
+        open_episodes = open_episodes_on_ref_date(
+            episodes=les, ref_date=ref_date_from_id(data_id), id_cols="ppsn",
         )
-        data = pd.merge(
-            data, open_on_ref_date, left_index=True, right_index=True, how="left"
+        data["on_les"] = (
+            open_episodes.loc[open_episodes.index.intersection(data.index)]
+            .reindex(data.index)
+            .fillna(False)
         )
-        data["on_les"] = data["on_les"].fillna(False)
+
         return data
 
 
-# @dataclass
-# class OnJobPath(SetupStep):
-#     assumed_episode_length: Dict[str, int]
-#     use_jobpath_operational_data: bool = True
-#     use_ists_claim_data: book = False
-#     combine_data: str = None  # "either" or "both"
+@dataclass
+class OnJobPath(SetupStep):
+    assumed_episode_length: Dict[str, int]
+    use_jobpath_operational_data: bool = True
+    use_ists_claim_data: bool = False
+    ists_jobpath_flag_col: str = None
+    combine_data: str = None  # "either" or "both"
 
-#     def run(self, data_id, data):
-#         date = ref_date_from_id(data_id)
+    def run(self, data_id, data):
+        if self.use_jobpath_operational_data:
+            jobpath_operational = get_jobpath_data(
+                columns=["jobpath_start_date", "jobpath_end_date"]
+            )
+            jobpath_operational["jobpath_end_date"] = jobpath_operational[
+                "jobpath_end_date"
+            ].fillna(
+                value=jobpath_operational["jobpath_start_date"]
+                + pd.DateOffset(**self.assumed_episode_length)
+            )
+            open_episodes = open_episodes_on_ref_date(
+                episodes=jobpath_operational,
+                ref_date=ref_date_from_id(data_id),
+                start_date_col="jobpath_start_date",
+                end_date_col="jobpath_end_date",
+                id_cols="ppsn",
+            )
+            on_jobpath_operational = (
+                open_episodes.loc[open_episodes.index.intersection(data.index)]
+                .reindex(data.index)
+                .fillna(False)
+            )
+        else:
+            on_jobpath_operational = pd.Series(data=False, index=data.index)
 
-#         # # First get ppsns of all JobPath starters before date from JobPath database
-#         # if use_jobpath_data:
-#         #     jobpath = get_jobpath_data(columns=["ppsn", "start_date"])
-#         #     gte_start = jobpath["start_date"] <= date
-#         #     lte_end = date <= jobpath["start_date"] + episode_duration
-#         #     jobpath.loc[gte_start & lte_end, "on_jobpath"] = True
-#         #     on_jobpath_jobpath = (
-#         #         pd.pivot_table(
-#         #             jobpath, values="on_jobpath", index="ppsn", aggfunc=np.any
-#         #         )
-#         #         .squeeze(axis="columns")
-#         #         .reindex(ids, fill_value=False)
-#         #     )
-#         # else:
-#         #     on_jobpath_jobpath = pd.Series(data=False, index=ids)
+        # Then get ppsn of everyone with an ISTS JobPath flag at end of previous month
+        if self.use_ists_claim_data:
+            on_jobpath_ists = data[self.ists_jobpath_flag_col]
+        else:
+            on_jobpath_ists = pd.Series(data=False, index=data.index)
 
-#         # # Then get ppsn of everyone with an ISTS JobPath flag at end of previous month
-#         # if use_ists_data:
-#         #     on_jobpath_ists = get_ists_claims(
-#         #         date, ids, columns=["JobPath_Flag"]
-#         #     ).squeeze(axis="columns")
-#         # else:
-#         #     on_jobpath_ists = pd.Series(data=False, index=ids)
+        if (
+            self.use_jobpath_operational_data
+            and self.use_ists_claim_data
+            and self.combine_data == "both"
+        ):
+            data["on_jobpath"] = on_jobpath_operational & on_jobpath_ists
+        else:  # combine == "either" or only one source in use
+            data["on_jobpath"] = on_jobpath_operational | on_jobpath_ists
 
-#         # if use_jobpath_data and use_ists_data and combine == "both":
-#         #     return on_jobpath_jobpath & on_jobpath_ists
-#         # else:  # combine == "either" or only one source in use
-#         #     return on_jobpath_jobpath | on_jobpath_ists
-
-#         return data
-
-
-# # def les_starts(date: pd.Timestamp, ids: pd.Index, period_type: str = "M") -> pd.Series:
-# #     """
-# #     Given a start_date, an id_series, and an optional period_type (defaults to "M")
-# #     return True for every record with a LES start in this period, False otherwise
-
-# #     Parameters
-# #     ----------
-# #     date: pd.Timestamp
-# #         Start of this period
-
-# #     ids: pd.Series
-# #         Pandas Series with IDs for lookup
-
-# #     period_type: str = 'M'
-# #         Pandas period-type-identifying string. Default is 'M'.
-# #     Returns
-# #     -------
-# #     pd.Series(bool):
-# #         Boolean series with same index as original id_series.
-# #     """
-# #     period = date.to_period(period_type)
-# #     print(f"Get LES starters in period: {period}")
-# #     les = get_les_data(columns=["ppsn", "start_date"])
-# #     gte_period_start = period.start_time <= les["start_date"]
-# #     lte_period_end = les["start_date"] <= period.end_time
-# #     les.loc[gte_period_start & lte_period_end, "on_les"] = True
-# #     les_starts = (
-# #         pd.pivot_table(les, values="on_les", index="ppsn", aggfunc=np.any)
-# #         .squeeze(axis="columns")
-# #         .reindex(ids, fill_value=False)
-# #     )
-# #     return les_starts
+        return data
 
 
-# # def jobpath_starts(
-# #     date: pd.Timestamp,
-# #     ids: pd.Index,
-# #     period_type: str = "M",
-# #     use_jobpath_data: bool = True,
-# #     use_ists_data: bool = True,
-# #     combine: str = "either",  # Can be "either" or "both"
-# # ) -> pd.Series:
-# #     """
-# #     Given a start_date and an id_series, with optional period_type (default is 'M'):
-# #     return True for every record with a JobPath start in this period, False otherwise
+# # # def les_starts(date: pd.Timestamp, ids: pd.Index, period_type: str = "M") -> pd.Series:
+# # #     """
+# # #     Given a start_date, an id_series, and an optional period_type (defaults to "M")
+# # #     return True for every record with a LES start in this period, False otherwise
 
-# #     Parameters
-# #     ----------
-# #     start_date: pd.Timestamp
-# #         Start of this period
+# # #     Parameters
+# # #     ----------
+# # #     date: pd.Timestamp
+# # #         Start of this period
 
-# #     id_series: pd.Series
-# #         Pandas Series with IDs for lookup
+# # #     ids: pd.Series
+# # #         Pandas Series with IDs for lookup
 
-# #     period_type: str
-# #         Pandas period-type-identifying string. Default is 'M'.
+# # #     period_type: str = 'M'
+# # #         Pandas period-type-identifying string. Default is 'M'.
+# # #     Returns
+# # #     -------
+# # #     pd.Series(bool):
+# # #         Boolean series with same index as original id_series.
+# # #     """
+# # #     period = date.to_period(period_type)
+# # #     print(f"Get LES starters in period: {period}")
+# # #     les = get_les_data(columns=["ppsn", "start_date"])
+# # #     gte_period_start = period.start_time <= les["start_date"]
+# # #     lte_period_end = les["start_date"] <= period.end_time
+# # #     les.loc[gte_period_start & lte_period_end, "on_les"] = True
+# # #     les_starts = (
+# # #         pd.pivot_table(les, values="on_les", index="ppsn", aggfunc=np.any)
+# # #         .squeeze(axis="columns")
+# # #         .reindex(ids, fill_value=False)
+# # #     )
+# # #     return les_starts
 
-# #     use_jobpath_data: bool = True
 
-# #     use_ists_data: bool = False
+# # # def jobpath_starts(
+# # #     date: pd.Timestamp,
+# # #     ids: pd.Index,
+# # #     period_type: str = "M",
+# # #     use_jobpath_data: bool = True,
+# # #     use_ists_data: bool = True,
+# # #     combine: str = "either",  # Can be "either" or "both"
+# # # ) -> pd.Series:
+# # #     """
+# # #     Given a start_date and an id_series, with optional period_type (default is 'M'):
+# # #     return True for every record with a JobPath start in this period, False otherwise
 
-# #     combine: str = "either"
-# #         Can be "either" or "both"
+# # #     Parameters
+# # #     ----------
+# # #     start_date: pd.Timestamp
+# # #         Start of this period
 
-# #     Returns
-# #     -------
-# #     pd.Series(bool):
+# # #     id_series: pd.Series
+# # #         Pandas Series with IDs for lookup
+
+# # #     period_type: str
+# # #         Pandas period-type-identifying string. Default is 'M'.
+
+# # #     use_jobpath_data: bool = True
+
+# # #     use_ists_data: bool = False
+
+# # #     combine: str = "either"
+# # #         Can be "either" or "both"
+
+# # #     Returns
+# # #     -------
+# # #     pd.Series(bool):
 # #         Boolean series with same index as original id_series.
 # #     """
 

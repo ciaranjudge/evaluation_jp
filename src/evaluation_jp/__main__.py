@@ -20,8 +20,6 @@ from evaluation_jp.features import (
     OnLES,
     OnJobPath,
     OnLiveRegister,
-
-    
 )
 from evaluation_jp.data import ModelDataHandler
 
@@ -57,7 +55,9 @@ em = EvaluationModel(
                     ),
                     OnLES(assumed_episode_length={"years": 1}),
                     OnJobPath(
-                        assumed_episode_length={"years": 1}, data_sources=["jobpath"],
+                        assumed_episode_length={"years": 1},
+                        use_jobpath_operational_data=True,
+                        use_ists_claim_data=False,
                     ),
                     # EvaluationEligible(
                     #     eligibility_criteria={

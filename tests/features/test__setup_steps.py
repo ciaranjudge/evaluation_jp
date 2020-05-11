@@ -10,6 +10,7 @@ from evaluation_jp.features import (
     ClaimCodeEligible,
     ClaimDurationEligible,
     OnLES,
+    OnJobPath,
 )
 from evaluation_jp.models import PopulationSliceID
 
@@ -27,7 +28,6 @@ def test__SetupSteps(fixture__RandomPopulation, fixture__SampleFromPopulation):
     assert results.shape == (10, 5)
 
 
-# TODO Parameterize this properly
 def test__SetupSteps_with_data_and_data_id(
     fixture__random_date_range_df,
     fixture__RandomPopulation,
@@ -61,6 +61,8 @@ def test__LiveRegisterPopulation(fixture__live_register_population):
     results = fixture__live_register_population
     assert results.shape == (321373, 7)
 
+
+# //TODO test__LiveRegisterPopulation__run_with_initial_data
 
 @pytest.fixture
 def fixture__date_of_birth_df():
@@ -139,7 +141,27 @@ def test__OnLES(fixture__population_slice, fixture__live_register_population):
     # Only 1 person in Dec 2015 LR is on the LES file for start of 2016!
     assert results.loc[results["on_les"]].shape == (1, 8)
 
-# //TODO Add test__OnJobPath
 
 
-# //TODO ADd test__OnLR
+def test__OnJobPath():
+    """Test basic case using just JobPath operational data and not ISTS flag.
+    """
+    eligible = OnJobPath(assumed_episode_length={"years": 1})
+    psid = PopulationSliceID(date=pd.Timestamp("2016-02-01"))
+    lrp = LiveRegisterPopulation(columns=[
+            "JobPath_Flag",
+            "JobPathHold",
+        ]
+    )
+    results = eligible.run(
+        data_id=psid, data=lrp.run(psid)
+    )
+    # Manually check number of people on JobPath at start of Feb 2016 == 1441
+    assert results.loc[results["on_jobpath"]].shape == (1441, 4)
+    
+
+# //TODO Add test__OnJobPath__ists_only
+# //TODO Add test__OnJobPath__operational_and_ists_either
+# //TODO Add test__OnJobPath__operational_and_ists_both
+
+# //TODO Add test__OnLR
