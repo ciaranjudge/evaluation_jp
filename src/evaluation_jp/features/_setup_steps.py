@@ -112,6 +112,15 @@ class SetupSteps:
         return data
 
 
+# //TODO Implement StartingPopulation for TreatmentPeriod
+@dataclass
+class StartingPopulation(SetupStep):
+    starting_pop_col: str = None
+    starting_pop_val: str = None
+
+    def run(self, data_id, data):
+        return data
+
 @dataclass
 class LiveRegisterPopulation(SetupStep):
     """Get `columns` about people on Live Register on `data_id.date`.
@@ -120,8 +129,7 @@ class LiveRegisterPopulation(SetupStep):
 
     # Parameters
     columns: List[str]
-    starting_pop_col: str = None
-    starting_pop_include_val: bool = True
+    eligible_col: str = None
 
     # Setup method
     def run(self, data_id, data=None):
@@ -248,6 +256,7 @@ class OnLES(SetupStep):
     """
 
     assumed_episode_length: Dict[str, int]
+    how: str = None  # Can be "start" or "end" for periods. Leave as None for slices.
 
     def run(self, data_id, data):
         les = get_les_data(columns=["start_date"])
@@ -255,9 +264,10 @@ class OnLES(SetupStep):
             **self.assumed_episode_length
         )
         open_episodes = open_episodes_on_ref_date(
-            episodes=les, ref_date=ref_date_from_id(data_id), id_cols="ppsn",
+            episodes=les, ref_date=ref_date_from_id(data_id, how), id_cols="ppsn",
         )
-        data["on_les"] = (
+        out_colname = f"on_les_{how}" if how else "on_les"
+        data[out_colname] = (
             open_episodes.loc[open_episodes.index.intersection(data.index)]
             .reindex(data.index)
             .fillna(False)
@@ -317,41 +327,6 @@ class OnJobPath(SetupStep):
 
         return data
 
-
-# //TODO Add LESStarts
-
-# # # def les_starts(date: pd.Timestamp, ids: pd.Index, period_type: str = "M") -> pd.Series:
-# # #     """
-# # #     Given a start_date, an id_series, and an optional period_type (defaults to "M")
-# # #     return True for every record with a LES start in this period, False otherwise
-
-# # #     Parameters
-# # #     ----------
-# # #     date: pd.Timestamp
-# # #         Start of this period
-
-# # #     ids: pd.Series
-# # #         Pandas Series with IDs for lookup
-
-# # #     period_type: str = 'M'
-# # #         Pandas period-type-identifying string. Default is 'M'.
-# # #     Returns
-# # #     -------
-# # #     pd.Series(bool):
-# # #         Boolean series with same index as original id_series.
-# # #     """
-# # #     period = date.to_period(period_type)
-# # #     print(f"Get LES starters in period: {period}")
-# # #     les = get_les_data(columns=["ppsn", "start_date"])
-# # #     gte_period_start = period.start_time <= les["start_date"]
-# # #     lte_period_end = les["start_date"] <= period.end_time
-# # #     les.loc[gte_period_start & lte_period_end, "on_les"] = True
-# # #     les_starts = (
-# # #         pd.pivot_table(les, values="on_les", index="ppsn", aggfunc=np.any)
-# # #         .squeeze(axis="columns")
-# # #         .reindex(ids, fill_value=False)
-# # #     )
-# # #     return les_starts
 
 # //TODO Add JobPathStarts
 # # # def jobpath_starts(

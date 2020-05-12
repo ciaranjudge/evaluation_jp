@@ -6,6 +6,7 @@ from IPython import display
 from evaluation_jp.features import (
     SetupStep,
     SetupSteps,
+    StartingPopulation,
     LiveRegisterPopulation,
     AgeEligible,
     ClaimCodeEligible,
@@ -292,3 +293,41 @@ def test__all_SetupSteps_for_EvaluationModel_population_slices(
     # Manually check how many people are on LR and eligible
     assert len(results.data) == 315654
     assert len(results.data[results.data["eligible_population"]]) == 86240
+
+
+
+@pytest.fixture
+def fixture__treatment_period_setup_steps():
+    return SetupSteps(
+        steps=[
+            StartingPopulation(starting_pop_col="evaluation_group", starting_pop_val="C"),
+            LiveRegisterPopulation(
+                columns=[
+                    "lr_code",
+                    "clm_comm_date",
+                    "JobPath_Flag",
+                    "JobPathHold",
+                ],
+                starting_pop_col="eligible_population"
+            ),
+            ClaimCodeEligible(code_col="lr_code", eligible_codes=["UA", "UB"]),
+            ClaimDurationEligible(
+                claim_start_col="clm_comm_date", min_eligible={"years": 1}
+            ),
+            OnLES(assumed_episode_length={"years": 1}, how="start"),
+            OnLES(assumed_episode_length={"years": 1}, how="end"),
+            # Shouldn't need to check if on JP at period start since captured in StartingPopulation
+            EligiblePopulation(
+                eligibility_criteria={
+                    "claim_code_eligible": True,
+                    "claim_duration_eligible": True,
+                    "on_les_at_start": False,
+                    "on_les_at_end": False,
+                    "on_jobpath": False,
+                }
+            ),
+            # *"eligible_population" -> JobPath starts -> "evaluation_group" = "T" else "C"
+            # ?What to do about JP starts that finish within same period?
+        ]
+    )
+
