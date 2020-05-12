@@ -71,20 +71,11 @@ def dates_between_durations(
     return ge_min_duration & lt_max_duration
 
 
-class DataIDKeyMissing(KeyError):
-    """Can't find field in a data ID object.
-    """
-
-    pass
-
-
 def ref_date_from_id(data_id, how="Start"):
-    if data_id.date:
+    try: 
         return data_id.date
-    elif data_id.time_period:
+    except AttributeError:
         return data_id.time_period.to_timestamp(how=how)
-    else:
-        raise DataIDKeyMissing
 
 
 @dataclass
@@ -121,6 +112,7 @@ class StartingPopulation(SetupStep):
     def run(self, data_id, data):
         return data
 
+
 @dataclass
 class LiveRegisterPopulation(SetupStep):
     """Get `columns` about people on Live Register on `data_id.date`.
@@ -129,7 +121,7 @@ class LiveRegisterPopulation(SetupStep):
 
     # Parameters
     columns: List[str]
-    eligible_col: str = None
+    starting_pop_col: str = None  # Must be bool!
 
     # Setup method
     def run(self, data_id, data=None):
@@ -139,9 +131,7 @@ class LiveRegisterPopulation(SetupStep):
             live_register_population = get_ists_claims(
                 ref_date_from_id(data_id), columns=self.columns
             )
-            starting_pop = data.loc[
-                data[self.starting_pop_col] == self.starting_pop_include_val
-            ]
+            starting_pop = data.loc[data[self.starting_pop_col]]
             data = live_register_population.loc[
                 live_register_population.index.intersection(starting_pop.index)
             ]
@@ -264,9 +254,9 @@ class OnLES(SetupStep):
             **self.assumed_episode_length
         )
         open_episodes = open_episodes_on_ref_date(
-            episodes=les, ref_date=ref_date_from_id(data_id, how), id_cols="ppsn",
+            episodes=les, ref_date=ref_date_from_id(data_id, self.how), id_cols="ppsn",
         )
-        out_colname = f"on_les_{how}" if how else "on_les"
+        out_colname = f"on_les_at_{self.how}" if self.how else "on_les"
         data[out_colname] = (
             open_episodes.loc[open_episodes.index.intersection(data.index)]
             .reindex(data.index)
@@ -467,6 +457,7 @@ class OnJobPath(SetupStep):
 # //TODO Recursive processing of nested dict with "all", "any" and "not" as keys
 # Values should be names of dataframe boolean columns
 
+
 @dataclass
 class EligiblePopulation(SetupStep):
     eligibility_criteria: dict
@@ -486,4 +477,3 @@ class EligiblePopulation(SetupStep):
         return data
 
         # data["evaluation_population"] = data[]
-

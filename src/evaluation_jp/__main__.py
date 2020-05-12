@@ -13,6 +13,7 @@ from evaluation_jp.models import (
 )
 from evaluation_jp.features import (
     SetupSteps,
+    StartingPopulation,
     LiveRegisterPopulation,
     AgeEligible,
     ClaimCodeEligible,
@@ -24,7 +25,7 @@ from evaluation_jp.features import (
 from evaluation_jp.data import ModelDataHandler
 
 
-em = EvaluationModel(
+evaluation_model = EvaluationModel(
     data_handler=ModelDataHandler(
         database_type="sqlite",
         location="//cskma0294/f/Evaluations/JobPath",
@@ -78,25 +79,38 @@ em = EvaluationModel(
         setup_steps_by_date={
             pd.Timestamp("2016-01-01"): SetupSteps(
                 steps=[
-                    # * Get LR data again!
-                    # on_lr={"period_type": period_freq, "when": "end"},
-                    # code={"eligible_codes": ("UA", "UB")},
-                    # duration={"min_duration": pd.DateOffset(years=1)},
-                    # # not_on_les={"episode_duration": pd.DateOffset(years=1)},
-                    # not_on_jobpath={
-                    #     "episode_duration": pd.DateOffset(years=1),
-                    #     "use_jobpath_data": True,
-                    #     "use_ists_data": False,
-                    #     "combine": "either",
-                    # },
-                    # not_jobpath_hold={"period_type": period_freq, "how": "end"},
-                    # not_les_starts={"period_type": period_freq}
+                    StartingPopulation(
+                        starting_pop_col="evaluation_group", starting_pop_val="C"
+                    ),
+                    LiveRegisterPopulation(
+                        columns=["lr_code", "clm_comm_date", "JobPath_Flag", "JobPathHold",],
+                        starting_pop_col="eligible_population",
+                    ),
+                    ClaimCodeEligible(code_col="lr_code", eligible_codes=["UA", "UB"]),
+                    ClaimDurationEligible(
+                        claim_start_col="clm_comm_date", min_eligible={"years": 1}
+                    ),
+                    OnLES(assumed_episode_length={"years": 1}, how="start"),
+                    OnLES(assumed_episode_length={"years": 1}, how="end"),
+                    EligiblePopulation(
+                        eligibility_criteria={
+                            "claim_code_eligible": True,
+                            "claim_duration_eligible": True,
+                            "on_les_at_start": False,
+                            "on_les_at_end": False,
+                            "JobPathHold": False,
+                        }
+                    ),
+                    # *"eligible_population" -> JobPath starts -> "evaluation_group" = "T" else "C"
+                    # ?What to do about JP starts that finish within same period?
                 ]
             )
         },
     ),
     # outcome_generator = OutcomeGenerator(
-    # outcome_start_date=pd.Timestamp("2016-02-01"),
-    # outcome_end_date=pd.Timestamp("2019-02-01"),
+    #     outcome_start_date=pd.Timestamp("2016-02-01"),
+    #     outcome_end_date=pd.Timestamp("2019-02-01"),
     # )
 )
+
+evaluation_model.add_population_slices()
