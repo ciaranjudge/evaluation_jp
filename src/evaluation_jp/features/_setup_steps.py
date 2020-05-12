@@ -72,10 +72,13 @@ def dates_between_durations(
 
 
 def ref_date_from_id(data_id, how="Start"):
-    try: 
-        return data_id.date
-    except AttributeError:
-        return data_id.time_period.to_timestamp(how=how)
+    if isinstance(data_id, pd.Timestamp):
+        return data_id
+    else:
+        try:
+            return data_id.date
+        except AttributeError:
+            return data_id.time_period.to_timestamp(how=how)
 
 
 @dataclass
@@ -318,140 +321,88 @@ class OnJobPath(SetupStep):
         return data
 
 
-# //TODO Add JobPathStarts
-# # # def jobpath_starts(
-# # #     date: pd.Timestamp,
-# # #     ids: pd.Index,
-# # #     period_type: str = "M",
-# # #     use_jobpath_data: bool = True,
-# # #     use_ists_data: bool = True,
-# # #     combine: str = "either",  # Can be "either" or "both"
-# # # ) -> pd.Series:
-# # #     """
-# # #     Given a start_date and an id_series, with optional period_type (default is 'M'):
-# # #     return True for every record with a JobPath start in this period, False otherwise
+@dataclass
+class JobPathStarts(SetupStep):
+    use_jobpath_operational_data: bool = True
+    use_ists_claim_data: bool = False
+    ists_jobpath_flag_col: str = None
+    combine_data: str = None  # "either" or "both"
 
-# # #     Parameters
-# # #     ----------
-# # #     start_date: pd.Timestamp
-# # #         Start of this period
+    def run(self, data_id, data):
+        start = ref_date_from_id(data_id, how="start")
+        end = ref_date_from_id(data_id, how="end")
+        if self.use_jobpath_operational_data:
+            jobpath_operational = get_jobpath_data(columns=["jobpath_start_date"])
+            started = jobpath_operational[
+                jobpath_operational["jobpath_start_date"].between(start, end)
+            ]
+            starts_by_id = (
+                pd.pivot_table(
+                    started, values="jobpath_start_date", index="ppsn", aggfunc=np.any
+                )
+                .squeeze(axis="columns")
+                .astype(bool)
+            )
+            operational_jobpath_starts = (
+                starts_by_id.loc[starts_by_id.index.intersection(data.index)]
+                .reindex(data.index)
+                .fillna(False)
+            )
+        else:
+            operational_jobpath_starts = pd.Series(data=False, index=data.index)
 
-# # #     id_series: pd.Series
-# # #         Pandas Series with IDs for lookup
+        if self.use_ists_claim_data:
+            on_jobpath = OnJobPath(
+                assumed_episode_length={"years": 1},
+                use_jobpath_operational_data=False,
+                use_ists_claim_data=True,
+                ists_jobpath_flag_col="JobPath_Flag",
+            )
+            ists_jobpath_start = on_jobpath.run(start, data.copy())["on_jobpath"]
+            ists_jobpath_end = on_jobpath.run(end, data.copy())["on_jobpath"]
+            ists_jobpath_starts = ~ists_jobpath_start & ists_jobpath_end
+        else:
+            ists_jobpath_starts = pd.Series(data=False, index=data.index)
 
-# # #     period_type: str
-# # #         Pandas period-type-identifying string. Default is 'M'.
+        if (
+            self.use_jobpath_operational_data
+            and self.use_ists_claim_data
+            and self.combine_data == "both"
+        ):
+            data["jobpath_starts"] = operational_jobpath_starts & ists_jobpath_starts
+        else:  # combine == "either" or only one source in use
+            data["jobpath_starts"] = operational_jobpath_starts | ists_jobpath_starts
 
-# # #     use_jobpath_data: bool = True
+        return data
 
-# # #     use_ists_data: bool = False
 
-# # #     combine: str = "either"
-# # #         Can be "either" or "both"
+@dataclass
+class JobPathStartedEndedSamePeriod(SetupStep):
+    def run(self, data_id, data):
+        start = ref_date_from_id(data_id, how="start")
+        end = ref_date_from_id(data_id, how="end")
 
-# # #     Returns
-# # #     -------
-# # #     pd.Series(bool):
-# #         Boolean series with same index as original id_series.
-# #     """
-
-# #     if use_jobpath_data:
-# #         period = date.to_period(period_type)
-# #         print(f"Get JobPath starters in period: {period}")
-# #         jobpath = get_jobpath_data(columns=["ppsn", "start_date"])
-# #         gte_period_start = period.start_time <= jobpath["start_date"]
-# #         lte_period_end = jobpath["start_date"] <= period.end_time
-# #         jobpath.loc[gte_period_start & lte_period_end, "on_jobpath"] = True
-# #         jobpath_jobpath_starts = (
-# #             pd.pivot_table(jobpath, values="on_jobpath", index="ppsn", aggfunc=np.any)
-# #             .squeeze(axis="columns")
-# #             .astype(bool)
-# #             .reindex(ids, fill_value=False)
-# #         )
-# #     else:
-# #         jobpath_jobpath_starts = pd.Series(data=False, index=ids)
-
-# #     if use_ists_data:
-# #         # Not on at start but on at end
-# #         not_ists_jobpath_at_start = ~on_jobpath(
-# #             date,
-# #             ids,
-# #             episode_duration=pd.DateOffset(years=1),
-# #             use_jobpath_data=False,
-# #             use_ists_data=True,
-# #         )
-# #         ists_jobpath_at_end = on_jobpath(
-# #             date + pd.DateOffset(months=1),
-# #             ids,
-# #             episode_duration=pd.DateOffset(years=1),
-# #             use_jobpath_data=False,
-# #             use_ists_data=True,
-# #         )
-# #         ists_jobpath_starts = not_ists_jobpath_at_start & ists_jobpath_at_end
-# #     else:
-# #         ists_jobpath_starts = pd.Series(data=False, index=ids)
-
-# #     if use_jobpath_data and use_ists_data and combine == "both":
-# #         return jobpath_jobpath_starts & ists_jobpath_starts
-# #     else:  # combine == "either" or only one source in use
-# #         return jobpath_jobpath_starts | ists_jobpath_starts
-
-# //TODO Add JobPathHold
-# # def jobpath_hold(
-# #     date: pd.Timestamp, ids: pd.Series, period_type: str = "M", when: str = "end"
-# # ) -> pd.Series:
-# #     """
-# #     Given a time period and an id_series,
-# #     return True for every record with a JobPath hold, False otherwise
-
-# #     Parameters
-# #     ----------
-# #     start_date: pd.Timestamp
-# #         Start of this period
-
-# #     id_series: pd.Series
-# #         Pandas Series with IDs for lookup
-
-# #     period_type: str
-# #         Pandas period-type-identifying string. Default is 'M'.
-
-# #     when: str = "end"
-# #         Specify when to measure JobPath hold status.
-# #         Possible values are "start", "end", "both", "either".
-
-# #     Returns
-# #     -------
-# #     pd.Series(bool):
-# #         Boolean series with same index as original id_series.
-# #     """
-
-# #     period = date.to_period(period_type)
-
-# #     print(f"Get JobPathHold people in period: {period}")
-
-# #     if when in ["start", "both", "either"]:
-# #         jobpath_hold_at_start = (
-# #             get_ists_claims(period.to_timestamp(when="S"), ids, columns=["JobPathHold"])
-# #             .squeeze(axis="columns")
-# #             .astype(bool)
-# #         )
-# #     if when in ["end", "both", "either"]:
-# #         jobpath_hold_at_end = (
-# #             get_ists_claims(period.to_timestamp(when="E"), ids, columns=["JobPathHold"])
-# #             .squeeze(axis="columns")
-# #             .astype(bool)
-# #         )
-
-# #     if when == "both":
-# #         jobpath_hold = jobpath_hold_at_start & jobpath_hold_at_end
-# #     if when == "either":
-# #         jobpath_hold = jobpath_hold_at_start | jobpath_hold_at_end
-# #     elif when == "start":
-# #         jobpath_hold = jobpath_hold_at_start
-# #     elif when == "end":
-# #         jobpath_hold = jobpath_hold_at_end
-
-# #     return jobpath_hold
+        jobpath = get_jobpath_data(columns=["jobpath_start_date", "jobpath_end_date"])
+        starts = jobpath["jobpath_start_date"].between(start, end)
+        ends = jobpath["jobpath_end_date"].between(start, end)
+        started_and_ended_by_id = (
+            pd.pivot_table(
+                jobpath[starts & ends],
+                values="jobpath_start_date",
+                index="ppsn",
+                aggfunc=np.any,
+            )
+            .squeeze(axis="columns")
+            .astype(bool)
+        )
+        data["jobpath_started_and_ended"] = (
+            started_and_ended_by_id.loc[
+                started_and_ended_by_id.index.intersection(data.index)
+            ]
+            .reindex(data.index)
+            .fillna(False)
+        )
+        return data
 
 
 # //TODO Recursive processing of nested dict with "all", "any" and "not" as keys
@@ -475,5 +426,3 @@ class EligiblePopulation(SetupStep):
         data["eligible_population"] = data[eligibility_cols].all(axis="columns")
         data = data.drop(negative_cols, axis="columns")
         return data
-
-        # data["evaluation_population"] = data[]
