@@ -13,6 +13,8 @@ from evaluation_jp.features import (
     ClaimDurationEligible,
     OnLES,
     OnJobPath,
+    JobPathStartedEndedSamePeriod,
+    JobPathStarts,
     EligiblePopulation,
 )
 from evaluation_jp.models import (
@@ -298,6 +300,44 @@ def test__all_SetupSteps_for_EvaluationModel_population_slices(
     assert len(results.data[results.data["eligible_population"]]) == 86240
 
 
+
+
+def test__JobPathStartedEndedSamePeriod(fixture__population_slice_setup_steps):
+    ps = PopulationSlice(
+        id=PopulationSliceID(date=pd.Timestamp("2016-07-01")),
+        setup_steps=fixture__population_slice_setup_steps,
+    )
+    tpid = TreatmentPeriodID(
+        population_slice_id=ps.id, time_period=pd.Period("2016-07")
+    )
+    results = TreatmentPeriod(
+        id=tpid,
+        setup_steps=SetupSteps(steps=[JobPathStartedEndedSamePeriod()]),
+        init_data=ps.data,
+    )
+    print(results.data["jobpath_started_and_ended"].value_counts())
+    print(results.data)
+    # Apparently 2 people started *and* ended JobPath in July 2016
+    assert len(results.data[results.data["jobpath_started_and_ended"]]) == 2
+
+
+
+def test__JobPathStarts__jobpath_operational(fixture__population_slice_setup_steps):
+    ps = PopulationSlice(
+        id=PopulationSliceID(date=pd.Timestamp("2016-01-01")),
+        setup_steps=fixture__population_slice_setup_steps,
+    )
+    tpid = TreatmentPeriodID(
+        population_slice_id=ps.id, time_period=pd.Period("2016-01")
+    )
+    results = TreatmentPeriod(
+        id=tpid,
+        setup_steps=SetupSteps(steps=[JobPathStarts()]),
+        init_data=ps.data,
+    )
+    # Apparently 1336 people started JobPath in Jan 2016
+    assert len(results.data[results.data["jobpath_starts"]]) == 1336
+
 @pytest.fixture
 def fixture__treatment_period_setup_steps():
     return SetupSteps(
@@ -315,6 +355,7 @@ def fixture__treatment_period_setup_steps():
             ),
             OnLES(assumed_episode_length={"years": 1}, how="start"),
             OnLES(assumed_episode_length={"years": 1}, how="end"),
+            JobPathStartedEndedSamePeriod(),
             EligiblePopulation(
                 eligibility_criteria={
                     "claim_code_eligible": True,
@@ -322,8 +363,10 @@ def fixture__treatment_period_setup_steps():
                     "on_les_at_start": False,
                     "on_les_at_end": False,
                     "JobPathHold": False,
+                    "jobpath_started_and_ended": False,
                 }
             ),
+            JobPathStarts(),
             # *"eligible_population" -> JobPath starts -> "evaluation_group" = "T" else "C"
             # ?What to do about JP starts that finish within same period?
         ]
@@ -352,9 +395,24 @@ def test__all_SetupSteps_for_first_TreatmentPeriod(
         "claim_duration_eligible",
         "on_les_at_start",
         "on_les_at_end",
+        "jobpath_started_and_ended",
         "eligible_population",
+        "jobpath_starts"
         # "evaluation_group",
     ]
     assert set(results.data.columns) == set(expected_columns)
     assert len(results.data) == len(ps.data[ps.data["eligible_population"]])
     assert len(results.data[results.data["eligible_population"]]) < len(results.data)
+
+
+
+
+
+# def test__TreatmentPeriodGenerator__all_SetupSteps(
+#     fixture__treatment_period_setup_steps, fixture__population_slice_setup_steps
+# ):
+#     ps = PopulationSlice(
+#         id=PopulationSliceID(date=pd.Timestamp("2016-07-01")),
+#         setup_steps=fixture__population_slice_setup_steps,
+#     )
+#     tpgen = TreatmentPeriodGenerator(setup_steps_by_date={})
