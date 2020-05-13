@@ -61,7 +61,7 @@ class TreatmentPeriodGenerator:
         return pd.period_range(start=start, end=self.end, freq=self.freq)
 
     def run(self, population_slice, data_handler=None):
-        init_data = population_slice.data
+        init_data = population_slice.data.copy()
         for time_period in self.treatment_period_range(population_slice.id.date):
             treatment_period = TreatmentPeriod(
                 id=TreatmentPeriodID(
@@ -73,4 +73,4 @@ class TreatmentPeriodGenerator:
             )
             yield treatment_period
             # Use survivors from previous period as pop for next period
-            init_data = treatment_period.data
+            init_data = treatment_period.data.copy()
