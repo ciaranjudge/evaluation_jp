@@ -106,16 +106,6 @@ class SetupSteps:
         return data
 
 
-# //TODO Implement StartingPopulation for TreatmentPeriod
-@dataclass
-class StartingPopulation(SetupStep):
-    starting_pop_col: str = None
-    starting_pop_val: str = None
-
-    def run(self, data_id, data):
-        return data
-
-
 @dataclass
 class LiveRegisterPopulation(SetupStep):
     """Get `columns` about people on Live Register on `data_id.date`.
@@ -322,61 +312,6 @@ class OnJobPath(SetupStep):
 
 
 @dataclass
-class JobPathStarts(SetupStep):
-    use_jobpath_operational_data: bool = True
-    use_ists_claim_data: bool = False
-    ists_jobpath_flag_col: str = None
-    combine_data: str = None  # "either" or "both"
-
-    def run(self, data_id, data):
-        start = ref_date_from_id(data_id, how="start")
-        end = ref_date_from_id(data_id, how="end")
-        if self.use_jobpath_operational_data:
-            jobpath_operational = get_jobpath_data(columns=["jobpath_start_date"])
-            started = jobpath_operational[
-                jobpath_operational["jobpath_start_date"].between(start, end)
-            ]
-            starts_by_id = (
-                pd.pivot_table(
-                    started, values="jobpath_start_date", index="ppsn", aggfunc=np.any
-                )
-                .squeeze(axis="columns")
-                .astype(bool)
-            )
-            operational_jobpath_starts = (
-                starts_by_id.loc[starts_by_id.index.intersection(data.index)]
-                .reindex(data.index)
-                .fillna(False)
-            )
-        else:
-            operational_jobpath_starts = pd.Series(data=False, index=data.index)
-
-        if self.use_ists_claim_data:
-            on_jobpath = OnJobPath(
-                assumed_episode_length={"years": 1},
-                use_jobpath_operational_data=False,
-                use_ists_claim_data=True,
-                ists_jobpath_flag_col="JobPath_Flag",
-            )
-            ists_jobpath_start = on_jobpath.run(start, data.copy())["on_jobpath"]
-            ists_jobpath_end = on_jobpath.run(end, data.copy())["on_jobpath"]
-            ists_jobpath_starts = ~ists_jobpath_start & ists_jobpath_end
-        else:
-            ists_jobpath_starts = pd.Series(data=False, index=data.index)
-
-        if (
-            self.use_jobpath_operational_data
-            and self.use_ists_claim_data
-            and self.combine_data == "both"
-        ):
-            data["jobpath_starts"] = operational_jobpath_starts & ists_jobpath_starts
-        else:  # combine == "either" or only one source in use
-            data["jobpath_starts"] = operational_jobpath_starts | ists_jobpath_starts
-
-        return data
-
-
-@dataclass
 class JobPathStartedEndedSamePeriod(SetupStep):
     def run(self, data_id, data):
         start = ref_date_from_id(data_id, how="start")
@@ -425,4 +360,91 @@ class EligiblePopulation(SetupStep):
                 eligibility_cols += [key]
         data["eligible_population"] = data[eligibility_cols].all(axis="columns")
         data = data.drop(negative_cols, axis="columns")
+        return data
+
+
+@dataclass
+class JobPathStarts(SetupStep):
+    use_jobpath_operational_data: bool = True
+    use_ists_claim_data: bool = False
+    ists_jobpath_flag_col: str = None
+    combine_data: str = None  # "either" or "both"
+
+    def run(self, data_id, data):
+        start = ref_date_from_id(data_id, how="start")
+        end = ref_date_from_id(data_id, how="end")
+
+        if self.use_jobpath_operational_data:
+            jobpath_operational = get_jobpath_data(columns=["jobpath_start_date"])
+            started = jobpath_operational[
+                jobpath_operational["jobpath_start_date"].between(start, end)
+            ]
+            starts_by_id = (
+                pd.pivot_table(
+                    started, values="jobpath_start_date", index="ppsn", aggfunc=np.any
+                )
+                .squeeze(axis="columns")
+                .astype(bool)
+            )
+            operational_jobpath_starts = (
+                starts_by_id.loc[starts_by_id.index.intersection(data.index)]
+                .reindex(data.index)
+                .fillna(False)
+            )
+        else:
+            operational_jobpath_starts = pd.Series(data=False, index=data.index)
+
+        if self.use_ists_claim_data:
+            on_jobpath = OnJobPath(
+                assumed_episode_length={"years": 1},
+                use_jobpath_operational_data=False,
+                use_ists_claim_data=True,
+                ists_jobpath_flag_col="JobPath_Flag",
+            )
+            ists_jobpath_start = on_jobpath.run(start, data.copy())["on_jobpath"]
+            ists_jobpath_end = on_jobpath.run(end, data.copy())["on_jobpath"]
+            ists_jobpath_starts = ~ists_jobpath_start & ists_jobpath_end
+        else:
+            ists_jobpath_starts = pd.Series(data=False, index=data.index)
+
+        if (
+            self.use_jobpath_operational_data
+            and self.use_ists_claim_data
+            and self.combine_data == "both"
+        ):
+            data["jobpath_starts"] = operational_jobpath_starts & ists_jobpath_starts
+        else:  # combine == "either" or only one source in use
+            data["jobpath_starts"] = operational_jobpath_starts | ists_jobpath_starts
+
+        return data
+
+
+@dataclass
+class EvaluationGroup(SetupStep):
+    eligible_col: str
+    treatment_col: str
+    treatment_label: str = "T"
+    control_label: str = "C"
+
+    def run(self, data_id, data):
+        eligible = data[self.eligible_col]
+        data.loc[eligible, "evaluation_group"] = self.control_label
+        eligible_and_treatment = data[self.eligible_col] & data[self.treatment_col]
+        data.loc[eligible_and_treatment, "evaluation_group"] = self.treatment_label
+
+        return data
+
+
+@dataclass
+class StartingPopulation(SetupStep):
+    starting_pop_col: str = None
+    starting_pop_label: str = None
+
+    def run(self, data_id, data):
+        if self.starting_pop_col in data.columns:
+            data["eligible_population"] = (
+                data[self.starting_pop_col] == self.starting_pop_label
+            )
+        data = data[["eligible_population"]]
+
         return data
