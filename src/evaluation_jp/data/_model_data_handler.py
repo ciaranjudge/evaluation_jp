@@ -202,13 +202,15 @@ class ModelDataHandler:
             data_id_indexes = data_id_cols
         for idx in data_id_indexes:
             idx = idx if isinstance(idx, list) else [idx]
-            if idx not in [d["column_names"] for d in insp.get_indexes(data_type)]:
+            try: 
                 query = f"""\
                     CREATE INDEX idx_{'_'.join(i for i in idx)}
                     ON {data_type} ({', '.join(i for i in idx)})
                     """
                 with self.engine.connect() as conn:
                     conn.execute(query)
+            except:
+                pass
 
     # //TODO Implement _write_archive()
 
