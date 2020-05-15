@@ -113,22 +113,30 @@ class LiveRegisterPopulation(SetupStep):
     """
 
     # Parameters
-    columns: List[str]
+    columns_by_type: Dict[str, str]
     starting_pop_col: str = None  # Must be bool!
 
     # Setup method
     def run(self, data_id, data=None):
         if data is None:
-            data = get_ists_claims(ref_date_from_id(data_id), columns=self.columns)
+            data = get_ists_claims(
+                ref_date_from_id(data_id), columns=self.columns_by_type.keys()
+            )
         else:
             live_register_population = get_ists_claims(
-                ref_date_from_id(data_id), columns=self.columns
+                ref_date_from_id(data_id), columns=self.columns_by_type.keys()
             )
-            starting_pop = data.loc[data[self.starting_pop_col]]
-            data = live_register_population.loc[
-                live_register_population.index.intersection(starting_pop.index)
-            ]
-        data = data.drop({"lr_flag"}, axis="columns")
+            live_register_population["on_live_register"] = True
+            data = pd.merge(
+                data,
+                live_register_population,
+                how="left",
+                left_index=True,
+                right_index=True,
+            )
+        for col, dtype in self.columns_by_type.items():
+            data[col] = data[col].astype(dtype)
+        data = data.drop(["lr_flag"], axis="columns")
         return data
 
 
@@ -437,14 +445,19 @@ class EvaluationGroup(SetupStep):
 
 @dataclass
 class StartingPopulation(SetupStep):
-    starting_pop_col: str = None
+    eligible_from_pop_slice_col: str = None
+    eligible_from_previous_period_col: str = None
     starting_pop_label: str = None
 
     def run(self, data_id, data):
-        if self.starting_pop_col in data.columns:
-            data["eligible_population"] = (
-                data[self.starting_pop_col] == self.starting_pop_label
+        if self.eligible_from_previous_period_col in data.columns:
+            data["starting_population"] = (
+                data[self.eligible_from_previous_period_col] == self.starting_pop_label
             )
-        data = data[["eligible_population"]]
+        else:
+            data["starting_population"] = data[self.eligible_from_pop_slice_col]
+        # Just keep "starting_population" column
+        # Restrict to records where "starting_population" is True
+        data = data.loc[data["starting_population"] == True, ["starting_population"]]
 
         return data

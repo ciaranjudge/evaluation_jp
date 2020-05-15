@@ -58,13 +58,13 @@ def test__SetupSteps_with_data_and_data_id(
 @pytest.fixture
 def fixture__live_register_population(fixture__population_slice):
     live_register_population = LiveRegisterPopulation(
-        columns=[
-            "lr_code",
-            "clm_comm_date",
-            "JobPath_Flag",
-            "JobPathHold",
-            "date_of_birth",
-        ]
+        columns_by_type={
+            "lr_code": "category",
+            "clm_comm_date": "datetime64",
+            "JobPath_Flag": "boolean",
+            "JobPathHold": "boolean",
+            "date_of_birth": "datetime64",
+        }
     )
     return live_register_population.run(data_id=fixture__population_slice.id)
 
@@ -162,7 +162,9 @@ def test__OnJobPath():
     """
     eligible = OnJobPath(assumed_episode_length={"years": 1})
     psid = PopulationSliceID(date=pd.Timestamp("2016-02-01"))
-    lrp = LiveRegisterPopulation(columns=["JobPath_Flag", "JobPathHold",])
+    lrp = LiveRegisterPopulation(
+        columns_by_type={"JobPath_Flag": "boolean", "JobPathHold": "boolean",}
+    )
     results = eligible.run(data_id=psid, data=lrp.run(psid))
     # Manually check number of people on JobPath at start of Feb 2016 == 1441
     assert results.loc[results["on_jobpath"]].shape == (1441, 3)
@@ -200,13 +202,12 @@ def fixture__population_slice_setup_steps():
     return SetupSteps(
         steps=[
             LiveRegisterPopulation(
-                columns=[
-                    "lr_code",
-                    "clm_comm_date",
-                    "JobPath_Flag",
-                    "JobPathHold",
-                    "date_of_birth",
-                ]
+                columns_by_type={
+                    "lr_code": "category",
+                    "clm_comm_date": "datetime64",
+                    "JobPath_Flag": "boolean",
+                    "date_of_birth": "datetime64",
+                }
             ),
             AgeEligible(date_of_birth_col="date_of_birth", max_eligible={"years": 60}),
             ClaimCodeEligible(code_col="lr_code", eligible_codes=["UA", "UB"]),
@@ -232,14 +233,9 @@ def fixture__population_slice_setup_steps():
     )
 
 
-def test__all_SetupSteps_for_PopulationSlice(fixture__population_slice_setup_steps):
-
-    results = PopulationSlice(
-        id=PopulationSliceID(date=pd.Timestamp("2016-07-01")),
-        setup_steps=fixture__population_slice_setup_steps,
-    )
-    expected_columns = [
-        "JobPathHold",
+@pytest.fixture
+def fixture__population_slice__expected_columns():
+    return [
         "JobPath_Flag",
         "clm_comm_date",
         "lr_code",
@@ -251,14 +247,26 @@ def test__all_SetupSteps_for_PopulationSlice(fixture__population_slice_setup_ste
         "on_jobpath",
         "eligible_population",
     ]
-    assert set(results.data.columns) == set(expected_columns)
+
+
+def test__all_SetupSteps_for_PopulationSlice(
+    fixture__population_slice_setup_steps, fixture__population_slice__expected_columns
+):
+
+    results = PopulationSlice(
+        id=PopulationSliceID(date=pd.Timestamp("2016-07-01")),
+        setup_steps=fixture__population_slice_setup_steps,
+    )
+    assert set(results.data.columns) == set(fixture__population_slice__expected_columns)
     # Manually check how many people are on LR and eligible
     assert len(results.data) == 315654
     assert len(results.data[results.data["eligible_population"]]) == 86240
 
 
 def test__all_SetupSteps_for_EvaluationModel_population_slices(
-    fixture__population_slice_setup_steps, tmpdir,
+    fixture__population_slice_setup_steps,
+    fixture__population_slice__expected_columns,
+    tmpdir,
 ):
 
     population_slice_generator = PopulationSliceGenerator(
@@ -279,23 +287,10 @@ def test__all_SetupSteps_for_EvaluationModel_population_slices(
     )
     evaluation_model.add_population_slices()
 
-    expected_columns = [
-        "JobPathHold",
-        "JobPath_Flag",
-        "clm_comm_date",
-        "lr_code",
-        "date_of_birth",
-        "age_eligible",
-        "claim_code_eligible",
-        "claim_duration_eligible",
-        "on_les",
-        "on_jobpath",
-        "eligible_population",
-    ]
     results = evaluation_model.population_slices[
         PopulationSliceID(date=pd.Timestamp("2016-07-01"))
     ]
-    assert set(results.data.columns) == set(expected_columns)
+    assert set(results.data.columns) == set(fixture__population_slice__expected_columns)
     # Manually check how many people are on LR and eligible
     assert len(results.data) == 315654
     assert len(results.data[results.data["eligible_population"]]) == 86240
@@ -361,8 +356,9 @@ def test__EvaluationGroup():
 def test__StartingPopulation():
     data = pd.DataFrame(
         {
-            "eligible_population": [True] * 8 + [False] * 2,
-            "evaluation_group": ["T"] * 2 + ["C"] * 6 + [0] * 2,
+            "original_population": [True] * 20,
+            "eligible_population": [True] * 8 + [False] * 12,
+            "evaluation_group": ["T"] * 2 + ["C"] * 6 + [0] * 12,
         }
     )
     any_data_id = TreatmentPeriodID(
@@ -374,14 +370,17 @@ def test__StartingPopulation():
         setup_steps=SetupSteps(
             steps=[
                 StartingPopulation(
-                    starting_pop_col="evaluation_group", starting_pop_label="C"
+                    eligible_from_previous_period_col="evaluation_group",
+                    starting_pop_label="C",
                 )
             ]
         ),
         init_data=data,
     )
     print(results.data)
-    assert len(results.data[results.data["eligible_population"]]) == 6
+    # Should be 6 records in new population
+    # ...corresponding to the 6 records in the original control group
+    assert len(results.data) == 6
 
 
 @pytest.fixture
@@ -389,10 +388,17 @@ def fixture__treatment_period_setup_steps():
     return SetupSteps(
         steps=[
             StartingPopulation(
-                starting_pop_col="evaluation_group", starting_pop_label="C"
+                eligible_from_pop_slice_col="eligible_population",
+                eligible_from_previous_period_col="evaluation_group",
+                starting_pop_label="C",
             ),
             LiveRegisterPopulation(
-                columns=["lr_code", "clm_comm_date", "JobPath_Flag", "JobPathHold",],
+                columns_by_type={
+                    "lr_code": "category",
+                    "clm_comm_date": "datetime64",
+                    "JobPath_Flag": "boolean",
+                    "JobPathHold": "boolean",
+                },
                 starting_pop_col="eligible_population",
             ),
             ClaimCodeEligible(code_col="lr_code", eligible_codes=["UA", "UB"]),
@@ -404,6 +410,7 @@ def fixture__treatment_period_setup_steps():
             JobPathStartedEndedSamePeriod(),
             EligiblePopulation(
                 eligibility_criteria={
+                    "on_live_register": True,
                     "claim_code_eligible": True,
                     "claim_duration_eligible": True,
                     "on_les_at_start": False,
@@ -423,20 +430,11 @@ def fixture__treatment_period_setup_steps():
     )
 
 
-def test__all_SetupSteps__first_TreatmentPeriod(
-    fixture__treatment_period_setup_steps, fixture__population_slice_setup_steps
-):
-    ps = PopulationSlice(
-        id=PopulationSliceID(date=pd.Timestamp("2016-07-01")),
-        setup_steps=fixture__population_slice_setup_steps,
-    )
-    tpid = TreatmentPeriodID(
-        population_slice_id=ps.id, time_period=pd.Period("2016-07")
-    )
-    results = TreatmentPeriod(
-        id=tpid, setup_steps=fixture__treatment_period_setup_steps, init_data=ps.data,
-    )
-    expected_columns = [
+@pytest.fixture
+def fixture__treatment_period_expected_columns():
+    return [
+        "starting_population",
+        "on_live_register",
         "JobPathHold",
         "lr_code",
         "JobPath_Flag",
@@ -450,14 +448,34 @@ def test__all_SetupSteps__first_TreatmentPeriod(
         "jobpath_starts",
         "evaluation_group",
     ]
+
+
+def test__all_SetupSteps__first_TreatmentPeriod(
+    fixture__treatment_period_setup_steps,
+    fixture__population_slice_setup_steps,
+    fixture__treatment_period_expected_columns,
+):
+    ps = PopulationSlice(
+        id=PopulationSliceID(date=pd.Timestamp("2016-07-01")),
+        setup_steps=fixture__population_slice_setup_steps,
+    )
+    tpid = TreatmentPeriodID(
+        population_slice_id=ps.id, time_period=pd.Period("2016-07")
+    )
+    results = TreatmentPeriod(
+        id=tpid, setup_steps=fixture__treatment_period_setup_steps, init_data=ps.data,
+    )
+
     print(f"Results columns: {results.data.columns}")
-    assert set(results.data.columns) == set(expected_columns)
+    assert set(results.data.columns) == set(fixture__treatment_period_expected_columns)
     assert len(results.data) == len(ps.data[ps.data["eligible_population"]])
     assert len(results.data[results.data["eligible_population"]]) < len(results.data)
 
 
 def test__all_SetupSteps__subsequent_TreatmentPeriod(
-    fixture__treatment_period_setup_steps, fixture__population_slice_setup_steps
+    fixture__population_slice_setup_steps,
+    fixture__treatment_period_setup_steps,
+    fixture__treatment_period_expected_columns,
 ):
     ps = PopulationSlice(
         id=PopulationSliceID(date=pd.Timestamp("2016-07-01")),
@@ -471,20 +489,6 @@ def test__all_SetupSteps__subsequent_TreatmentPeriod(
         setup_steps=fixture__treatment_period_setup_steps,
         init_data=ps.data,
     )
-    expected_columns = [
-        "JobPathHold",
-        "lr_code",
-        "JobPath_Flag",
-        "clm_comm_date",
-        "claim_code_eligible",
-        "claim_duration_eligible",
-        "on_les_at_start",
-        "on_les_at_end",
-        "jobpath_started_and_ended",
-        "eligible_population",
-        "jobpath_starts",
-        "evaluation_group",
-    ]
     second_tpid = TreatmentPeriodID(
         population_slice_id=ps.id, time_period=pd.Period("2016-08")
     )
@@ -493,18 +497,50 @@ def test__all_SetupSteps__subsequent_TreatmentPeriod(
         setup_steps=fixture__treatment_period_setup_steps,
         init_data=first_tp.data.copy(),
     )
-    assert set(results.data.columns) == set(expected_columns)
+    assert set(results.data.columns) == set(fixture__treatment_period_expected_columns)
     len_expected = len(first_tp.data[first_tp.data["eligible_population"]]) - len(
-        first_tp.data[first_tp.data["jobpath_starts"]]
+        first_tp.data[first_tp.data["evaluation_group"] == "T"]
     )
     assert len(results.data) <= len_expected
     assert len(results.data[results.data["eligible_population"]]) < len(results.data)
 
-# def test__TreatmentPeriodGenerator__all_SetupSteps(
-#     fixture__treatment_period_setup_steps, fixture__population_slice_setup_steps
-# ):
-#     ps = PopulationSlice(
-#         id=PopulationSliceID(date=pd.Timestamp("2016-07-01")),
-#         setup_steps=fixture__population_slice_setup_steps,
-#     )
-#     tpgen = TreatmentPeriodGenerator(setup_steps_by_date={})
+
+def test__all_SetupSteps_for_EvaluationModel_treatment_periods(
+    fixture__population_slice_setup_steps,
+    fixture__treatment_period_setup_steps,
+    fixture__treatment_period_expected_columns,
+    tmpdir,
+):
+    data_handler = ModelDataHandler(
+        database_type="sqlite", location=tmpdir, name="jobpath_evaluation",
+    )
+    population_slice_generator = PopulationSliceGenerator(
+        setup_steps_by_date={
+            pd.Timestamp("2016-01-01"): fixture__population_slice_setup_steps
+        },
+        start=pd.Timestamp("2016-07-01"),
+        end=pd.Timestamp("2016-09-30"),
+    )
+    treatment_period_generator = TreatmentPeriodGenerator(
+        setup_steps_by_date={
+            pd.Timestamp("2016-07-01"): fixture__treatment_period_setup_steps
+        },
+        end=pd.Period("2016-09"),
+    )
+    evaluation_model = EvaluationModel(
+        data_handler=data_handler,
+        population_slice_generator=population_slice_generator,
+        treatment_period_generator=treatment_period_generator,
+    )
+    evaluation_model.add_population_slices()
+    evaluation_model.add_treatment_periods()
+    results_id = TreatmentPeriodID(
+        population_slice_id=PopulationSliceID(date=pd.Timestamp("2016-07-01")),
+        time_period=pd.Period("2016-09"),
+    )
+    results = evaluation_model.treatment_periods[results_id]
+    assert set(results.data.columns) == set(fixture__treatment_period_expected_columns)
+    # Manually check how many people are on LR and eligible
+    assert len(results.data[results.data["eligible_population"]]) < len(results.data)
+    assert len(results.data[results.data["eligible_population"]]) == 64333
+    assert len(results.data[results.data["jobpath_starts"]]) == 4273
