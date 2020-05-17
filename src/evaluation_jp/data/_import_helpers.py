@@ -41,7 +41,6 @@ def get_parameterized_query(query_text, ids=None):
         )
     else:
         query = query_text
-    print(query)
     return query, params
 
 
@@ -180,7 +179,6 @@ def get_vital_statistics(
             FROM ists_personal
         """
     query, params = get_parameterized_query(query_text, ids)
-    print(query)
     ists_personal = pd.read_sql(
         query,
         con=engine,
@@ -273,8 +271,6 @@ def get_jobpath_data(
 #     """
 #     query = f"('RSI_NO' in ({ids.to_list()}))"
 
-#     # print(query)
-
 #     with pd.HDFStore("data/interim/earnings.h5", mode="r") as store:
 #         df = store.select("/earnings", where=query, columns=columns)
 
@@ -312,8 +308,6 @@ def get_jobpath_data(
 #     df: pd.DataFrame
 #     """
 #     query = f"('ppsn' in ({set(ids)}))"
-
-#     # print(query)
 
 #     with pd.HDFStore("data/interim/master_data_store.h5", mode="r") as store:
 #         df = store.select("/payments", where=query, columns=columns)
