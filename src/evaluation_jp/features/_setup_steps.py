@@ -6,6 +6,7 @@ from typing import ClassVar, List, Set, Dict, Tuple, Optional
 
 import numpy as np
 import pandas as pd
+from tqdm import tqdm
 
 from evaluation_jp.data import get_ists_claims, get_les_data, get_jobpath_data
 
@@ -103,6 +104,7 @@ class SetupSteps:
     def run(self, data_id=None, data: pd.DataFrame = None):
         for step in self.steps:
             data = step.run(data_id, data=data)
+
         return data
 
 
@@ -338,13 +340,16 @@ class JobPathStartedEndedSamePeriod(SetupStep):
             .squeeze(axis="columns")
             .astype(bool)
         )
-        data["jobpath_started_and_ended"] = (
-            started_and_ended_by_id.loc[
-                started_and_ended_by_id.index.intersection(data.index)
-            ]
-            .reindex(data.index)
-            .fillna(False)
-        )
+        try:
+            data["jobpath_started_and_ended"] = (
+                started_and_ended_by_id.loc[
+                    started_and_ended_by_id.index.intersection(data.index)
+                ]
+                .reindex(data.index)
+                .fillna(False)
+            )
+        except ValueError:
+            data["jobpath_started_and_ended"] = False
         return data
 
 
