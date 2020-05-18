@@ -273,7 +273,7 @@ def test__all_SetupSteps_for_EvaluationModel_population_slices(
         setup_steps_by_date={
             pd.Timestamp("2016-01-01"): fixture__population_slice_setup_steps
         },
-        start=pd.Timestamp("2016-01-01"),
+        start=pd.Timestamp("2016-07-01"),
         end=pd.Timestamp("2016-09-30"),
     )
 
