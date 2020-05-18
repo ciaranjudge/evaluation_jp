@@ -59,6 +59,9 @@ dependencies:
   # Security
   - python-dotenv
 
+  # Command line 
+  - tqdm
+
   # Pip
   - pip
   - pip:
