@@ -125,6 +125,7 @@ class ModelDataHandler:
     password: InitVar[str] = None
     location: InitVar[str] = None
     name: InitVar[str] = None
+    index_col: str = "ppsn"
 
     engine: sa.engine.Engine = field(init=False)
 
@@ -165,6 +166,7 @@ class ModelDataHandler:
                 query,
                 con=self.engine,
                 parse_dates=datetime_cols(self.engine, data_type),
+                index_col=self.index_col,
             ).drop(list(sql_data_id), axis="columns")
             if not data.empty:
                 return data
@@ -194,7 +196,6 @@ class ModelDataHandler:
             data[f"data_id_{key}"] = sql_format(value)
 
         data.to_sql(data_type, con=self.engine, if_exists="append", index=index)
-        insp = sa.engine.reflection.Inspector.from_engine(self.engine)
         data_id_cols = [f"data_id_{col}" for col in flatten(data_id)]
         if len(data_id_cols) > 1:
             data_id_indexes = data_id_cols + data_id_cols
