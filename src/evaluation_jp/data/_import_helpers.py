@@ -249,70 +249,58 @@ def get_jobpath_data(
     return jobpath
 
 
-# def get_earnings(
-#     # date: pd.Timestamp,
-#     ids: pd.Index,
-#     columns: Optional[List] = None,
-# ) -> pd.DataFrame:
-#     """
-#     Given a series of IDs, return all available employment information for those IDs
+def get_earnings(
+    # date: pd.Timestamp,
+    ids: Optional[pd.Index] = None,
+    year: Optional[int] = None,
+    columns: Optional[List] = None,
+) -> pd.DataFrame:
+    """
+    Given a series of IDs, return all available employment information for those IDs
 
-#     Parameters
-#     ----------
-#     ids: pd.Index = None
-#         IDs for lookup.
+    Parameters
+    ----------
+    ids: pd.Index = None
+        IDs for lookup.
 
-#     columns: Optional[List] = None
-#         Columns from the database to return. Default is all columns.
+    columns: Optional[List] = None
+        Columns from the database to return. Default is all columns.
 
-#     Returns
-#     -------
-#     df: pd.DataFrame
-#     """
-#     query = f"('RSI_NO' in ({ids.to_list()}))"
+    Returns
+    -------
+    df: pd.DataFrame
+    """
 
-#     with pd.HDFStore("data/interim/earnings.h5", mode="r") as store:
-#         df = store.select("/earnings", where=query, columns=columns)
+    error_flags = [
+        "PAY_ERR_IND",
+        "PRSI_ERR_IND",
+        "WIES_ERR_IND",
+        "CLASS_ERR_IND",
+        "PRSI_REFUND_IND",
+        "CANCELLED_IND",
+    ]
+    required_columns = ["ppsn"] + error_flags
+    col_list = unpack(get_col_list(engine, "earnings", columns, required_columns))
+    query_text = f"""\
+        SELECT {col_list} 
+            FROM earnings
+        """
+    if year:
+        query_text += f"""\
+            WHERE CON_YEAR = '{year}'
+        """
+    query, params = get_parameterized_query(query_text, ids)
+    df = pd.read_sql(
+        query, con=engine, params=params, parse_dates=datetime_cols(engine, "payments"),
+    )
+    no_error_flag = ~df[error_flags].any(axis="columns")
+    df = df.loc[no_error_flag].drop(error_flags, axis="columns")
 
-#     # Remove records with any error flags
-#     error_flags = [
-#         "PAY_ERR_IND",
-#         "PRSI_ERR_IND",
-#         "WIES_ERR_IND",
-#         "CLASS_ERR_IND",
-#         "PRSI_REFUND_IND",
-#         "CANCELLED_IND",
-#     ]
-#     no_error_flag = ~df[error_flags].any(axis="columns")
-#     df = df.loc[no_error_flag].drop(error_flags, axis="columns")
-
-#     # Rename columns
-#     # PRSI/earnings ratio
-#     return df
+    # Rename columns
+    # PRSI/earnings ratio
+    return df
 
 
-# def get_sw_payments(ids: pd.Index, columns: Optional[List] = None) -> pd.DataFrame:
-#     """
-#     Given a series of IDs, return all available SW payment information for those IDs
-
-#     Parameters
-#     ----------
-#     ids: pd.Series = None
-#         Pandas Series with IDs for lookup.
-
-#     columns: Optional[List] = None
-#         Columns from the database to return. Default is all columns.
-
-#     Returns
-#     -------
-#     df: pd.DataFrame
-#     """
-#     query = f"('ppsn' in ({set(ids)}))"
-
-#     with pd.HDFStore("data/interim/master_data_store.h5", mode="r") as store:
-#         df = store.select("/payments", where=query, columns=columns)
-
-#     return df
 
 # %%
 def get_sw_payments(
