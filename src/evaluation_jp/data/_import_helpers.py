@@ -279,7 +279,7 @@ def get_earnings(
         "PRSI_REFUND_IND",
         "CANCELLED_IND",
     ]
-    required_columns = ["ppsn"] + error_flags
+    required_columns = ["RSI_NO"] + error_flags
     col_list = unpack(get_col_list(engine, "earnings", columns, required_columns))
     query_text = f"""\
         SELECT {col_list} 
@@ -294,7 +294,7 @@ def get_earnings(
         query, con=engine, params=params, parse_dates=datetime_cols(engine, "payments"),
     )
     no_error_flag = ~df[error_flags].any(axis="columns")
-    df = df.loc[no_error_flag].drop(error_flags, axis="columns")
+    df = df.loc[no_error_flag].drop(error_flags, axis="columns").rename({"RSI_NO": "ppsn"})
 
     # Rename columns
     # PRSI/earnings ratio
