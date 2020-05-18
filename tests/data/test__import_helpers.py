@@ -13,8 +13,8 @@ from evaluation_jp.data import (
     get_vital_statistics,
     get_les_data,
     get_jobpath_data,
-    # get_earnings,
-    # get_payments,
+    get_earnings,
+    get_sw_payments,
 )
 
 engine = sa.create_engine(
@@ -94,7 +94,9 @@ def test__get_ists_claims():
     )
 
     results = get_ists_claims(
-        date=date, ids=sample.index, columns=["lr_code", "clm_comm_date", "date_of_birth"]
+        date=date,
+        ids=sample.index,
+        columns=["lr_code", "clm_comm_date", "date_of_birth"],
     ).sort_index()[["lr_code", "clm_comm_date", "lr_flag", "date_of_birth"]]
 
     expected = sample
@@ -105,7 +107,6 @@ def test__get_ists_claims():
     # datetimes = ["date_of_birth", "clm_comm_date"]
     # for col_name in datetimes:
     #     assert str(results[col_name].dtype) == 'datetime64[ns]'
-
 
 
 def test__get_vital_statistics():
@@ -121,8 +122,7 @@ def test__get_vital_statistics():
         .sort_index()
     )[["date_of_birth", "sex"]]
     results = get_vital_statistics(
-        ids=sample.index,
-        columns=["date_of_birth", "sex"]
+        ids=sample.index, columns=["date_of_birth", "sex"]
     ).sort_index()[["date_of_birth", "sex"]]
     expected = sample
 
@@ -190,13 +190,22 @@ def test__get_jobpath_data():
         .sort_index()
     )
     expected = (
-        test__sample.drop_duplicates("ppsn", keep="first").set_index("ppsn").sort_index()
+        test__sample.drop_duplicates("ppsn", keep="first")
+        .set_index("ppsn")
+        .sort_index()
     )
 
     assert results.equals(expected)
 
 
-# TODO test get_earnings()
+def test__get_earnings():
+    columns = ["NO_OF_CONS", "EARNINGS_AMT",]
+    results = get_earnings(year=2018, columns=columns)
+    assert set(results.columns) == set(columns)
+    # Manually look up how many records there should be per earnings SQL table
+    assert len(results) == 5729626
+
+
 # TODO test get_payments()
 
 
@@ -207,4 +216,3 @@ def test__get_jobpath_data():
 #     ids=["0070688N", "0200098K"],
 # )
 # returned_df.describe()
-
