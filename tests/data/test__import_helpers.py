@@ -199,14 +199,19 @@ def test__get_jobpath_data():
 
 
 def test__get_earnings():
-    columns = ["NO_OF_CONS", "EARNINGS_AMT",]
+    columns = ["ppsn", "NO_OF_CONS", "EARNINGS_AMT",]
     results = get_earnings(year=2018, columns=columns)
-    assert set(results.columns) == set(columns)
+    assert set(results.columns) == set(columns) 
     # Manually look up how many records there should be per earnings SQL table
     assert len(results) == 5729626
 
 
-# TODO test get_payments()
+def test__get_payments():
+    columns = ["ppsn", "NO_OF_CONS", "EARNINGS_AMT",]
+    results = get_earnings(year=2018, columns=columns)
+    assert set(results.columns) == set(columns) 
+    # Manually look up how many records there should be per earnings SQL table
+    assert len(results) == 5729626
 
 
 # returned_df = get_ists_claims(

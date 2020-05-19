@@ -294,12 +294,15 @@ def get_earnings(
         query, con=engine, params=params, parse_dates=datetime_cols(engine, "payments"),
     )
     no_error_flag = ~df[error_flags].any(axis="columns")
-    df = df.loc[no_error_flag].drop(error_flags, axis="columns").rename({"RSI_NO": "ppsn"})
+    df = (
+        df.loc[no_error_flag]
+        .drop(error_flags, axis="columns")
+        .rename(columns={"RSI_NO": "ppsn"})
+    )
 
     # Rename columns
     # PRSI/earnings ratio
     return df
-
 
 
 # %%
