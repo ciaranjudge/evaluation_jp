@@ -355,6 +355,38 @@ class JobPathStartedEndedSamePeriod(SetupStep):
 
 # //TODO Recursive processing of nested dict with "all", "any" and "not" as keys
 # Values should be names of dataframe boolean columns
+# # # "any", "all", "not"
+# # # "any", "all" need list
+# # # "not" needs single thing
+
+
+# # from collections.abc import Mapping, Sequence
+
+# # # For every item in in_list:
+# # # Should be either dict or str
+# # # If str, add to out_list
+# # # If dict, populate out_list item with resolution of recursive call
+
+
+# # for key, value in logic_dict.itens():
+# #     if key == "not":
+# #         # Is it a single thing? Then negate it!
+# #         if isinstance(value, str):
+# #             print(f"Create col not_{value}")
+# #             return f"not_{value}"
+
+# #         # Raise an error if there's a list being not-ed
+# #         elif isinstance(value, Sequence):
+# #             print(f"Can't not {value}")
+
+# #         # Recurse if it's a dict being not-ed
+# #         elif isinstance(value, Mapping):
+# #             print(f"Need to recurse this {value}")
+
+# #     if key in ["any", "all"]:
+# #         # Is it a single thing? Then
+# #         pass
+
 
 
 @dataclass
