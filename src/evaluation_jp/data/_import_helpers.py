@@ -1,17 +1,35 @@
 # %%
 from typing import List, Set, Dict, Tuple, Optional
+from contextlib import contextmanager
 
 import numpy as np
 import pandas as pd
 
 import sqlalchemy as sa
 
-from evaluation_jp.data import nearest_lr_date, datetime_cols
+from evaluation_jp.data import nearest_lr_date, datetime_cols, sql_clause_format
 
 
 engine = sa.create_engine(
     "sqlite:///\\\\cskma0294\\F\\Evaluations\\data\\wwld.db", echo=False
 )
+
+
+@contextmanager
+def temp_ids_con(engine: sa.engine.base.Engine, ids: set):
+    """Create database connection that makes temp.ids available as single column temp table
+    """
+
+    with engine.connect() as con:
+        rows = ", ".join([f"({sql_clause_format(id)})" for id in ids])
+        queries = [
+            "DROP TABLE IF EXISTS temp.ids",
+            "CREATE TEMP TABLE temp.ids(id INTEGER)",
+            f"INSERT INTO temp.ids(id) VALUES {rows}",
+        ]
+        for query in queries:
+            con.execute(query)
+        yield con
 
 
 def get_col_list(engine, table_name, columns=None, required_columns=None):
@@ -279,20 +297,38 @@ def get_earnings(
         "PRSI_REFUND_IND",
         "CANCELLED_IND",
     ]
-    required_columns = ["RSI_NO"] + error_flags
+    id_col = "RSI_NO"
+    required_columns = [id_col] + error_flags
+
     col_list = unpack(get_col_list(engine, "earnings", columns, required_columns))
-    query_text = f"""\
-        SELECT {col_list} 
-            FROM earnings
-        """
-    if year:
-        query_text += f"""\
-            WHERE CON_YEAR = '{year}'
-        """
-    query, params = get_parameterized_query(query_text, ids)
-    df = pd.read_sql(
-        query, con=engine, params=params, parse_dates=datetime_cols(engine, "payments"),
-    )
+    if ids is not None:
+        with temp_ids_con(engine, ids) as con:
+            query = f"""\
+                SELECT {col_list}
+                FROM earnings 
+                INNER JOIN temp.ids
+                ON earnings.{id_col} = temp.ids.id
+                """
+            if year:
+                query += f"""\
+                    WHERE CON_YEAR = '{year}'
+                """
+            df = pd.read_sql(
+                query, con=con, parse_dates=datetime_cols(engine, "earnings")
+            )
+
+    else:
+        query = f"""\
+            SELECT {col_list} 
+                FROM earnings
+            """
+        if year:
+            query += f"""\
+                WHERE CON_YEAR = '{year}'
+            """
+        df = pd.read_sql(
+            query, con=engine, parse_dates=datetime_cols(engine, "earnings"),
+        )
     no_error_flag = ~df[error_flags].any(axis="columns")
     df = (
         df.loc[no_error_flag]
@@ -311,21 +347,39 @@ def get_sw_payments(
     period: Optional[pd.Period] = None,
     columns: Optional[List] = None,
 ) -> pd.DataFrame:
-    required_columns = ["ppsn"]
+    id_col = "ppsn"
+    required_columns = ["id_col"]
     col_list = unpack(get_col_list(engine, "payments", columns, required_columns))
-    query_text = f"""\
-        SELECT {col_list} 
-            FROM payments
-        """
-    if period:
-        query_text += f"""\
-            WHERE QTR = '{period}'
-        """
-    query, params = get_parameterized_query(query_text, ids)
-    payments = pd.read_sql(
-        query, con=engine, params=params, parse_dates=datetime_cols(engine, "payments"),
-    )
-    return payments
+
+    if ids is not None:
+        with temp_ids_con(engine, ids) as con:
+            query = f"""\
+                SELECT {col_list}
+                FROM payments 
+                INNER JOIN temp.ids
+                ON payments.{id_col} = temp.ids.id
+                """
+            if period:
+                query_text += f"""\
+                    WHERE QTR = '{period}'
+                """
+            df = pd.read_sql(
+                query, con=con, parse_dates=datetime_cols(engine, "payments")
+            )
+    else:
+        query = f"""\
+            SELECT {col_list} 
+                FROM payments
+            """
+        if period:
+            query += f"""\
+                WHERE QTR = '{period}'
+            """
+        df = pd.read_sql(
+            query, con=engine, parse_dates=datetime_cols(engine, "payments"),
+        )
+
+    return df
 
 
 # %%

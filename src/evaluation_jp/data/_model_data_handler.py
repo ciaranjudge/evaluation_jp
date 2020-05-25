@@ -62,7 +62,7 @@ def sql_format(thing):
         return str(thing)
 
 
-def sql_where_format(thing):
+def sql_clause_format(thing):
     if is_number(thing):
         return thing
     else:
@@ -74,9 +74,9 @@ def sql_where_clause_from_dict(dictionary):
     first = True
     for key, value in dictionary.items():
         if first:
-            where_clause += f"WHERE {key} = {sql_where_format(value)}"
+            where_clause += f"WHERE {key} = {sql_clause_format(value)}"
         else:
-            where_clause += f"\n    AND {key} = {sql_where_format(value)}"
+            where_clause += f"\n    AND {key} = {sql_clause_format(value)}"
         first = False
     return where_clause
 
@@ -102,6 +102,8 @@ def flatten(data_id, sep="_"):
     recurse(asdict(data_id))
 
     return obj
+
+
 
 
 # //TODO ABC and concrete classes for various database and file-based storage options

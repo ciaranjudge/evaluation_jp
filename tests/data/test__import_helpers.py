@@ -200,24 +200,24 @@ def test__get_jobpath_data():
 
 def test__get_earnings():
     columns = ["ppsn", "NO_OF_CONS", "EARNINGS_AMT",]
-    results = get_earnings(year=2018, columns=columns)
+    test_ids = pd.Index(
+        ["6892436U", "5051366B", "6049367W", "5092934S", "8420262S",]
+    )
+    results = get_earnings(ids=test_ids, columns=columns)
     assert set(results.columns) == set(columns) 
     # Manually look up how many records there should be per earnings SQL table
-    assert len(results) == 5729626
+    assert len(results) > 0 
 
 
-def test__get_payments():
-    columns = ["ppsn", "NO_OF_CONS", "EARNINGS_AMT",]
-    results = get_earnings(year=2018, columns=columns)
+def test__get_sw_payments():
+    columns = ["ppsn", "SCHEME_TYPE", "AMOUNT",]
+    test_ids = pd.Index(
+        ["6892436U", "5051366B", "6049367W", "5092934S", "8420262S",]
+    )
+    results = get_sw_payments(ids=test_ids, columns=columns)
     assert set(results.columns) == set(columns) 
-    # Manually look up how many records there should be per earnings SQL table
-    assert len(results) == 5729626
+    # Manually look up how many records there should be per sw_payments SQL table
+    print(results)
+    assert len(results) == 2446785
 
 
-# returned_df = get_ists_claims(
-#      pd.Timestamp("2020-01-03"),
-#     lr_flag=True,
-#     # columns=["lr_code", "clm_comm_date", 'lr_flag'],
-#     ids=["0070688N", "0200098K"],
-# )
-# returned_df.describe()
