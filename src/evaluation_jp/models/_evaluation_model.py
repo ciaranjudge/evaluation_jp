@@ -45,8 +45,18 @@ class EvaluationModel:
     @property
     def total_population(self):
         return set().union(*(s.data.index for s in self.population_slices.values()))
-        # Get each data source and add to master dataframe
-        # Save dataframe using MDH
+
+    @property
+    def total_eligible_population(self):
+        return set().union(
+            *(
+                s.data[s.data["eligible_population"]].index
+                for s in self.population_slices.values()
+            )
+        )
+
+    # Get each data source and add to master dataframe
+    # Save dataframe using MDH
 
     def add_treatment_periods(self):
         self.treatment_periods = {}
