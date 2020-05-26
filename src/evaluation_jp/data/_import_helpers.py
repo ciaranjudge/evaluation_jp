@@ -362,7 +362,7 @@ def get_sw_payments(
                 ON payments.{id_col} = temp.ids.id
                 """
             if period:
-                query_text += f"""\
+                query += f"""\
                     WHERE QTR = '{period}'
                 """
             df = pd.read_sql(
