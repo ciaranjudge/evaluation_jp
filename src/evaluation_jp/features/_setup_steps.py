@@ -88,7 +88,7 @@ class SetupStep(abc.ABC):
 
     # Setup method
     @abc.abstractmethod
-    def run(self, data_id, data=None):
+    def run(self, data_id=None, data=None):
         """Do something and return data"""
         pass
 

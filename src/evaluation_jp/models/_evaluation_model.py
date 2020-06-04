@@ -9,6 +9,7 @@ from tqdm import tqdm
 
 # Local packages
 from evaluation_jp.data import ModelDataHandler
+from evaluation_jp.features import quarterly_earnings, quarterly_sw_payments
 from evaluation_jp.models import PopulationSliceGenerator, TreatmentPeriodGenerator
 
 # //TODO Read EvaluationModel parameters from yml file
@@ -22,7 +23,7 @@ class EvaluationModel:
     # outcome_generator: OutcomeGenerator = None
 
     # Attributes - set up post init
-    data: pd.DataFrame = None
+    longitudinal_data: pd.DataFrame = None
     population_slices: dict = None
     treatment_periods: dict = None
 
@@ -50,13 +51,20 @@ class EvaluationModel:
     def total_eligible_population(self):
         return set().union(
             *(
-                s.data[s.data["eligible_population"]].index
+                s.data[s.data["eligible_population"] == True].index
                 for s in self.population_slices.values()
             )
         )
 
-    # Get each data source and add to master dataframe
-    # Save dataframe using MDH
+    # //TODO Add sex, marital status, location 
+    def add_vital_statistics(self):
+        pass
+
+    def add_longitudinal_data(self):
+        # self.longitudinal_data = quarterly_earnings(self.total_eligible_population)
+        # self.
+        pass
+
 
     def add_treatment_periods(self):
         self.treatment_periods = {}
