@@ -164,6 +164,8 @@ class ModelDataHandler:
                 f"data_id_{key}": value for key, value in flatten(data_id).items()
             }
             query += sql_where_clause_from_dict(sql_data_id)
+            
+            # //TODO Fix datatypes especially bool and categorical!
             data = pd.read_sql(
                 query,
                 con=self.engine,
