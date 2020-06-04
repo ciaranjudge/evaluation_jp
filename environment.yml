@@ -21,6 +21,7 @@ dependencies:
   - luigi
   - marshmallow # Data marshalling & schema validation https://marshmallow.readthedocs.io
   - prefect # 
+  - pysnooper
   - pytest
   - pytest-xdist
 
