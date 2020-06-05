@@ -1,6 +1,6 @@
 # %%
 # Standard library
-from dataclasses import dataclass, field, InitVar, asdict
+from dataclasses import dataclass, field, InitVar
 from typing import List, Set, Dict
 
 # External packages
@@ -20,13 +20,12 @@ class PopulationSliceID:
 class PopulationSlice:
     # Parameters
     id: PopulationSliceID
-
-    # Init only
     setup_steps: InitVar[SetupSteps]
     data_handler: InitVar[ModelDataHandler] = None
+    index_col: str = None
 
-    # Set up post-init
     data: pd.DataFrame = field(init=False)
+
 
     @property
     def class_name(self):
@@ -37,6 +36,7 @@ class PopulationSlice:
             self.data = data_handler.run(
                 data_type=self.class_name,
                 data_id=self.id,
+                index_col=self.index_col,
                 setup_steps=setup_steps,
             )
         else:
@@ -53,6 +53,7 @@ class PopulationSliceGenerator:
 
     # Attributes
     setup_steps_by_date: NearestKeyDict = None
+    index_col: str = None
 
     date_range: pd.DatetimeIndex = field(init=False)
 
@@ -66,6 +67,7 @@ class PopulationSliceGenerator:
                 id=PopulationSliceID(date),
                 setup_steps=self.setup_steps_by_date[date],
                 data_handler=data_handler,
+                index_col = self.index_col
             )
             yield population_slice
 

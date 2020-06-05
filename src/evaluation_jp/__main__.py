@@ -74,6 +74,7 @@ evaluation_model = EvaluationModel(
                 ]
             )
         },
+        index_col="ppsn",
     ),
     treatment_period_generator=TreatmentPeriodGenerator(
         end=pd.Period("2017-12"),
@@ -123,6 +124,7 @@ evaluation_model = EvaluationModel(
                 ]
             )
         },
+        index_col="ppsn",
     ),
     # outcome_generator = OutcomeGenerator(
     #     outcome_start_date=pd.Timestamp("2016-02-01"),

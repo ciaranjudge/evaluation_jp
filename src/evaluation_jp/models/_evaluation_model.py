@@ -8,7 +8,7 @@ import pandas as pd
 from tqdm import tqdm
 
 # Local packages
-from evaluation_jp.data import ModelDataHandler
+from evaluation_jp.data import ModelDataHandler, ModelDataHandlerError
 from evaluation_jp.features import quarterly_earnings, quarterly_sw_payments
 from evaluation_jp.models import PopulationSliceGenerator, TreatmentPeriodGenerator
 
@@ -56,15 +56,26 @@ class EvaluationModel:
             )
         )
 
-    # //TODO Add sex, marital status, location 
+    # //TODO Add sex, marital status, location
     def add_vital_statistics(self):
         pass
 
     def add_longitudinal_data(self):
-        # self.longitudinal_data = quarterly_earnings(self.total_eligible_population)
-        # self.
-        pass
-
+        try:
+            self.longitudinal_data = self.data_handler.read(
+                data_type="longitudinal_data", index_col=["ppsn", "quarter"],
+            )
+        except ModelDataHandlerError:
+            self.longitudinal_data = pd.merge(
+                quarterly_earnings(self.total_eligible_population),
+                quarterly_sw_payments(self.total_eligible_population),
+                how="outer",
+                left_index=True,
+                right_index=True,
+            )
+            self.data_handler.write(
+                data_type="longitudinal_data", data=self.longitudinal_data
+            )
 
     def add_treatment_periods(self):
         self.treatment_periods = {}

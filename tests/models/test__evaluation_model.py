@@ -10,6 +10,7 @@ from evaluation_jp.models import (
     TreatmentPeriodID,
     TreatmentPeriodGenerator,
 )
+from evaluation_jp.data import ModelDataHandler
 
 
 def test__EvaluationModel(
@@ -58,14 +59,47 @@ def test__EvaluationModel__add_periods(
     assert results.data.shape == (48, 5)
 
 
-# # def test__PopulationSlice__add_periods(
-# #     fixture__RandomPopulation,
-# #     fixture__treatment_period_generator,
-# #     fixture__setup_steps_by_date,
-# # ):
-# #     setup_steps = SetupSteps([fixture__RandomPopulation()])
-# #     results = PopulationSlice(setup_steps=setup_steps, date=pd.Timestamp("2016-01-01"))
-# #     results.add_treatment_periods(
-# #         treatment_period_generator=fixture__treatment_period_generator
-# #     )
-# #     assert results.treatment_periods[pd.Period("2016-06", "M")].data.shape == (53, 5)
+def test__EvaluationModel__add_longitudinal_data(
+    fixture__population_slice_setup_steps, tmpdir,
+):
+
+    population_slice_generator = PopulationSliceGenerator(
+        setup_steps_by_date={
+            pd.Timestamp("2016-01-01"): fixture__population_slice_setup_steps
+        },
+        start=pd.Timestamp("2016-01-01"),
+        end=pd.Timestamp("2016-03-31"),
+        index_col="ppsn",
+    )
+
+    data_handler = ModelDataHandler(
+        database_type="sqlite",
+        location=tmpdir,
+        name="jobpath_evaluation",
+    )
+
+    evaluation_model = EvaluationModel(
+        data_handler=data_handler,
+        population_slice_generator=population_slice_generator,
+    )
+    evaluation_model.add_population_slices()
+
+    evaluation_model.add_longitudinal_data()
+    results = evaluation_model.longitudinal_data
+
+    assert set(results.columns) == set(
+        [
+            "earnings_per_week_worked",
+            "employment_earnings",
+            "prsi_weeks",
+            "sw_education_training",
+            "sw_employment_supports",
+            "sw_family_children",
+            "sw_illness_disability",
+            "sw_other",
+            "sw_unemployment",
+        ]
+    )
+    population = evaluation_model.total_eligible_population
+    quarters = results.reset_index().get("quarter").unique()
+    assert len(population) <= len(results) <= (len(quarters) * len(population))

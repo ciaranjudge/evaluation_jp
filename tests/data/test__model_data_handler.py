@@ -40,7 +40,7 @@ def test__ModelDataHandler__init(tmpdir):
     """Simple test to make sure everything gets initiated correctly
     """
     results = ModelDataHandler(database_type="sqlite", location=tmpdir, name="test")
-    assert results.engine.name == sa.create_engine(f"sqlite:///{tmpdir}/test.db").name
+    assert results.engine.name == sa.create_engine(f"sqlite:///{tmpdir}/test_ModelDataHandler.db").name
 
 
 def test__ModelDataHandler__write__new(fixture__population_slice, tmpdir):
@@ -50,7 +50,7 @@ def test__ModelDataHandler__write__new(fixture__population_slice, tmpdir):
     -- Reading the PopulationSlice table back directly from database, dropping date...
     -- ...should return a df with the same shape as population_slice.data
     """
-    data_path = f"sqlite:///{tmpdir}/test.db"
+    data_path = f"sqlite:///{tmpdir}/test_ModelDataHandler.db"
     population_slice = fixture__population_slice
     data_handler = ModelDataHandler(data_path)
     data_handler.write(
@@ -61,7 +61,7 @@ def test__ModelDataHandler__write__new(fixture__population_slice, tmpdir):
     engine = sa.create_engine(data_path)
     df = pd.read_sql("PopulationSlice", con=engine)
     results = df.loc[df["data_id_date"] == str(population_slice.id.date.date())].drop(
-        ["data_id_date", "index"], axis="columns"
+        ["data_id_date"], axis="columns"
     )
     display(results)
     display(population_slice.data)
@@ -71,7 +71,7 @@ def test__ModelDataHandler__write__new(fixture__population_slice, tmpdir):
 def test__ModelDataHandler__write__overwrite(fixture__population_slice, tmpdir):
     """Given a population_slice that overwrites an old one, save it correctly.
     """
-    data_path = f"sqlite:///{tmpdir}/test.db"
+    data_path = f"sqlite:///{tmpdir}/test_ModelDataHandler.db"
     population_slice = fixture__population_slice
     data_handler = ModelDataHandler(data_path)
     # Write first version of data
@@ -98,7 +98,7 @@ def test__ModelDataHandler__write__overwrite(fixture__population_slice, tmpdir):
     display(df)
     display(df.info())
     results = df.loc[df["data_id_date"] == population_slice.id.date].drop(
-        ["data_id_date", "index"], axis="columns"
+        ["data_id_date"], axis="columns"
     )
 
     assert results.shape == population_slice.data.shape
@@ -106,7 +106,7 @@ def test__ModelDataHandler__write__overwrite(fixture__population_slice, tmpdir):
 
 def test__ModelDataHandler__read(fixture__population_slice, tmpdir):
 
-    data_path = f"sqlite:///{tmpdir}/test.db"
+    data_path = f"sqlite:///{tmpdir}/test_ModelDataHandler.db"
     population_slice = fixture__population_slice
     data_handler = ModelDataHandler(data_path)
     data_handler.write(
@@ -126,7 +126,7 @@ def test__ModelDataHandler__read(fixture__population_slice, tmpdir):
 def test__ModelDataHandler__run__new(
     fixture__setup_steps_by_date, fixture__population_slice_generator, tmpdir
 ):
-    data_path = f"sqlite:///{tmpdir}/test.db"
+    data_path = f"sqlite:///{tmpdir}/test_ModelDataHandler.db"
     data_handler = ModelDataHandler(data_path)
     population_slice_generator = fixture__population_slice_generator
     results = {
@@ -141,7 +141,7 @@ def test__ModelDataHandler__run__new(
 def test__ModelDataHandler__run__existing(
     fixture__setup_steps_by_date, fixture__population_slice_generator, tmpdir
 ):
-    data_path = f"sqlite:///{tmpdir}/test.db"
+    data_path = f"sqlite:///{tmpdir}/test_ModelDataHandler.db"
     data_handler = ModelDataHandler(data_path)
     population_slice_generator = fixture__population_slice_generator
     # First iteration should run setup_steps then write to storage

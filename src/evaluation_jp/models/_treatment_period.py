@@ -22,11 +22,10 @@ class TreatmentPeriodID:
 class TreatmentPeriod:
     # Attributes
     id: TreatmentPeriodID
-
-    # Init only
     setup_steps: InitVar[SetupSteps]
     init_data: InitVar[pd.DataFrame]
     data_handler: InitVar[ModelDataHandler] = None
+    index_col: str = None
 
     # Set up post-init
     data: pd.DataFrame = field(init=False)
@@ -53,6 +52,7 @@ class TreatmentPeriodGenerator:
     setup_steps_by_date: dict = None
     end: pd.Period = None
     freq: str = "M"
+    index_col: str = None
 
     def __post_init__(self):
         self.setup_steps_by_date = NearestKeyDict(self.setup_steps_by_date)
@@ -70,6 +70,7 @@ class TreatmentPeriodGenerator:
                 setup_steps=self.setup_steps_by_date[time_period.to_timestamp()],
                 init_data=init_data,
                 data_handler=data_handler,
+                index_col = self.index_col,
             )
             yield treatment_period
             # Use survivors from previous period as pop for next period
