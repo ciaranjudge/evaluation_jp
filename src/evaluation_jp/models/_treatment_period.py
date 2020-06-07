@@ -52,7 +52,8 @@ class TreatmentPeriodGenerator:
     setup_steps_by_date: dict = None
     end: pd.Period = None
     freq: str = "M"
-    index_col: str = None
+    columns_by_type: dict = None
+    index_columns_by_type: dict = None
 
     def __post_init__(self):
         self.setup_steps_by_date = NearestKeyDict(self.setup_steps_by_date)
@@ -70,7 +71,8 @@ class TreatmentPeriodGenerator:
                 setup_steps=self.setup_steps_by_date[time_period.to_timestamp()],
                 init_data=init_data,
                 data_handler=data_handler,
-                index_col = self.index_col,
+                columns_by_type=self.columns_by_type,
+                index_columns_by_type=self.index_columns_by_type,
             )
             yield treatment_period
             # Use survivors from previous period as pop for next period

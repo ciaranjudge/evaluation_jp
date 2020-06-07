@@ -47,6 +47,7 @@ evaluation_model = EvaluationModel(
                             "clm_comm_date": "datetime64",
                             "JobPath_Flag": "boolean",
                             "date_of_birth": "datetime64",
+                            "sex": "category",
                         }
                     ),
                     AgeEligible(
@@ -74,7 +75,19 @@ evaluation_model = EvaluationModel(
                 ]
             )
         },
-        index_col="ppsn",
+        columns_by_type={
+            "JobPath_Flag": "boolean",
+            "clm_comm_date": "datetime64",
+            "lr_code": "category",
+            "date_of_birth": "datetime64",
+            "age_eligible": "boolean",
+            "claim_code_eligible": "boolean",
+            "claim_duration_eligible": "boolean",
+            "on_les": "boolean",
+            "on_jobpath": "boolean",
+            "eligible_population": "boolean",
+        },
+        index_colums_by_type={"ppsn": "string"},
     ),
     treatment_period_generator=TreatmentPeriodGenerator(
         end=pd.Period("2017-12"),
@@ -82,7 +95,7 @@ evaluation_model = EvaluationModel(
         setup_steps_by_date={
             pd.Timestamp("2016-01-01"): SetupSteps(
                 steps=[
-                   StartingPopulation(
+                    StartingPopulation(
                         eligible_from_pop_slice_col="eligible_population",
                         eligible_from_previous_period_col="evaluation_group",
                         starting_pop_label="C",
@@ -124,14 +137,26 @@ evaluation_model = EvaluationModel(
                 ]
             )
         },
-        index_col="ppsn",
+        columns_by_type={
+            "starting_population": "boolean",
+            "on_live_register": "boolean",
+            "JobPathHold": "boolean",
+            "lr_code": "category",
+            "JobPath_Flag": "boolean",
+            "clm_comm_date": "datetime64",
+            "claim_code_eligible": "boolean",
+            "claim_duration_eligible": "boolean",
+            "on_les_at_start": "boolean",
+            "on_les_at_end": "boolean",
+            "jobpath_started_and_ended": "boolean",
+            "eligible_population": "boolean",
+            "jobpath_starts": "boolean",
+            "evaluation_group": "category",
+        },
+        index_colums_by_type={"ppsn": "string"},
     ),
     # outcome_generator = OutcomeGenerator(
     #     outcome_start_date=pd.Timestamp("2016-02-01"),
     #     outcome_end_date=pd.Timestamp("2019-02-01"),
     # )
 )
-
-
-evaluation_model.add_population_slices()
-evaluation_model.add_treatment_periods()

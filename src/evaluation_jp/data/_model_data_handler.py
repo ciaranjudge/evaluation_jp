@@ -198,12 +198,17 @@ class ModelDataHandler:
                 conn.execute(query)
 
     def _write_live(self, data_type, data, data_id=None, index=True):
+        if index:
+            data = data.reset_index()
+        for col in data.columns:
+            if "period" in str(data[col].dtype):
+                data[col] = data[col].astype(str)
         if data_id is not None:
             self._delete(data_type, data_id)
             for key, value in flatten(data_id).items():
                 data[f"data_id_{key}"] = sql_format(value)
 
-            data.to_sql(data_type, con=self.engine, if_exists="append", index=index)
+            data.to_sql(data_type, con=self.engine, if_exists="append", index=False)
             data_id_cols = [f"data_id_{col}" for col in flatten(data_id)]
             if len(data_id_cols) > 1:
                 data_id_indexes = data_id_cols + data_id_cols
@@ -221,7 +226,7 @@ class ModelDataHandler:
                 except:
                     pass
         else:
-            data.to_sql(data_type, con=self.engine, if_exists="replace", index=index)
+            data.to_sql(data_type, con=self.engine, if_exists="replace", index=False)
 
     # //TODO Implement _write_archive()
 

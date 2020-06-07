@@ -16,44 +16,54 @@ class PopulationSliceID:
     date: pd.Timestamp
 
 
+# //TODO Refactor PopulationSlice and TreatmentPeriod into subclasses of EvaluationData
 @dataclass
 class PopulationSlice:
     # Parameters
     id: PopulationSliceID
     setup_steps: InitVar[SetupSteps]
     data_handler: InitVar[ModelDataHandler] = None
-    index_col: str = None
+    columns_by_type: InitVar[dict] = None
+    index_columns_by_type: InitVar[dict] = None
 
     data: pd.DataFrame = field(init=False)
-
 
     @property
     def class_name(self):
         return type(self).__name__
 
-    def __post_init__(self, setup_steps, data_handler=None):
+    def __post_init__(
+        self,
+        setup_steps,
+        data_handler=None,
+        columns_by_type=None,
+        index_columns_by_type=None,
+    ):
         if data_handler is not None:
             self.data = data_handler.run(
                 data_type=self.class_name,
                 data_id=self.id,
-                index_col=self.index_col,
                 setup_steps=setup_steps,
+                columns_by_type=columns_by_type,
+                index_columns_by_type=index_columns_by_type,
             )
         else:
             self.data = setup_steps.run(data_id=self.id)
 
 
+# //TODO Refactor PopulatinSliceGenerator, TreatmentPeriodGenerator into subclasses of EvaluationDataGenerator
 @dataclass
 class PopulationSliceGenerator:
 
     # Init only
-    start: InitVar[pd.Timestamp] 
+    start: InitVar[pd.Timestamp]
     end: InitVar[pd.Timestamp]
     freq: InitVar[str] = "QS"
 
     # Attributes
     setup_steps_by_date: NearestKeyDict = None
-    index_col: str = None
+    columns_by_type: dict = None
+    index_columns_by_type: dict = None
 
     date_range: pd.DatetimeIndex = field(init=False)
 
@@ -67,7 +77,8 @@ class PopulationSliceGenerator:
                 id=PopulationSliceID(date),
                 setup_steps=self.setup_steps_by_date[date],
                 data_handler=data_handler,
-                index_col = self.index_col
+                columns_by_type=self.columns_by_type,
+                index_columns_by_type=self.index_columns_by_type,
             )
             yield population_slice
 

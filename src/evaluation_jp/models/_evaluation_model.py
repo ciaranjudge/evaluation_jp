@@ -27,6 +27,11 @@ class EvaluationModel:
     population_slices: dict = None
     treatment_periods: dict = None
 
+    def __post_init__(self):
+        self.add_population_slices()
+        self.add_longitudinal_data()
+        self.add_treatment_periods()
+
     def add_population_slices(self):
         self.population_slices = {}
         with tqdm(
@@ -74,7 +79,7 @@ class EvaluationModel:
                 right_index=True,
             )
             self.data_handler.write(
-                data_type="longitudinal_data", data=self.longitudinal_data
+                data_type="longitudinal_data", data=self.longitudinal_data, index=True
             )
 
     def add_treatment_periods(self):

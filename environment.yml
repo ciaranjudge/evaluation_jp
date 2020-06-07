@@ -61,11 +61,13 @@ dependencies:
   - python-dotenv
 
   # Command line 
+
   - tqdm
 
   # Pip
   - pip
   - pip:
     - --editable .
+    - filprofiler
 
 
