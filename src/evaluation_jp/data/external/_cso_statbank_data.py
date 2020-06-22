@@ -2,15 +2,17 @@
 import requests
 import pandas as pd
 from pandas.io.json import json_normalize
-
+import ssl 
 
 def cso_statbank_data(table: str, dimensions: list):
     """Given a CSO Statbank table name and dimensions list, return dataframe with all table data.
     !!Assume that all dimensions have to be included in the dimensions list!!
     """
     url = f"https://www.cso.ie/StatbankServices/StatbankServices.svc/jsonservice/responseinstance/{table}"
-    json_data = requests.get(url).json()
-
+    try: # try first 
+        json_data = requests.get(url).json()
+    except: # needed if above gives a SSL error
+        json_data = requests.get(url, verify=False).json()
     dimension_values = [
         value["category"]["label"].values()
         for key, value in json_data["dataset"]["dimension"].items()
