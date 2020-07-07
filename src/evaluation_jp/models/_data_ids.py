@@ -45,7 +45,7 @@ class PopulationSliceID(DataID):
 
 @dataclass(order=True, frozen=True)
 class TreatmentPeriodID(DataID):
-    population_slice_id: PopulationSliceID
+    population_slice: PopulationSliceID
     time_period: pd.Period
 
 
@@ -75,6 +75,6 @@ class TreatmentPeriodIDGenerator:
             start=population_slice_id.date, end=self.end, freq=self.freq
         ):
             yield TreatmentPeriodID(
-                population_slice_id=population_slice_id, time_period=time_period
+                population_slice=population_slice_id, time_period=time_period
             )
 

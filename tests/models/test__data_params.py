@@ -11,6 +11,14 @@
 #     PopulationSlice,
 # )
 
+# def test__PopulationSliceID(fixture__RandomPopulation, fixture__SampleFromPopulation):
+#     setup_steps = SetupSteps(
+#         [fixture__RandomPopulation(), fixture__SampleFromPopulation(0.1),]
+#     )
+#     results = PopulationSlice(
+#         id=PopulationSliceID(date=pd.Timestamp("2016-01-01")), setup_steps=setup_steps,
+#     )
+#     assert results.data.shape == (10, 5)
 
 # def test__TreatmentPeriod(
 #     fixture__population_slice,
