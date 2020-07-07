@@ -3,12 +3,8 @@ import sqlalchemy as sa
 
 from IPython.display import display
 
-from evaluation_jp.data import (
-    datetime_cols,
+from evaluation_jp import (
     get_col_list,
-    # unpack,
-    # parameterized_query,
-    # get_clusters,
     get_ists_claims,
     get_vital_statistics,
     get_les_data,

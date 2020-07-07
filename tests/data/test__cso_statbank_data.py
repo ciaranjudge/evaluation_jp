@@ -1,4 +1,4 @@
-from evaluation_jp.data import cso_statbank_data
+from evaluation_jp import cso_statbank_data
 
 # //TODO Make CSO statbank access code work behind firewall
 def test__cso_statbank_data__LRM02():

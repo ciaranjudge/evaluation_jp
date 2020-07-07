@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 
 from evaluation_jp.data import get_earnings, get_sw_payments, get_ists_claims
-from evaluation_jp.features import SetupStep, SetupSteps
+# from evaluation_jp.features import SetupStep, SetupSteps
 
 
 # //TODO LR status by quarter (as share)

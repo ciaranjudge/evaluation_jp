@@ -1,88 +1,23 @@
 # %%
-from typing import List, Set, Dict, Tuple, Optional
-from contextlib import contextmanager
+from typing import List, Optional
 
-import numpy as np
 import pandas as pd
 
 import sqlalchemy as sa
 
-from evaluation_jp.data import nearest_lr_date, datetime_cols, sql_clause_format
+from evaluation_jp.data.metadata_utils import nearest_lr_date
+from evaluation_jp.data.sql_utils import (
+    datetime_cols,
+    temp_ids_con,
+    get_col_list,
+    unpack,
+    get_parameterized_query,
+)
 
 
 engine = sa.create_engine(
     "sqlite:///\\\\cskma0294\\F\\Evaluations\\data\\wwld.db", echo=False
 )
-
-
-@contextmanager
-def temp_ids_con(engine: sa.engine.base.Engine, ids: set):
-    """Create database connection that makes temp.ids available as single column temp table
-    """
-
-    with engine.connect() as con:
-        rows = ", ".join([f"({sql_clause_format(id)})" for id in ids])
-        queries = [
-            "DROP TABLE IF EXISTS temp.ids",
-            "CREATE TEMP TABLE temp.ids(id INTEGER)",
-            f"INSERT INTO temp.ids(id) VALUES {rows}",
-        ]
-        for query in queries:
-            con.execute(query)
-        yield con
-
-
-def get_col_list(engine, table_name, columns=None, required_columns=None):
-    insp = sa.engine.reflection.Inspector.from_engine(engine)
-    column_metadata = insp.get_columns(table_name)
-    table_columns = [col["name"] for col in column_metadata]
-    if columns is not None:
-        ok_columns = (set(columns) | set(required_columns)) & set(table_columns)
-    else:
-        ok_columns = table_columns
-    return [col for col in ok_columns if col not in ["index", "id"]]
-
-
-def unpack(listlike):
-    return ", ".join([str(i) for i in listlike])
-
-
-def get_parameterized_query(query_text, ids=None):
-    params = {}
-    if ids is not None:
-        query_text += f"""\
-            {"WHERE" if "WHERE" not in query_text else "AND"} ppsn in :ids
-        """
-        params["ids"] = list(set(ids))
-        query = sa.sql.text(query_text).bindparams(
-            sa.sql.expression.bindparam("ids", expanding=True)
-        )
-    else:
-        query = query_text
-    return query, params
-
-
-#%%
-def decode_bytestrings(series: pd.Series) -> pd.Series:
-    """
-    Given a pd.Series of dtype 'object', decode it as utf-8 if it's in bytecode format
-
-    Parameters
-    ----------
-    series: pd.Series
-        Expect this to be an object-type pd.Series (may or may not need decoding)
-
-    Returns
-    -------
-    series: pd.Series
-        If series needed decoding, return decoded series. Otherwise, return original.
-    """
-    # Check type of first element of series. If type is bytes, return decoded series.
-    if type(series.iloc[0]) == bytes:
-        return series.str.decode("utf8")
-    # Otherwise, return original series.
-    else:
-        return series
 
 
 # TODO Implement get_clusters

@@ -1,5 +1,4 @@
 # %%
-import collections
 import abc
 from dataclasses import dataclass, field
 from typing import ClassVar, List, Set, Dict, Tuple, Optional
@@ -8,41 +7,7 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
-from evaluation_jp.data import get_ists_claims, get_les_data, get_jobpath_data
-
-
-# %%
-class NearestKeyDict(collections.UserDict):
-    """Dictionary for looking up nearest key to a given key.
-    Designed mainly for date lookups but can work for any keys implementing <= >=
-
-    Based on https://stackoverflow.com/a/3387975/13088500
-    """
-
-    def __init__(self, data={}, how="max_before"):
-        self.data = data
-        self.how = how
-
-    def __getitem__(self, key):
-        return self.data[self.__keytransform__(key)]
-
-    def __setitem__(self, key, value):
-        self.data[self.__keytransform__(key)] = value
-
-    def __delitem__(self, key):
-        del self.data[self.__keytransform__(key)]
-
-    def __keytransform__(self, key):
-        if self.how != "min_after":
-            if len(candidate_keys := [k for k in sorted(self.data) if k <= key]):
-                return max(candidate_keys)
-            else:
-                raise KeyError(f"No data key found before {key}")
-        else:
-            if len(candidate_keys := [k for k in sorted(self.data) if k >= key]):
-                return min(candidate_keys)
-            else:
-                raise KeyError(f"No data key found after {key}")
+from evaluation_jp import get_ists_claims, get_les_data, get_jobpath_data
 
 
 def dates_between_durations(

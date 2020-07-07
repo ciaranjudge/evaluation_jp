@@ -1,16 +1,21 @@
 # %%
 # Standard library
-from collections import OrderedDict
-from datetime import datetime
-from typing import List, Set, Dict, Tuple, Optional, Callable, Union
 from pathlib import Path
-from functools import wraps
-from dataclasses import dataclass, field, InitVar, asdict
+from dataclasses import dataclass, InitVar
+import abc
+
+# from __future__ import annotations
+from typing import TYPE_CHECKING
 
 # External packages
 import pandas as pd
 import sqlalchemy as sa
-import sqlalchemy_utils
+
+# Local packages
+from evaluation_jp.data.sql_utils import sql_format, sql_where_clause_from_dict
+
+# if TYPE_CHECKING:
+from evaluation_jp import DataID, DataParams
 
 
 class ModelDataHandlerError(Exception):
@@ -34,86 +39,17 @@ class DataNotFoundError(ModelDataHandlerError):
     pass
 
 
-def datetime_cols(engine, table_name) -> List:
-    insp = sa.engine.reflection.Inspector.from_engine(engine)
-    column_metadata = insp.get_columns(table_name)
-    datetime_cols = [
-        col["name"]
-        for col in column_metadata
-        if type(col["type"]) == sa.sql.sqltypes.DATETIME
-    ]
-    return datetime_cols
-
-
-def is_number(s):
-    try:
-        float(str(s))
-        return True
-    except ValueError:
-        return False
-
-
-def sql_format(thing):
-    if is_number(thing):
-        return thing
-    elif isinstance(thing, datetime):
-        return thing.date()
-    else:
-        return str(thing)
-
-
-def sql_clause_format(thing):
-    if is_number(thing):
-        return thing
-    else:
-        return f"'{sql_format(thing)}'"
-
-
-def sql_where_clause_from_dict(dictionary):
-    where_clause = ""
-    first = True
-    for key, value in dictionary.items():
-        if first:
-            where_clause += f"WHERE {key} = {sql_clause_format(value)}"
-        else:
-            where_clause += f"\n    AND {key} = {sql_clause_format(value)}"
-        first = False
-    return where_clause
-
-
-def flatten(data_id, sep="_"):
-    """Flatten a dict or dataclass.
-    Based on https://gist.github.com/jhsu98/188df03ec6286ad3a0f30b67cc0b8428
-    """
-
-    obj = OrderedDict()
-
-    def recurse(t, parent_key=""):
-
-        if isinstance(t, list):
-            for i in range(len(t)):
-                recurse(t[i], parent_key + sep + str(i) if parent_key else str(i))
-        elif isinstance(t, dict):
-            for k, v in t.items():
-                recurse(v, parent_key + sep + k if parent_key else k)
-        else:
-            obj[parent_key] = t
-
-    try:
-        recurse(asdict(data_id))
-    except TypeError:
-        recurse(data_id)
-
-    return obj
-
-
 # //TODO ABC and concrete classes for various database and file-based storage options
 
 # //TODO Switch to jinja for SQL templating
 
 
+class ModelDataHandler(abc.ABC):
+    pass
+
+
 @dataclass
-class ModelDataHandler:
+class SQLDataHandler(ModelDataHandler):
     """Manages storage and retrieval of model data.
     For now, assume backend is a database with sqlalchemy connection.
     
@@ -130,7 +66,7 @@ class ModelDataHandler:
     location: InitVar[str] = None
     name: InitVar[str] = None
 
-    engine: sa.engine.Engine = field(init=False)
+    engine: sa.engine.Engine = None
 
     def __post_init__(
         self, data_path, database_type, username, password, location, name,
@@ -140,9 +76,8 @@ class ModelDataHandler:
         # //TODO Add exception handling if data connection can't be set up
         if data_path:
             self.engine = sa.create_engine(data_path)
-        else:
-            if database_type == "sqlite":
-                connection_string = f"sqlite:///{Path(location)}/{name}.db"
+        elif database_type == "sqlite":
+            connection_string = f"sqlite:///{Path(location)}/{name}.db"
             # //TODO Implement connection strings for MSSQL and other databases
             self.engine = sa.create_engine(connection_string)
 
@@ -153,26 +88,32 @@ class ModelDataHandler:
         else:
             return False
 
-    def read(self, data_type, data_id=None, index_col=None):
+    def read(self, data_params: DataParams, data_id: DataID = None):
         """Load dataframe from records in `table` matching `id`
         """
-        if self.table_exists(data_type):
+        if self.table_exists(data_params.type_name):
             query = f"""\
                 SELECT * 
-                    FROM {data_type}
+                    FROM {data_params.type_name}
                 """
             if data_id is not None:
                 sql_data_id = {
-                    f"data_id_{key}": value for key, value in flatten(data_id).items()
+                    f"data_id_{key}": value
+                    for key, value in data_id.as_flattened_dict().items()
                 }
                 query += sql_where_clause_from_dict(sql_data_id)
+            else:
+                sql_data_id = []
 
             # //TODO Fix datatypes especially bool and categorical!
+            date_cols = [
+                k for k, v in data_params.columns_by_type.items() if v == "datetime64"
+            ]
             data = pd.read_sql(
                 query,
                 con=self.engine,
-                parse_dates=datetime_cols(self.engine, data_type),
-                index_col=index_col,
+                parse_dates=date_cols,
+                index_col=data_params.index_columns_by_type.keys(),
             ).drop(list(sql_data_id), axis="columns")
             if not data.empty:
                 return data
@@ -183,79 +124,89 @@ class ModelDataHandler:
 
         # //TODO Implement read from archive (in memory and into live database)
 
-    def _delete(self, data_type, data_id=None):
+    def _delete(self, data_params, data_id=None):
         # If the table exists, delete any previous rows with this data_id
-        if self.table_exists(data_type):
+        table_name = data_params.type_name
+        if self.table_exists(table_name):
             query = f"""\
-                DELETE FROM {data_type}
+                DELETE FROM {table_name}
             """
             if data_id is not None:
                 sql_data_id = {
-                    f"data_id_{key}": value for key, value in flatten(data_id).items()
+                    f"data_id_{key}": value
+                    for key, value in data_id.as_flattened_dict().items()
                 }
                 query += sql_where_clause_from_dict(sql_data_id)
             with self.engine.connect() as conn:
                 conn.execute(query)
 
-    def _write_live(self, data_type, data, data_id=None, index=True):
-        if index:
+    def _add_data_id_indexes(self, data_id, table_name):
+        data_id_cols = [f"data_id_{col}" for col in data_id.as_flattened_dict()]
+        if len(data_id_cols) > 1:
+            data_id_indexes = data_id_cols + data_id_cols
+        else:
+            data_id_indexes = data_id_cols
+        for idx in data_id_indexes:
+            idx = idx if isinstance(idx, list) else [idx]
+            try:
+                query = f"""\
+                    CREATE INDEX idx_{'_'.join(i for i in idx)}
+                    ON {table_name} ({', '.join(i for i in idx)})
+                    """
+                with self.engine.connect() as conn:
+                    conn.execute(query)
+            except:
+                pass
+
+    def write(self, data, data_params, data_id=None, use_index=True):
+        table_name = data_params.type_name
+        if use_index:
             data = data.reset_index()
         for col in data.columns:
             if "period" in str(data[col].dtype):
                 data[col] = data[col].astype(str)
+
         if data_id is not None:
-            self._delete(data_type, data_id)
-            for key, value in flatten(data_id).items():
+            self._delete(table_name, data_id)
+            for key, value in data_id.as_flattened_dict().items():
                 data[f"data_id_{key}"] = sql_format(value)
 
-            data.to_sql(data_type, con=self.engine, if_exists="append", index=False)
-            data_id_cols = [f"data_id_{col}" for col in flatten(data_id)]
-            if len(data_id_cols) > 1:
-                data_id_indexes = data_id_cols + data_id_cols
-            else:
-                data_id_indexes = data_id_cols
-            for idx in data_id_indexes:
-                idx = idx if isinstance(idx, list) else [idx]
-                try:
-                    query = f"""\
-                        CREATE INDEX idx_{'_'.join(i for i in idx)}
-                        ON {data_type} ({', '.join(i for i in idx)})
-                        """
-                    with self.engine.connect() as conn:
-                        conn.execute(query)
-                except:
-                    pass
+            data.to_sql(table_name, con=self.engine, if_exists="append", index=False)
+            self._add_data_id_indexes(data_id, table_name)
         else:
-            data.to_sql(data_type, con=self.engine, if_exists="replace", index=False)
+            data.to_sql(table_name, con=self.engine, if_exists="replace", index=False)
 
     # //TODO Implement _write_archive()
 
-    def write(self, data_type, data, data_id=None, index=False):
-        self._write_live(data_type, data.copy(), data_id, index=index)
+def populate(
+    data_params: DataParams,
+    data_id: DataID = None,
+    init_data: pd.DataFrame = None,
+    data_handler: ModelDataHandler = None,
+    rebuild: bool = False,
+):
+    if data_handler is not None:
+        if not rebuild:
+            try:
+                data = data_handler.read(data_params, data_id)
+                data = data_params.set_datatypes(data)
+            except ModelDataHandlerError:
+                rebuild = True
+        if rebuild:
+            data = data_params.setup_steps.run(data_id=data_id, data=init_data)
+            data = data_params.set_datatypes(data)
+            data_handler.write(data, data_params, data_id)
+    else:
+        data = data_params.setup_steps.run(data_id=data_id, data=init_data)
+        data = data_params.set_datatypes(data)
+    return data
 
-    def run(
-        self,
-        data_type,
-        data_id=None,
-        setup_steps=None,
-        init_data=None,
-        index_col=None,
-        index=False,
-    ):
-        """Given a valid table name (`population_data`, `population_slices`, `treatment_periods`)
-        ...does the table exist? If not, create it!
-        Given the table exists, can the ID of this item be found?
-        """
-        try:
-            data = self.read(data_type, data_id, index_col)
-        except ModelDataHandlerError:
-            data = setup_steps.run(data_id, init_data)
-            self.write(data_type, data, data_id, index)
-        return data
 
-    # TODO //Implement an alternate constructor to copy existing
-    # ? Use alembic ?
-    # @classmethod
-    # def copy_existing(cls, old_data_path, new_data_path, rebuild_all):
-    #     # Make copy of old database at new_data_path
-    #     pass
+#     # TODO //Implement an alternate constructor to copy existing
+#     # ? Use alembic ?
+#     # @classmethod
+#     # def copy_existing(cls, old_data_path, new_data_path, rebuild_all):
+#     #     # Make copy of old database at new_data_path
+#     #     pass
+
+

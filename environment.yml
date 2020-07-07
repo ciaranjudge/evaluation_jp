@@ -9,21 +9,22 @@ dependencies:
   - python=3.8 
   
   # Formatting, refactoring, linting
-  - black # Auto code formatter https://github.com/psf/black
-  - pylint # Static code analysis https://www.pylint.org/
-  - rope # Code refactoring https://github.com/python-rope/rope
+  - black  # Auto code formatter https://github.com/psf/black
+  - pylint  # Static code analysis https://www.pylint.org/
+  - rope  # Code refactoring https://github.com/python-rope/rope
 
   # Testing and automation
-  - cookiecutter # Create project from git template https://github.com/cookiecutter/cookiecutter 
-  # - great-expectations # Pipeline tests for data https://github.com/great-expectations/great_expectations
-  - hypothesis
-  - intake # Tools for loading and sharing data https://pypi.org/project/intake/
-  - luigi
-  - marshmallow # Data marshalling & schema validation https://marshmallow.readthedocs.io
+  - cookiecutter  # Create project from git template https://github.com/cookiecutter/cookiecutter 
+  - great-expectations  # Pipeline tests for data https://github.com/great-expectations/great_expectations
+  - hypothesis  # Parameterised testing! https://florian-dahlitz.de/blog/test-your-python-code-using-hypothesis
+  - intake  # Tools for loading and sharing data https://pypi.org/project/intake/
+  - luigi  # 
+  - marshmallow  # Data marshalling & schema validation https://marshmallow.readthedocs.io
   - prefect # 
-  - pysnooper
-  - pytest
-  - pytest-xdist
+  - pydantic  #
+  - pysnooper  #
+  - pytest  #
+  - pytest-xdist  #
 
   # Jupyter 
   - ipykernel
