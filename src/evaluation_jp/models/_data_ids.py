@@ -51,6 +51,7 @@ class TreatmentPeriodID(DataID):
 
 # //TODO Add base class for DataIDGenerator
 
+
 @dataclass
 class PopulationSliceIDGenerator:
 
@@ -63,4 +64,17 @@ class PopulationSliceIDGenerator:
             yield PopulationSliceID(date=date)
 
 
-# //TODO Add TreatmentPeriodIDGenerator
+@dataclass
+class TreatmentPeriodIDGenerator:
+
+    end: pd.Timestamp
+    freq: str = "M"
+
+    def __call__(self, population_slice_id):
+        for time_period in pd.period_range(
+            start=population_slice_id.date, end=self.end, freq=self.freq
+        ):
+            yield TreatmentPeriodID(
+                population_slice_id=population_slice_id, time_period=time_period
+            )
+

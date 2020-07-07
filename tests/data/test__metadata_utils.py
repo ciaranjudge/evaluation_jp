@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from evaluation_jp.data import nearest_lr_date, lr_reporting_date
+from evaluation_jp.data.metadata_utils import lr_reporting_date
 
 # TODO test nearest_lr_date() with how == ["previous", "next", ""]
 

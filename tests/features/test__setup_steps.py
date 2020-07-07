@@ -1,9 +1,8 @@
-import numpy as np
 import pandas as pd
 import pytest
-from IPython import display
 
-from evaluation_jp.features import (
+
+from evaluation_jp import (
     SetupStep,
     SetupSteps,
     LiveRegisterPopulation,
@@ -17,17 +16,14 @@ from evaluation_jp.features import (
     JobPathStarts,
     EvaluationGroup,
     StartingPopulation,
-)
-from evaluation_jp.models import (
     PopulationSliceID,
-    PopulationSlice,
     PopulationSliceGenerator,
     TreatmentPeriodID,
-    TreatmentPeriod,
     TreatmentPeriodGenerator,
     EvaluationModel,
+    ModelDataHandler,
 )
-from evaluation_jp.data import ModelDataHandler
+
 
 # TODO test__NearestKeyDict()
 
@@ -239,13 +235,11 @@ def test__all_SetupSteps_for_EvaluationModel_population_slices(
         },
         start=pd.Timestamp("2016-07-01"),
         end=pd.Timestamp("2016-09-30"),
-        index_col="ppsn"
+        index_col="ppsn",
     )
 
     data_handler = ModelDataHandler(
-        database_type="sqlite",
-        location=tmpdir,
-        name="jobpath_evaluation",
+        database_type="sqlite", location=tmpdir, name="jobpath_evaluation",
     )
 
     evaluation_model = EvaluationModel(
@@ -432,9 +426,7 @@ def test__all_SetupSteps_for_EvaluationModel_treatment_periods(
     tmpdir,
 ):
     data_handler = ModelDataHandler(
-        database_type="sqlite",
-        location=tmpdir,
-        name="jobpath_evaluation",
+        database_type="sqlite", location=tmpdir, name="jobpath_evaluation",
     )
     population_slice_generator = PopulationSliceGenerator(
         setup_steps_by_date={
@@ -442,14 +434,14 @@ def test__all_SetupSteps_for_EvaluationModel_treatment_periods(
         },
         start=pd.Timestamp("2016-07-01"),
         end=pd.Timestamp("2016-09-30"),
-        index_col="ppsn"
+        index_col="ppsn",
     )
     treatment_period_generator = TreatmentPeriodGenerator(
         setup_steps_by_date={
             pd.Timestamp("2016-07-01"): fixture__treatment_period_setup_steps
         },
         end=pd.Period("2016-09"),
-        index_col="ppsn"
+        index_col="ppsn",
     )
     evaluation_model = EvaluationModel(
         data_handler=data_handler,

@@ -4,9 +4,6 @@ from pathlib import Path
 from dataclasses import dataclass, InitVar
 import abc
 
-# from __future__ import annotations
-from typing import TYPE_CHECKING
-
 # External packages
 import pandas as pd
 import sqlalchemy as sa

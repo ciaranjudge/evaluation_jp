@@ -1,8 +1,6 @@
 # %%
 import requests
 import pandas as pd
-from pandas.io.json import json_normalize
-import ssl 
 
 def cso_statbank_data(table: str, dimensions: list):
     """Given a CSO Statbank table name and dimensions list, return dataframe with all table data.
