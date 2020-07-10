@@ -10,7 +10,7 @@
 #     TreatmentPeriodID,
 #     TreatmentPeriodGenerator,
 # )
-# from evaluation_jp.data import ModelDataHandler
+# from evaluation_jp.data import DataHandler
 
 
 # def test__EvaluationModel(
@@ -72,7 +72,7 @@
 #         index_col="ppsn",
 #     )
 
-#     data_handler = ModelDataHandler(
+#     data_handler = DataHandler(
 #         database_type="sqlite",
 #         location=tmpdir,
 #         name="jobpath_evaluation",

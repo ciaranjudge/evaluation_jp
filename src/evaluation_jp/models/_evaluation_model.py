@@ -8,7 +8,7 @@ import pandas as pd
 from tqdm import tqdm
 
 # Local packages
-from evaluation_jp.data import ModelDataHandler, ModelDataHandlerError
+from evaluation_jp.data import DataHandler, DataHandlerError
 from evaluation_jp.features import quarterly_earnings, quarterly_sw_payments
 from evaluation_jp.models import PopulationSliceGenerator, TreatmentPeriodGenerator
 
@@ -17,7 +17,7 @@ from evaluation_jp.models import PopulationSliceGenerator, TreatmentPeriodGenera
 class EvaluationModel:
 
     # Init parameters
-    data_handler: ModelDataHandler = None
+    data_handler: DataHandler = None
     population_slice_generator: PopulationSliceGenerator = None
     treatment_period_generator: TreatmentPeriodGenerator = None
     # outcome_generator: OutcomeGenerator = None
@@ -70,7 +70,7 @@ class EvaluationModel:
             self.longitudinal_data = self.data_handler.read(
                 data_type="longitudinal_data", index_col=["ppsn", "quarter"],
             )
-        except ModelDataHandlerError:
+        except DataHandlerError:
             self.longitudinal_data = pd.merge(
                 quarterly_earnings(self.total_eligible_population),
                 quarterly_sw_payments(self.total_eligible_population),

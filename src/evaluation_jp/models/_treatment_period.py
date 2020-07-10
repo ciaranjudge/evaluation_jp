@@ -7,7 +7,7 @@ from dataclasses import dataclass, field, InitVar
 import pandas as pd
 
 # Local packages
-from evaluation_jp.data import ModelDataHandler
+from evaluation_jp.data import DataHandler
 from evaluation_jp.features import NearestKeyDict, SetupSteps
 from evaluation_jp.models import PopulationSliceID, PopulationSlice
 
@@ -24,7 +24,7 @@ class TreatmentPeriod:
     id: TreatmentPeriodID
     setup_steps: InitVar[SetupSteps]
     init_data: InitVar[pd.DataFrame]
-    data_handler: InitVar[ModelDataHandler] = None
+    data_handler: InitVar[DataHandler] = None
     index_col: str = None
 
     # Set up post-init

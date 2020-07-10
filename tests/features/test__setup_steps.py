@@ -21,7 +21,7 @@ from evaluation_jp import (
     TreatmentPeriodID,
     TreatmentPeriodGenerator,
     EvaluationModel,
-    ModelDataHandler,
+    DataHandler,
 )
 
 
@@ -238,7 +238,7 @@ def test__all_SetupSteps_for_EvaluationModel_population_slices(
         index_col="ppsn",
     )
 
-    data_handler = ModelDataHandler(
+    data_handler = DataHandler(
         database_type="sqlite", location=tmpdir, name="jobpath_evaluation",
     )
 
@@ -425,7 +425,7 @@ def test__all_SetupSteps_for_EvaluationModel_treatment_periods(
     fixture__treatment_period_expected_columns,
     tmpdir,
 ):
-    data_handler = ModelDataHandler(
+    data_handler = DataHandler(
         database_type="sqlite", location=tmpdir, name="jobpath_evaluation",
     )
     population_slice_generator = PopulationSliceGenerator(

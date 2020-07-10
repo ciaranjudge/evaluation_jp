@@ -20,7 +20,7 @@ insp = sa.engine.reflection.Inspector.from_engine(engine)
 
 # TODO Move data to fixtures
 
-# TODO Move test__datetime_cols to test__ModelDataHandler
+# TODO Move test__datetime_cols to test__DataHandler
 
 # TODO Parameterised test with and without actual list of columns
 def test__get_col_list():

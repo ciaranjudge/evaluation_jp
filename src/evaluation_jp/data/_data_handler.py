@@ -15,21 +15,21 @@ from evaluation_jp.data.sql_utils import sql_format, sql_where_clause_from_dict
 from evaluation_jp import DataID, DataParams
 
 
-class ModelDataHandlerError(Exception):
-    """Generic exception handler for ModelDataHandler
+class DataHandlerError(Exception):
+    """Generic exception handler for DataHandler
     """
 
     pass
 
 
-class TableNotFoundError(ModelDataHandlerError):
+class TableNotFoundError(DataHandlerError):
     """Couldn't find the specified table!
     """
 
     pass
 
 
-class DataNotFoundError(ModelDataHandlerError):
+class DataNotFoundError(DataHandlerError):
     """Table doesn't contain requested data!
     """
 
@@ -41,12 +41,12 @@ class DataNotFoundError(ModelDataHandlerError):
 # //TODO Switch to jinja for SQL templating
 
 
-class ModelDataHandler(abc.ABC):
+class DataHandler(abc.ABC):
     pass
 
 
 @dataclass
-class SQLDataHandler(ModelDataHandler):
+class SQLDataHandler(DataHandler):
     """Manages storage and retrieval of model data.
     For now, assume backend is a database with sqlalchemy connection.
     
@@ -179,7 +179,7 @@ def populate(
     data_params: DataParams,
     data_id: DataID = None,
     init_data: pd.DataFrame = None,
-    data_handler: ModelDataHandler = None,
+    data_handler: DataHandler = None,
     rebuild: bool = False,
 ):
     if data_handler is not None:
@@ -187,7 +187,7 @@ def populate(
             try:
                 data = data_handler.read(data_params, data_id)
                 data = data_params.set_datatypes(data)
-            except ModelDataHandlerError:
+            except DataHandlerError:
                 rebuild = True
         if rebuild:
             data = data_params.setup_steps.run(data_id=data_id, data=init_data)

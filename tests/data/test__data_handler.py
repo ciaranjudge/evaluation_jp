@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import sqlalchemy as sa
 
-from evaluation_jp import ModelDataHandler, SQLDataHandler, PopulationSliceID
+from evaluation_jp import DataHandler, SQLDataHandler, PopulationSliceID
 from evaluation_jp.data.sql_utils import datetime_cols
 
 
@@ -40,19 +40,19 @@ def test__SQLDataHandler__init(tmpdir):
     """Simple test to make sure everything gets initiated correctly
     """
     results = SQLDataHandler(database_type="sqlite", location=tmpdir, name="test")
-    assert results.engine.name == sa.create_engine(f"sqlite:///{tmpdir}/test_ModelDataHandler.db").name
+    assert results.engine.name == sa.create_engine(f"sqlite:///{tmpdir}/test_DataHandler.db").name
 
 
-def test__ModelDataHandler__write__new(fixture__population_slice, tmpdir):
+def test__DataHandler__write__new(fixture__population_slice, tmpdir):
     """Given a population_slice instance that's not saved, save it correctly.
     -- fixture__population_slice returns a population_slice with data.shape (10, 5).
     -- data_handler.write() saves this to table PopulationSlice, adding date column.
     -- Reading the PopulationSlice table back directly from database, dropping date...
     -- ...should return a df with the same shape as population_slice.data
     """
-    data_path = f"sqlite:///{tmpdir}/test_ModelDataHandler.db"
+    data_path = f"sqlite:///{tmpdir}/test_DataHandler.db"
     population_slice = fixture__population_slice
-    data_handler = ModelDataHandler(data_path)
+    data_handler = DataHandler(data_path)
     data_handler.write(
         data_type=population_slice.class_name,
         data_id=population_slice.id,
@@ -68,12 +68,12 @@ def test__ModelDataHandler__write__new(fixture__population_slice, tmpdir):
     assert results.shape == population_slice.data.shape
 
 
-# def test__ModelDataHandler__write__overwrite(fixture__population_slice, tmpdir):
+# def test__DataHandler__write__overwrite(fixture__population_slice, tmpdir):
 #     """Given a population_slice that overwrites an old one, save it correctly.
 #     """
-#     data_path = f"sqlite:///{tmpdir}/test_ModelDataHandler.db"
+#     data_path = f"sqlite:///{tmpdir}/test_DataHandler.db"
 #     population_slice = fixture__population_slice
-#     data_handler = ModelDataHandler(data_path)
+#     data_handler = DataHandler(data_path)
 #     # Write first version of data
 #     data_handler.write(
 #         data_type=population_slice.class_name,
@@ -104,11 +104,11 @@ def test__ModelDataHandler__write__new(fixture__population_slice, tmpdir):
 #     assert results.shape == population_slice.data.shape
 
 
-# def test__ModelDataHandler__read(fixture__population_slice, tmpdir):
+# def test__DataHandler__read(fixture__population_slice, tmpdir):
 
-#     data_path = f"sqlite:///{tmpdir}/test_ModelDataHandler.db"
+#     data_path = f"sqlite:///{tmpdir}/test_DataHandler.db"
 #     population_slice = fixture__population_slice
-#     data_handler = ModelDataHandler(data_path)
+#     data_handler = DataHandler(data_path)
 #     data_handler.write(
 #         data_type=population_slice.class_name,
 #         data_id=population_slice.id,
@@ -123,11 +123,11 @@ def test__ModelDataHandler__write__new(fixture__population_slice, tmpdir):
 #     assert results.shape == population_slice.data.shape
 
 
-# def test__ModelDataHandler__run__new(
+# def test__DataHandler__run__new(
 #     fixture__setup_steps_by_date, fixture__population_slice_generator, tmpdir
 # ):
-#     data_path = f"sqlite:///{tmpdir}/test_ModelDataHandler.db"
-#     data_handler = ModelDataHandler(data_path)
+#     data_path = f"sqlite:///{tmpdir}/test_DataHandler.db"
+#     data_handler = DataHandler(data_path)
 #     population_slice_generator = fixture__population_slice_generator
 #     results = {
 #         population_slice.id: population_slice
@@ -138,11 +138,11 @@ def test__ModelDataHandler__write__new(fixture__population_slice, tmpdir):
 #     assert results[key].data.shape == (90, 5,)
 
 
-# def test__ModelDataHandler__run__existing(
+# def test__DataHandler__run__existing(
 #     fixture__setup_steps_by_date, fixture__population_slice_generator, tmpdir
 # ):
-#     data_path = f"sqlite:///{tmpdir}/test_ModelDataHandler.db"
-#     data_handler = ModelDataHandler(data_path)
+#     data_path = f"sqlite:///{tmpdir}/test_DataHandler.db"
+#     data_handler = DataHandler(data_path)
 #     population_slice_generator = fixture__population_slice_generator
 #     # First iteration should run setup_steps then write to storage
 #     first_population_slices = {

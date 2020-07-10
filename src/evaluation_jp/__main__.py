@@ -25,11 +25,11 @@ from evaluation_jp.features import (
     JobPathStarts,
     EvaluationGroup,
 )
-from evaluation_jp.data import ModelDataHandler
+from evaluation_jp.data import DataHandler
 
 
 evaluation_model = EvaluationModel(
-    data_handler=ModelDataHandler(
+    data_handler=DataHandler(
         database_type="sqlite",
         location="//cskma0294/f/Evaluations/JobPath",
         name="jobpath_evaluation",
