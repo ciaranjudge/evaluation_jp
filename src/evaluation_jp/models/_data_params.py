@@ -85,7 +85,7 @@ class ColumnsByType:
 class DataParams(abc.ABC):
     
     type_name: ClassVar[str]
-    column_types: ColumnsByType
+    columns_by_type: ColumnsByType
 
     @abc.abstractmethod
     def setup_steps(self, data_id=None):

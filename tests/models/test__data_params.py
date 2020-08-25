@@ -15,6 +15,8 @@ from evaluation_jp import (
     DuplicatedItemsError,
     PopulationSliceID,
     PopulationSliceDataParams,
+    SetupStep,
+    SetupSteps,
     TreatmentPeriodID,
     TreatmentPeriodDataParams,
 )
@@ -122,20 +124,71 @@ def test__ColumnsByType__set_datatypes(test_df):
         "float64",
     ]
 
+# #     # * setup_steps correctly returned for given date
+# #     # * all_columns correctly returned
 
-def test__DataParams__
+class DummyStep1(SetupStep):
+    def run(self, data=None, data_id=None):
+        return("Dummy step 1")
 
-# @pytest.fixture
-# def fixture__psdp_simple(fixture__RandomPopulation, fixture__SampleFromPopulation):
-#     psdp_simple = PopulationSliceDataParams()
-#     setup_steps = SetupSteps(
-#         [fixture__RandomPopulation(), fixture__SampleFromPopulation(0.1),]
-#     )
-#     population_slice = PopulationSlice(
-#         id=PopulationSliceID(date=pd.Timestamp("2016-01-01")), setup_steps=setup_steps,
-#     )
-#     return psdp_simple
+class DummyStep2(SetupStep):
+    def run(self, data=None, data_id=None):
+        return("Dummy step 2")
 
+dummy_setup_steps_by_date = {
+    pd.Timestamp("2016-01-01"): SetupSteps(
+        [DummyStep1]
+    ),
+    pd.Timestamp("2017-01-01"): SetupSteps(
+        [DummyStep2]
+    ),
+}
+
+
+def test__PopulationSliceDataParams():
+
+    ps_data_params = PopulationSliceDataParams(
+        columns_by_type=ColumnsByType(
+            data_columns_by_type={col: "int32" for col in list("ABCD")}
+        ),
+        setup_steps_by_date=dummy_setup_steps_by_date
+    )
+
+    ps_id_1= PopulationSliceID(date=pd.Timestamp("2016-01-01"))
+    results_1 = ps_data_params.setup_steps(ps_id_1)
+    assert results_1.run() == "Dummy step 1"
+
+    ps_id_2= PopulationSliceID(date=pd.Timestamp("2018-01-01"))
+    results_2 = ps_data_params.setup_steps(ps_id_2)
+    assert results_2.run() == "Dummy step 2"
+
+    assert ps_data_params.columns_by_type.check_column_names(list("ABCD"))
+
+
+def test__TreatmentPeriodDataParams():
+
+    tp_data_params = TreatmentPeriodDataParams(
+        columns_by_type=ColumnsByType(
+            data_columns_by_type={col: "int32" for col in list("ABCD")}
+        ),
+        setup_steps_by_date=dummy_setup_steps_by_date
+    )
+
+    tp_id_1= TreatmentPeriodID(
+        population_slice=PopulationSliceID(date=pd.Timestamp("2016-01-01")),
+        time_period=pd.Period("2016-01"),
+    )
+    results_1 = tp_data_params.setup_steps(tp_id_1)
+    assert results_1.run() == "Dummy step 1"
+
+    tp_id_2= TreatmentPeriodID(
+        population_slice=PopulationSliceID(date=pd.Timestamp("2016-01-01")),
+        time_period=pd.Period("2018-01"),
+    )
+    results_2 = tp_data_params.setup_steps(tp_id_2)
+    assert results_2.run() == "Dummy step 2"
+
+    assert tp_data_params.columns_by_type.check_column_names(list("ABCD"))
 
 # # @pytest.fixture
 # # def fixture__treatment_period(
@@ -155,39 +208,14 @@ def test__DataParams__
 # #     return treatment_period
 
 
-# # # @pytest.mark.parametrize(
-# # #     "data_params, data_id, init_data, data_handler, expected",
-# # #     [
-# # #         pytest.param(
-# # #             datetime(2001, 12, 12), datetime(2001, 12, 11), timedelta(1), id="forward"
-# # #         ),
-# # #         pytest.param(
-# # #             datetime(2001, 12, 11), datetime(2001, 12, 12), timedelta(-1), id="backward"
-# # #         ),
-# # #     ],
-# # # )
 
 
-# # @pytest.mark.parametrize(
-# #     "data_params, data_id, expected",
-# #     [
-# #         pytest.param(
-# #             datetime(2001, 12, 12), datetime(2001, 12, 11), timedelta(1), id="forward"
-# #         ),
-# #     ],
-# # )
-# # def test__PopulationSliceDataParams(fixture__setup_steps_by_date):
-# #     psid = PopulationSliceID(date=pd.Timestamp("2016-01-01"))
-# #     psdp =
 
-# #     # * setup_steps correctly returned for given date
-# #     # * all_columns correctly returned
 # #     # * test with multi-index!
 
 
 # #     # * Don't need to test the setup_steps
-# #     # * Do need to generate lots of different dataframes to check columns and type conversion
-# #     assert True
+
 
 
 # # # def test__TreatmentPeriodID():
