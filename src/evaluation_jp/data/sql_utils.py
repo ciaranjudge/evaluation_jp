@@ -41,7 +41,7 @@ def sqlite_engine(
 
 # con can be either Connection or Engine to facilitate nesting
 @contextmanager
-def temp_table(
+def temp_table_connection(
     connectable: sa.engine.base.Connectable,
     frame: pd.DataFrame,
     table: str,
