@@ -36,7 +36,7 @@ def test__sqlite_engine(tmpdir):
     assert engine.dialect.name == "sqlite"
 
 
-def test__temp_table__sqlite_small(tmpdir, df_100_x_4):
+def test__temp_table_connection__sqlite_small(tmpdir, df_100_x_4):
     path = tmpdir
     database = "test_db"
 
@@ -44,13 +44,13 @@ def test__temp_table__sqlite_small(tmpdir, df_100_x_4):
 
     df = df_100_x_4
 
-    with temp_table(engine, df, "test_table") as con:
+    with temp_table_connection(engine, df, "test_table") as con:
         results = pd.read_sql_table("test_table", con, schema="temp")
     
     assert_frame_equal(df.describe(), results.describe())
 
 
-def test__temp_table__sqlite_big(tmpdir, df_100000_x_4):
+def test__temp_table_connection__sqlite_big(tmpdir, df_100000_x_4):
     path = tmpdir
     database = "test_db"
 
@@ -58,13 +58,13 @@ def test__temp_table__sqlite_big(tmpdir, df_100000_x_4):
 
     df = df_100000_x_4
 
-    with temp_table(engine, df, "test_table") as con:
+    with temp_table_connection(engine, df, "test_table") as con:
         results = pd.read_sql_table("test_table", con, schema="temp")
     
     assert_frame_equal(df.describe(), results.describe())
 
 
-def test__temp_table__sqlserver_small(tmpdir, df_100_x_4):
+def test__temp_table_connection__sqlserver_small(tmpdir, df_100_x_4):
     server = "CSKMA0400\\STATS1"
     database = "tempdb"
 
@@ -72,14 +72,14 @@ def test__temp_table__sqlserver_small(tmpdir, df_100_x_4):
 
     df = df_100_x_4
 
-    with temp_table(engine, df, "test_table") as con:
+    with temp_table_connection(engine, df, "test_table") as con:
         results = pd.read_sql_table("test_table", con)
     
     assert_frame_equal(df.describe(), results.describe())
 
 
 
-def test__temp_table__sqlserver_big(tmpdir, df_100000_x_4):
+def test__temp_table_connection__sqlserver_big(tmpdir, df_100000_x_4):
     server = "CSKMA0400\\STATS1"
     database = "tempdb"
 
@@ -87,9 +87,36 @@ def test__temp_table__sqlserver_big(tmpdir, df_100000_x_4):
 
     df = df_100000_x_4
 
-    with temp_table(engine, df, "test_table") as con:
+    with temp_table_connection(engine, df, "test_table") as con:
         results = pd.read_sql_table("test_table", con)
     
     print(results.describe())
     print(df.describe())
     assert_frame_equal(df.describe(), results.describe())
+
+
+def test__datetime_cols():
+    engine = sa.create_engine(
+        "sqlite:///\\\\cskma0294\\F\\Evaluations\\data\\wwld.db", echo=False
+    )
+    test__inputs = ["les", "ists_personal", "jobpath_referrals"]
+    results = {
+        table_name: set(datetime_cols(engine, table_name))
+        for table_name in test__inputs
+    }
+    expected = {
+        "les": set(["start_date"]),
+        "ists_personal": set(["date_of_birth"]),
+        "jobpath_referrals": set(
+            [
+                "referral_date",
+                "jobpath_start_date",
+                "jobpath_end_date",
+                "cancellation_date",
+                "pause_date",
+                "resume_date",
+                "ppp_agreed_date",
+            ]
+        ),
+    }
+    assert results == expected

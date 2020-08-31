@@ -56,7 +56,9 @@ def temp_table_connection(
     with connectable.connect() as con:
         # Setup
         if con.dialect.name == "sqlite":
-            rows = ", ".join([str(row) for row in frame.to_records(index=False).tolist()])
+            rows = ", ".join(
+                [str(row) for row in frame.to_records(index=False).tolist()]
+            )
             queries = [
                 f"DROP TABLE IF EXISTS {table}",
                 f"CREATE TEMP TABLE {table}({', '.join(frame.columns)})",
@@ -66,8 +68,10 @@ def temp_table_connection(
                 con.execute(query)
 
         elif con.dialect.name == "mssql":
-            frame.to_sql(table, con=con, schema=schema, if_exists="replace", index=False, )
-        
+            frame.to_sql(
+                table, con=con, schema=schema, if_exists="replace", index=False,
+            )
+
         yield con
 
         # Cleanup
@@ -155,4 +159,22 @@ def sql_where_clause_from_dict(dictionary):
             where_clause += f"\n    AND {key} = {sql_clause_format(value)}"
         first = False
     return where_clause
+
+
+def where_and():
+    first = True
+    while True:
+        if first:
+            yield "WHERE"
+        else:
+            yield "AND"
+
+
+def get_sql_data_id(data_id=None):
+    """Create id column for each element of a data_id, to allow SQL queries to find data with that ID.
+    """
+    if data_id is not None:
+        return {f"data_id_{k}": sql_format(v) for k, v in data_id.as_flattened_dict().items()}
+    else:
+        return {}
 
