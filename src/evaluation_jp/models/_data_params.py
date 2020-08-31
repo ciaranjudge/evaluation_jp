@@ -31,8 +31,9 @@ class ColumnsByType:
         NB A single Python dict won't allow duplicated keys, so can't have duplicates
         inside data_columns_by_type or index_columns_by_type
         """
-        if (duplicates := duplicated(list(self.data_columns) + list(self.index_columns))) :
-            raise DuplicatedItemsError(f"Found duplicated columns {duplicates}")
+        if self.index_columns is not None:
+            if (duplicates := duplicated(list(self.data_columns) + list(self.index_columns))) :
+                raise DuplicatedItemsError(f"Found duplicated columns {duplicates}")
 
     @property
     def data_columns(self):
@@ -40,13 +41,35 @@ class ColumnsByType:
 
     @property
     def index_columns(self):
-        return set(
-            self.index_columns_by_type if self.index_columns_by_type is not None else []
-        )
+        if self.index_columns_by_type is not None:
+            return set(self.index_columns_by_type)
+        else: 
+            return None
 
     @property
     def all_columns(self):
-        return self.data_columns | self.index_columns
+        if self.index_columns:
+            return self.data_columns | self.index_columns
+        else:
+            return self.data_columns
+
+    @property
+    def datetime_data_columns(self):
+        return set([k for k, v in self.data_columns_by_type.items() if v == "datetime64"])
+
+    @property
+    def datetime_index_columns(self):
+        if self.index_columns:
+            return set([k for k, v in self.index_columns_by_type.items() if v == "datetime64"])
+        else:
+            return None
+
+    @property
+    def datetime_all_columns(self):
+        if self.datetime_index_columns:
+            return self.datetime_data_columns | self.datetime_index_columns
+        else:
+            return self.datetime_data_columns
 
     def check_column_names(self, column_names: list):
         if (duplicates := duplicated(column_names)) :
@@ -84,7 +107,7 @@ class ColumnsByType:
 @dataclass
 class DataParams(abc.ABC):
     
-    type_name: ClassVar[str]
+    table_name: ClassVar[str]
     columns_by_type: ColumnsByType
 
     @abc.abstractmethod
@@ -95,7 +118,7 @@ class DataParams(abc.ABC):
 @dataclass
 class PopulationSliceDataParams(DataParams):
 
-    type_name: ClassVar[str] = "population_slice"
+    table_name: ClassVar[str] = "population_slice"
     setup_steps_by_date: NearestKeyDict = None
 
     def __post_init__(self):
@@ -108,7 +131,7 @@ class PopulationSliceDataParams(DataParams):
 @dataclass
 class TreatmentPeriodDataParams(DataParams):
 
-    type_name: ClassVar[str] = "treatment_period"
+    table_name: ClassVar[str] = "treatment_period"
     setup_steps_by_date: NearestKeyDict = None
 
     def __post_init__(self):

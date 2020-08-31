@@ -115,7 +115,7 @@ def test__ColumnsByType__set_datatypes(test_df):
         # ignore empty datasets as dtype is impossible to infer from serialized
         return
     results = columns_by_type.set_datatypes(test_df)
-    print(results.dtypes)
+
     assert list(str(dtype) for dtype in results.dtypes.values) == [
         "bool",
         "datetime64[ns]",
