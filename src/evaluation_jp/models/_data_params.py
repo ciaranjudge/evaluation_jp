@@ -141,5 +141,3 @@ class TreatmentPeriodDataParams(DataParams):
         return self.setup_steps_by_date[data_id.time_period.to_timestamp()]
 
 
-# //
-

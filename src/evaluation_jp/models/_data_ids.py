@@ -6,10 +6,6 @@ import abc
 # External packages
 import pandas as pd
 
-
-# //TODO Refactor PopulatinSliceGenerator, TreatmentPeriodGenerator into subclasses of EvaluationDataGenerator
-
-
 class DataID(abc.ABC):
     """Abstract base class for DataIDs. 
     Defines one helper method as_flattened_dict()
@@ -47,6 +43,7 @@ class PopulationSliceID(DataID):
 class TreatmentPeriodID(DataID):
     population_slice: PopulationSliceID
     time_period: pd.Period
+
 
 
 # //TODO Add base class for DataIDGenerator

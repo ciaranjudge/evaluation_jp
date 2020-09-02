@@ -1,10 +1,11 @@
+# Standard library
 from datetime import datetime
 from typing import List
 from contextlib import contextmanager
 from pathlib import Path
 from urllib import parse
 
-import numpy as np
+# External packages
 import pandas as pd
 import sqlalchemy as sa
 
@@ -115,7 +116,7 @@ def get_parameterized_query(query_text, ids=None):
 
 
 def datetime_cols(engine, table_name) -> List:
-    insp = sa.engine.reflection.Inspector.from_engine(engine)
+    insp = sa.inspect(engine)
     column_metadata = insp.get_columns(table_name)
     datetime_cols = [
         col["name"]
