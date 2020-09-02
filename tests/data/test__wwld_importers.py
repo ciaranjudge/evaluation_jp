@@ -16,7 +16,7 @@ from evaluation_jp import (
 engine = sa.create_engine(
     "sqlite:///\\\\cskma0294\\F\\Evaluations\\data\\wwld.db", echo=False
 )
-insp = sa.engine.reflection.Inspector.from_engine(engine)
+insp = sa.inspect(engine)
 
 # TODO Move data to fixtures
 

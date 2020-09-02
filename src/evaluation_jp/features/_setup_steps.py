@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
-from evaluation_jp import get_ists_claims, get_les_data, get_jobpath_data
+from evaluation_jp import get_ists_claims, get_les_data, get_jobpath_data, ColumnsByType
 
 
 def dates_between_durations(
@@ -80,7 +80,7 @@ class LiveRegisterPopulation(SetupStep):
     """
 
     # Parameters
-    columns_by_type: Dict[str, str]
+    columns_by_type: ColumnsByType
     starting_pop_col: str = None  # Must be bool!
 
     # Setup method
@@ -146,6 +146,7 @@ class ClaimCodeEligible(SetupStep):
     code_col: str
     eligible_codes: list = None
 
+    # //TODO Remove data_id safely from function signature
     def run(self, data_id, data):
         if self.eligible_codes:
             claim_code_eligible = data[self.code_col].isin(self.eligible_codes)

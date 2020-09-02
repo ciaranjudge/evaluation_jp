@@ -8,7 +8,7 @@ import sqlalchemy as sa
 from evaluation_jp.data.metadata_utils import nearest_lr_date
 from evaluation_jp.data.sql_utils import (
     datetime_cols,
-    temp_ids_con,
+    temp_table_connection,
     get_col_list,
     unpack,
     get_parameterized_query,
@@ -206,7 +206,7 @@ def get_jobpath_data(
 
 def get_earnings(
     # date: pd.Timestamp,
-    ids: Optional[pd.Index] = None,
+    ids: Optional[pd.Series] = None,
     year: Optional[int] = None,
     columns: Optional[List] = None,
 ) -> pd.DataFrame:
@@ -239,7 +239,7 @@ def get_earnings(
 
     col_list = unpack(get_col_list(engine, "earnings", columns, required_columns))
     if ids is not None:
-        with temp_ids_con(engine, ids) as con:
+        with temp_table_connection(engine, ids, "ids") as con:
             query = f"""\
                 SELECT {col_list}
                 FROM earnings 
@@ -280,7 +280,7 @@ def get_earnings(
 
 # %%
 def get_sw_payments(
-    ids: Optional[pd.Index] = None,
+    ids: Optional[pd.Series] = None,
     period: Optional[pd.Period] = None,
     columns: Optional[List] = None,
 ) -> pd.DataFrame:
@@ -289,7 +289,7 @@ def get_sw_payments(
     col_list = unpack(get_col_list(engine, "payments", columns, required_columns))
 
     if ids is not None:
-        with temp_ids_con(engine, ids) as con:
+        with temp_table_connection(engine, ids, "ids") as con:
             query = f"""\
                 SELECT {col_list}
                 FROM payments 
