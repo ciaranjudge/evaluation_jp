@@ -37,16 +37,6 @@ def dates_between_durations(
     return ge_min_duration & lt_max_duration
 
 
-def ref_date_from_id(data_id, how="Start"):
-    if isinstance(data_id, pd.Timestamp):
-        return data_id
-    else:
-        try:
-            return data_id.date
-        except AttributeError:
-            return data_id.time_period.to_timestamp(how=how)
-
-
 @dataclass
 class SetupStep(abc.ABC):
     # Parameters
@@ -58,6 +48,7 @@ class SetupStep(abc.ABC):
         pass
 
 
+# //TODO Check if should inherit from SetupStep
 @dataclass
 class SetupSteps:
     """Ordered sequence of setup steps, each represented by a dataclass
@@ -87,11 +78,11 @@ class LiveRegisterPopulation(SetupStep):
     def run(self, data_id, data=None):
         if data is None:
             data = get_ists_claims(
-                ref_date_from_id(data_id), columns=self.columns_by_type.keys()
+                data_id.reference_date(), columns=self.columns_by_type.data_columns
             )
         else:
             live_register_population = get_ists_claims(
-                ref_date_from_id(data_id), columns=self.columns_by_type.keys()
+                data_id.reference_date(), columns=self.columns_by_type.data_columns
             )
             live_register_population["on_live_register"] = True
             data = pd.merge(
@@ -101,9 +92,8 @@ class LiveRegisterPopulation(SetupStep):
                 left_index=True,
                 right_index=True,
             )
-        for col, dtype in self.columns_by_type.items():
-            data[col] = data[col].astype(dtype)
         data = data.drop(["lr_flag"], axis="columns")
+        data = self.columns_by_type.set_datatypes(data)
         return data
 
 
@@ -131,7 +121,7 @@ class AgeEligible(SetupStep):
 
         data["age_eligible"] = dates_between_durations(
             dates=data[self.date_of_birth_col],
-            ref_date=ref_date_from_id(data_id),
+            ref_date=data_id.reference_date(),
             min_duration=min_age,
             max_duration=max_age,
         )
@@ -180,7 +170,7 @@ class ClaimDurationEligible(SetupStep):
 
         data["claim_duration_eligible"] = dates_between_durations(
             dates=data[self.claim_start_col],
-            ref_date=ref_date_from_id(data_id),
+            ref_date=data_id.reference_date(),
             min_duration=min_duration,
             max_duration=max_duration,
         )
@@ -223,7 +213,7 @@ class OnLES(SetupStep):
             **self.assumed_episode_length
         )
         open_episodes = open_episodes_on_ref_date(
-            episodes=les, ref_date=ref_date_from_id(data_id, self.how), id_cols="ppsn",
+            episodes=les, ref_date=data_id.reference_date(self.how), id_cols="ppsn",
         )
         out_colname = f"on_les_at_{self.how}" if self.how else "on_les"
         data[out_colname] = (
@@ -256,7 +246,7 @@ class OnJobPath(SetupStep):
             )
             open_episodes = open_episodes_on_ref_date(
                 episodes=jobpath_operational,
-                ref_date=ref_date_from_id(data_id),
+                ref_date=data_id.reference_date(),
                 start_date_col="jobpath_start_date",
                 end_date_col="jobpath_end_date",
                 id_cols="ppsn",
@@ -290,8 +280,8 @@ class OnJobPath(SetupStep):
 @dataclass
 class JobPathStartedEndedSamePeriod(SetupStep):
     def run(self, data_id, data):
-        start = ref_date_from_id(data_id, how="start")
-        end = ref_date_from_id(data_id, how="end")
+        start = data_id.reference_date(how="start")
+        end = data_id.reference_date(how="end")
 
         jobpath = get_jobpath_data(columns=["jobpath_start_date", "jobpath_end_date"])
         starts = jobpath["jobpath_start_date"].between(start, end)
@@ -382,8 +372,8 @@ class JobPathStarts(SetupStep):
     combine_data: str = None  # "either" or "both"
 
     def run(self, data_id, data):
-        start = ref_date_from_id(data_id, how="start")
-        end = ref_date_from_id(data_id, how="end")
+        start = data_id.reference_date(how="start")
+        end = data_id.reference_date(how="end")
 
         if self.use_jobpath_operational_data:
             jobpath_operational = get_jobpath_data(columns=["jobpath_start_date"])

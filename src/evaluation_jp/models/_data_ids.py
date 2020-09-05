@@ -38,11 +38,17 @@ class DataID(abc.ABC):
 class PopulationSliceID(DataID):
     date: pd.Timestamp
 
+    def reference_date(self, how=None):
+        return self.date
+
 
 @dataclass(order=True, frozen=True)
 class TreatmentPeriodID(DataID):
     population_slice: PopulationSliceID
     time_period: pd.Period
+
+    def reference_date(self, how="start"):
+        return self.time_period.to_timestamp(how)
 
 
 

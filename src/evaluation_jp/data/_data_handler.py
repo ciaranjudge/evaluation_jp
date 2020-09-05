@@ -208,11 +208,11 @@ class SQLDataHandler(DataHandler):
                 index=False,
             )
 
-
+# //TODO use_index True if index specified in DataParams
 def populate(
     data_params: DataParams,
     data_id: DataID = None,
-    init_data: pd.DataFrame = None,
+    initial_data: pd.DataFrame = None,
     data_handler: DataHandler = None,
     rebuild: bool = False,
 ):
@@ -222,7 +222,7 @@ def populate(
         except DataHandlerError:
             rebuild = True
     if data_handler is None or rebuild:
-        data = data_params.setup_steps(data_id).run(data_id=data_id, data=init_data)
+        data = data_params.setup_steps(data_id).run(data_id=data_id, data=initial_data)
         data = data_params.columns_by_type.set_datatypes(data)
         if data_handler is not None:
             data_handler.write(data, data_params, data_id)
