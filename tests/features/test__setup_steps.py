@@ -246,18 +246,16 @@ def population_slice_data_params():
     )
 
 
-# # def test__all_SetupSteps_for_PopulationSlice(
-# #     fixture__population_slice_setup_steps, fixture__population_slice__expected_columns
-# # ):
+def test__all_SetupSteps_for_PopulationSlice(
+    population_slice_data_params, population_slice_id
+):
 
-# #     results = PopulationSlice(
-# #         id=PopulationSliceID(date=pd.Timestamp("2016-07-01")),
-# #         setup_steps=fixture__population_slice_setup_steps,
-# #     )
-# #     assert set(results.data.columns) == set(fixture__population_slice__expected_columns)
-# #     # Manually check how many people are on LR and eligible
-# #     assert len(results.data) == 315654
-# #     assert len(results.data[results.data["eligible_population"]]) == 86240
+    results = population_slice_data_params.setup_steps(population_slice_id).run(
+        population_slice_id
+    )
+    # Manually check how many people are on LR and eligible
+    assert len(results.data) == 315654
+    assert len(results.data[results.data["eligible_population"]]) == 86240
 
 
 # # def test__all_SetupSteps_for_EvaluationModel_population_slices(

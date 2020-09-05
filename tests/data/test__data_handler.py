@@ -21,7 +21,6 @@ from evaluation_jp import (
 from evaluation_jp.data.sql_utils import *
 
 
-
 class TestStep(SetupStep):
     def run(self, data=None, data_id=None):
         return pd.DataFrame(
