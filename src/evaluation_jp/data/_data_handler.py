@@ -97,7 +97,7 @@ class SQLDataHandler(DataHandler):
             # SQLite doesn't really understand schemas - it just thinks they're in table name.
             # But it can't cope with a dot in table name unless wrapped in [ ]
             if self.engine.dialect.name == "sqlite":
-                 query = f"""\
+                query = f"""\
                     SELECT * 
                         FROM [{self.model_schema}.{data_params.table_name}]
                     """
@@ -208,7 +208,7 @@ class SQLDataHandler(DataHandler):
                 index=False,
             )
 
-# //TODO use_index True if index specified in DataParams
+
 def populate(
     data_params: DataParams,
     data_id: DataID = None,
@@ -216,16 +216,26 @@ def populate(
     data_handler: DataHandler = None,
     rebuild: bool = False,
 ):
+#//TODO Write a docstring for populate()!!
+    """
+    """
     if data_handler is not None and not rebuild:
         try:
             data = data_handler.read(data_params, data_id)
         except DataHandlerError:
             rebuild = True
     if data_handler is None or rebuild:
-        data = data_params.setup_steps(data_id).run(data_id=data_id, data=initial_data)
+        data = data_params.setup_steps(data_id).run(
+            data_id=data_id, data=initial_data
+        )
         data = data_params.columns_by_type.set_datatypes(data)
         if data_handler is not None:
-            data_handler.write(data, data_params, data_id)
+            data_handler.write(
+                data,
+                data_params,
+                data_id,
+                use_index=data_params.columns_by_type.index_columns,
+            )
     return data
 
 

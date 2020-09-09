@@ -71,18 +71,24 @@ class LiveRegisterPopulation(SetupStep):
     """
 
     # Parameters
-    columns_by_type: ColumnsByType
+    lookup_columns_by_type: ColumnsByType
     starting_pop_col: str = None  # Must be bool!
 
     # Setup method
     def run(self, data_id, data=None):
         if data is None:
             data = get_ists_claims(
-                data_id.reference_date(), columns=self.columns_by_type.data_columns
+                data_id.reference_date(),
+                columns=self.lookup_columns_by_type.data_columns,
             )
         else:
+            data = data[self.starting_pop_col]
             live_register_population = get_ists_claims(
-                data_id.reference_date(), columns=self.columns_by_type.data_columns
+                data_id.reference_date(),
+                columns=self.lookup_columns_by_type.data_columns,
+            )
+            live_register_population = self.lookup_columns_by_type.set_datatypes(
+                live_register_population.drop(["lr_flag"], axis="columns")
             )
             live_register_population["on_live_register"] = True
             data = pd.merge(
@@ -92,8 +98,6 @@ class LiveRegisterPopulation(SetupStep):
                 left_index=True,
                 right_index=True,
             )
-        data = data.drop(["lr_flag"], axis="columns")
-        data = self.columns_by_type.set_datatypes(data)
         return data
 
 
@@ -204,7 +208,7 @@ class OnLES(SetupStep):
     """Given a data_id and data, return True for every record on LES on data_id reference date
     """
 
-    assumed_episode_length: Dict[str, int]
+    assumed_episode_length: Dict[str, int] 
     how: str = None  # Can be "start" or "end" for periods. Leave as None for slices.
 
     def run(self, data_id, data):
@@ -344,7 +348,6 @@ class JobPathStartedEndedSamePeriod(SetupStep):
 # #         pass
 
 
-
 @dataclass
 class EligiblePopulation(SetupStep):
     eligibility_criteria: dict
@@ -427,7 +430,7 @@ class EvaluationGroup(SetupStep):
     treatment_label: str = "T"
     control_label: str = "C"
 
-    def run(self, data_id, data):
+    def run(self, data_id=None, data=None):
         eligible = data[self.eligible_col]
         data.loc[eligible, "evaluation_group"] = self.control_label
         eligible_and_treatment = data[self.eligible_col] & data[self.treatment_col]
@@ -442,7 +445,7 @@ class StartingPopulation(SetupStep):
     eligible_from_previous_period_col: str = None
     starting_pop_label: str = None
 
-    def run(self, data_id, data):
+    def run(self, data_id=None, data=None):
         if self.eligible_from_previous_period_col in data.columns:
             data["starting_population"] = (
                 data[self.eligible_from_previous_period_col] == self.starting_pop_label

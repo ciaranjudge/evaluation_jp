@@ -131,7 +131,7 @@ class PopulationSliceDataParams(DataParams):
         self.setup_steps_by_date = NearestKeyDict(self.setup_steps_by_date)
 
     def setup_steps(self, data_id):
-        return self.setup_steps_by_date[data_id.reference_date]
+        return self.setup_steps_by_date[data_id.reference_date()]
 
 
 @dataclass
@@ -143,7 +143,7 @@ class TreatmentPeriodDataParams(DataParams):
     def __post_init__(self):
         self.setup_steps_by_date = NearestKeyDict(self.setup_steps_by_date)
 
-    def setup_steps(self, data_id):
-        return self.setup_steps_by_date[data_id.reference_date]
+    def setup_steps(self, data_id, how="start"):
+        return self.setup_steps_by_date[data_id.reference_date(how)]
 
 

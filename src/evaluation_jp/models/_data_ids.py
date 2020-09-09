@@ -48,7 +48,7 @@ class TreatmentPeriodID(DataID):
     time_period: pd.Period
 
     def reference_date(self, how="start"):
-        return self.time_period.to_timestamp(how)
+        return self.time_period.to_timestamp(how=how)
 
 
 

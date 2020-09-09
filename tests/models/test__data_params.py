@@ -44,37 +44,37 @@ def test__ColumnsByType__init_with_duplicated_items():
         )
 
 
-def test__ColumnsByType__check_column_names__duplicates_should_fail():
+def test__ColumnsByType__check_data_column_names__duplicates_should_fail():
     """Check_column_names throws error when passed duplicates
     """
     columns_by_type = ColumnsByType(data_columns_by_type={"a": "bool", "b": str})
     with raises(DuplicatedItemsError):
-        columns_by_type.check_column_names(["a", "a", "b"])
+        columns_by_type.check_data_column_names(["a", "a", "b"])
 
 
-def test__ColumnsByType__check_column_names__noduplicates_should_pass():
+def test__ColumnsByType__check_data_column_names__noduplicates_should_pass():
     """Check_column_names throws error when passed duplicates
     """
     columns_by_type = ColumnsByType(data_columns_by_type={"a": "bool", "b": str})
     with not_raises(DuplicatedItemsError):
-        columns_by_type.check_column_names(["a", "b"])
+        columns_by_type.check_data_column_names(["a", "b"])
 
 
-def test__ColumnsByType__check_column_names__extra_columns_error():
+def test__ColumnsByType__check_data_column_names__extra_columns_error():
     """Check_column_names throws error correctly naming extra columns
     """
     columns_by_type = ColumnsByType(data_columns_by_type={"a": "bool"})
     with raises(DuplicatedItemsError) as excinfo:
-        columns_by_type.check_column_names(["a", "b"])
+        columns_by_type.check_data_column_names(["a", "b"])
     assert "Unexpected columns: {'b'}" in str(excinfo.value)
 
 
-def test__ColumnsByType__check_column_names__missing_columns_error():
+def test__ColumnsByType__check_data_column_names__missing_columns_error():
     """Check_column_names throws error correctly naming extra columns
     """
     columns_by_type = ColumnsByType(data_columns_by_type={"a": "bool", "b": str})
     with raises(DuplicatedItemsError) as excinfo:
-        columns_by_type.check_column_names(["a"])
+        columns_by_type.check_data_column_names(["a"])
     assert "Missing columns: {'b'}" in str(excinfo.value)
 
 
@@ -161,7 +161,7 @@ def test__PopulationSliceDataParams():
     results_2 = ps_data_params.setup_steps(ps_id_2)
     assert results_2.run() == "Dummy step 2"
 
-    assert ps_data_params.columns_by_type.check_column_names(list("ABCD"))
+    assert ps_data_params.columns_by_type.check_data_column_names(list("ABCD"))
 
 
 def test__TreatmentPeriodDataParams():
@@ -187,4 +187,4 @@ def test__TreatmentPeriodDataParams():
     results_2 = tp_data_params.setup_steps(tp_id_2)
     assert results_2.run() == "Dummy step 2"
 
-    assert tp_data_params.columns_by_type.check_column_names(list("ABCD"))
+    assert tp_data_params.columns_by_type.check_data_column_names(list("ABCD"))

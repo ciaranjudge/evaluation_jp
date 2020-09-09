@@ -48,7 +48,6 @@ dependencies:
   - numpy
   - pandas
   - pandas-profiling  # df.describe() has nothing on this!
-  - pyodbc
   - scikit-learn
   - scipy
   - sqlalchemy
@@ -58,6 +57,8 @@ dependencies:
   # I/O
   - beautifulsoup4
   - lxml
+  - pyodbc
+  - pyreadstat
   - tabula-py
   - xlrd
   
@@ -72,6 +73,5 @@ dependencies:
   - pip
   - pip:
     - --editable .
-    - filprofiler
 
 
