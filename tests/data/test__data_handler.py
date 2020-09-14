@@ -225,3 +225,7 @@ def test__populate__no_data_handler():
 def test__populate(tmpdir, sql_dialect):
     data_params = population_slice_data_params
     data_id = population_slice_id
+
+    # *Parametrize for number of iterations
+    # *If rebuild, then data_handler read should == last iteration
+    # *If not, should always equal first iteration
