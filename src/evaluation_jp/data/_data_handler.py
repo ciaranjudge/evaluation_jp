@@ -182,16 +182,17 @@ class SQLDataHandler(DataHandler):
             if "period" in str(data[col].dtype):
                 sqldata[col] = sqldata[col].astype(str)
 
+        if self.engine.dialect.name == "sqlite":
+            table_name = f"{self.model_schema}.{data_params.table_name}"
+            schema = "main"
+        else:
+            table_name = data_params.table_name
+            schema = self.model_schema
+
         if sql_data_id := get_sql_data_id(data_id):
-            self._delete(data_params.table_name, sql_data_id)
+            self._delete(table_name, sql_data_id)
             for k, v in sql_data_id.items():
                 sqldata[k] = v
-            if self.engine.dialect.name == "sqlite":
-                table_name = f"{self.model_schema}.{data_params.table_name}"
-                schema = "main"
-            else:
-                table_name = data_params.table_name
-                schema = self.model_schema
             sqldata.to_sql(
                 table_name,
                 schema=schema,
@@ -199,10 +200,11 @@ class SQLDataHandler(DataHandler):
                 if_exists="append",
                 index=False,
             )
-            self._add_data_id_indexes(data_params.table_name, sql_data_id)
+            self._add_data_id_indexes(table_name, sql_data_id)
         else:
             sqldata.to_sql(
-                data_params.table_name,
+                table_name,
+                schema=schema,
                 con=self.engine,
                 if_exists="replace",
                 index=False,
@@ -216,7 +218,7 @@ def populate(
     data_handler: DataHandler = None,
     rebuild: bool = False,
 ):
-#//TODO Write a docstring for populate()!!
+    # //TODO Write a docstring for populate()!!
     """
     """
     if data_handler is not None and not rebuild:
@@ -225,9 +227,7 @@ def populate(
         except DataHandlerError:
             rebuild = True
     if data_handler is None or rebuild:
-        data = data_params.setup_steps(data_id).run(
-            data_id=data_id, data=initial_data
-        )
+        data = data_params.setup_steps(data_id).run(data_id=data_id, data=initial_data)
         data = data_params.columns_by_type.set_datatypes(data)
         if data_handler is not None:
             data_handler.write(

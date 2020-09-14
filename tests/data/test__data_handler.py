@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+from typing import ClassVar
 from pathlib import Path
 from IPython.display import display
 
@@ -25,20 +27,35 @@ from evaluation_jp.data.sql_utils import *
 from evaluation_jp.features.nearest_key_dict import NearestKeyDict
 
 
-class TestStep(SetupStep):
+class NoIndexTestStep(SetupStep):
     def run(self, data=None, data_id=None):
         return pd.DataFrame(
             np.random.randint(0, 100, size=(100, 4)), columns=list("ABCD")
         )
 
 
-test_setup_steps_by_date = {pd.Timestamp("2016-01-01"): SetupSteps([TestStep])}
+no_index_test_setup_steps_by_date = {
+    pd.Timestamp("2016-01-01"): SetupSteps([NoIndexTestStep])
+}
+
+# //TODO Add index column with no duplicates adn use for testing treatment_period
+class YesIndexTestStep(SetupStep):
+    def run(self, data=None, data_id=None):
+        return pd.DataFrame(
+            np.random.randint(0, 100, size=(100, 4)), columns=list("ABCD")
+        )
+
+
+yes_index_test_setup_steps_by_date = {
+    pd.Timestamp("2016-01-01"): SetupSteps([YesIndexTestStep])
+}
+
 
 population_slice_data_params = PopulationSliceDataParams(
     columns_by_type=ColumnsByType(
         data_columns_by_type={col: "int32" for col in list("ABCD")}
     ),
-    setup_steps_by_date=test_setup_steps_by_date,
+    setup_steps_by_date=no_index_test_setup_steps_by_date,
 )
 population_slice_id = PopulationSliceID(date=pd.Timestamp("2016-01-01"))
 
@@ -47,22 +64,28 @@ treatment_period_data_params = TreatmentPeriodDataParams(
     columns_by_type=ColumnsByType(
         data_columns_by_type={col: "int32" for col in list("ABCD")}
     ),
-    setup_steps_by_date=test_setup_steps_by_date,
+    setup_steps_by_date=no_index_test_setup_steps_by_date,
 )
 treatment_period_id = TreatmentPeriodID(
     population_slice=population_slice_id, time_period=pd.Period("2016-07")
 )
 
 
-class TestDataParams(DataParams):
-    table_name = "test_data_params"
+@dataclass
+class DummyDataParams(DataParams):
+    table_name: ClassVar[str] = "dummy_data"
     setup_steps_by_date: NearestKeyDict
 
     def setup_steps(self):
         return self.setup_steps
 
 
-test_data_params = TestDataParams(setup_steps=test_setup_steps_by_date)
+dummy_data_params = DummyDataParams(
+    columns_by_type=ColumnsByType(
+        data_columns_by_type={col: "int32" for col in list("ABCD")}
+    ),
+    setup_steps_by_date=no_index_test_setup_steps_by_date,
+)
 
 
 @pytest.mark.parametrize("sql_dialect", ["sqlite", "mssql"])
@@ -81,18 +104,23 @@ def test__SQLDataHandler__init(tmpdir, sql_dialect):
 
 
 # +/- use_index = 12 tests
-# //TODO Create DataParams object that doesn't need a DataId
-# //TODO
 
 
+# //TODO Add "expected_data" that's different if using index column(s)
+# //TODO Add labels for data_params/data_id options
+# @pytest.mark.parametrize("overwrite", [True, False])
+@pytest.mark.parametrize(
+    "data_params, data_id",
+    [
+        (population_slice_data_params, population_slice_id),
+        (treatment_period_data_params, treatment_period_id),
+        (dummy_data_params, None),
+    ],
+)
 @pytest.mark.parametrize("sql_dialect", ["sqlite", "mssql"])
-def test__DataHandler__write_new__PopulationSlice__with_data_id__no_index(
-    tmpdir, sql_dialect
-):
+def test__DataHandler__write_new(tmpdir, sql_dialect, data_params, data_id):
     """Write dataframe with *new* PopulationSlice data_id to SQL test_schema.population_slice
     """
-    data_params = population_slice_data_params
-    data_id = population_slice_id
 
     schema = "test_schema"
 
@@ -114,18 +142,18 @@ def test__DataHandler__write_new__PopulationSlice__with_data_id__no_index(
             np.random.randint(0, 100, size=(100, 4)), columns=list("ABCD")
         )
         data_handler.write(data, data_params, data_id, use_index=False)
-
+        
         # Read back data from SQL following write
 
-        df = pd.read_sql_table(sql_table_name, con=con, schema=sql_schema)
+        results = pd.read_sql_table(sql_table_name, con=con, schema=sql_schema)
 
     # Results should be same as original data passed to data_handler.write()
-    results = df.loc[df["data_id_date"] == str(data_id.date.date())].drop(
-        ["data_id_date"], axis="columns"
-    )
-    assert_frame_equal(data.describe(), results.describe())
+    if data_id is not None:
+        data_id_cols = [f"data_id_{col}" for col in data_id.as_flattened_dict()]
+        results = results.drop(data_id_cols, axis="columns")
+    assert_frame_equal(data.describe(include="all"), results.describe(include="all"))
 
-
+# //TODO Parametrize this like the one above - or even better, make number of iterations a parameter!
 @pytest.mark.parametrize("sql_dialect", ["sqlite", "mssql"])
 def test__DataHandler__write_overwrite__PopulationSlice__with_data_id__no_index(
     tmpdir, sql_dialect
