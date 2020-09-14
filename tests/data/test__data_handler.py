@@ -10,8 +10,10 @@ import sqlalchemy as sa
 
 from evaluation_jp import (
     ColumnsByType,
+    DataParams,
     SQLDataHandler,
     populate,
+    NearestKeyDict,
     PopulationSliceID,
     PopulationSliceDataParams,
     SetupStep,
@@ -20,6 +22,7 @@ from evaluation_jp import (
     TreatmentPeriodDataParams,
 )
 from evaluation_jp.data.sql_utils import *
+from evaluation_jp.features.nearest_key_dict import NearestKeyDict
 
 
 class TestStep(SetupStep):
@@ -40,6 +43,28 @@ population_slice_data_params = PopulationSliceDataParams(
 population_slice_id = PopulationSliceID(date=pd.Timestamp("2016-01-01"))
 
 
+treatment_period_data_params = TreatmentPeriodDataParams(
+    columns_by_type=ColumnsByType(
+        data_columns_by_type={col: "int32" for col in list("ABCD")}
+    ),
+    setup_steps_by_date=test_setup_steps_by_date,
+)
+treatment_period_id = TreatmentPeriodID(
+    population_slice=population_slice_id, time_period=pd.Period("2016-07")
+)
+
+
+class TestDataParams(DataParams):
+    table_name = "test_data_params"
+    setup_steps_by_date: NearestKeyDict
+
+    def setup_steps(self):
+        return self.setup_steps
+
+
+test_data_params = TestDataParams(setup_steps=test_setup_steps_by_date)
+
+
 @pytest.mark.parametrize("sql_dialect", ["sqlite", "mssql"])
 def test__SQLDataHandler__init(tmpdir, sql_dialect):
     """Simple test to make sure everything gets initiated correctly
@@ -56,6 +81,8 @@ def test__SQLDataHandler__init(tmpdir, sql_dialect):
 
 
 # +/- use_index = 12 tests
+# //TODO Create DataParams object that doesn't need a DataId
+# //TODO
 
 
 @pytest.mark.parametrize("sql_dialect", ["sqlite", "mssql"])
@@ -195,5 +222,6 @@ def test__populate__no_data_handler():
 # @pytest.mark.parametrize("rebuild", [True, False])
 # @pytest.mark.parametrize("overwrites")
 @pytest.mark.parametrize("sql_dialect", ["sqlite", "mssql", "no_database"])
-def test__populate__new(tmpdir, sql_dialect):
-    pass
+def test__populate(tmpdir, sql_dialect):
+    data_params = population_slice_data_params
+    data_id = population_slice_id
