@@ -95,6 +95,22 @@ def test__temp_table_connection__sqlserver_big(tmpdir, df_100000_x_4):
     assert_frame_equal(df.describe(), results.describe())
 
 
+def test__temp_table_connection__sqlserver_small_sql_query(tmpdir, df_100_x_4):
+    server = "CSGPC-BPRD-SQ06\\PA1"
+    database = "tempdb"
+
+    engine = sqlserver_engine(server, database)
+
+    df = df_100_x_4
+
+    with temp_table_connection(engine, df, "##test_table") as con:
+        query = """select * from ##test_table"""
+        results = pd.read_sql(query, con)
+    
+    print(results.describe())
+    print(df.describe())
+    assert_frame_equal(df.describe(), results.describe())
+
 def test__datetime_cols():
     engine = sa.create_engine(
         "sqlite:///\\\\cskma0294\\F\\Evaluations\\data\\wwld.db", echo=False

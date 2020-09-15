@@ -70,6 +70,9 @@ def temp_table_connection(
                 con.execute(query)
 
         elif con.dialect.name == "mssql":
+            insp = sa.inspect(con)
+            if table in insp.get_table_names(schema="dbo"):
+                con.execute(f"DROP TABLE {table}")
             frame.to_sql(
                 table, con=con, schema=schema, if_exists="replace", index=False,
             )
@@ -77,13 +80,7 @@ def temp_table_connection(
         yield con
 
         # Cleanup
-        if con.dialect.name == "sqlite":
-            query = f"DROP TABLE IF EXISTS {table}"
-        elif con.dialect.name == "mssql":
-            query = f"""\
-                DROP TABLE IF EXISTS TempDB.{schema if schema is not None else 'dbo'}.{table}
-                """
-        con.execute(query)
+        con.execute(f"DROP TABLE {table}")
 
 
 def get_col_list(engine, table_name, columns=None, required_columns=None):
