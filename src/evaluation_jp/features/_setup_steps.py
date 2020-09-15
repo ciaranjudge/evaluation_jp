@@ -108,6 +108,7 @@ class AgeEligible(SetupStep):
     """
 
     date_of_birth_col: str
+    output_flag_col: str = "age_eligible"
     min_eligible: Dict[str, int] = None
     max_eligible: Dict[str, int] = None
 
@@ -123,7 +124,7 @@ class AgeEligible(SetupStep):
         else:
             max_age = None
 
-        data["age_eligible"] = dates_between_durations(
+        data[output_flag_col] = dates_between_durations(
             dates=data[self.date_of_birth_col],
             ref_date=data_id.reference_date(),
             min_duration=min_age,
