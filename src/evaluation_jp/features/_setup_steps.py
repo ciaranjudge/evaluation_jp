@@ -124,7 +124,7 @@ class AgeEligible(SetupStep):
         else:
             max_age = None
 
-        data[output_flag_col] = dates_between_durations(
+        data[self.output_flag_col] = dates_between_durations(
             dates=data[self.date_of_birth_col],
             ref_date=data_id.reference_date(),
             min_duration=min_age,
