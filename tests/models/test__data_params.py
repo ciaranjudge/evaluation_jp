@@ -1,10 +1,10 @@
 from contextlib import contextmanager
 
-from pytest import raises
 import pandas as pd
 from hypothesis import given
 from hypothesis.extra.pandas import column, data_frames
 import hypothesis.strategies as st
+import pytest
 
 # from hypothesis.strategies import text
 
@@ -32,7 +32,7 @@ def not_raises(exception):
 def test__ColumnsByType__init_with_duplicated_items():
     """Error correctly thrown if initiated with duplicate columns
     """
-    with raises(DuplicatedItemsError):
+    with pytest.raises(DuplicatedItemsError):
         columns_by_type = ColumnsByType(
             data_columns_by_type={
                 "a": "bool",
@@ -48,7 +48,7 @@ def test__ColumnsByType__check_data_column_names__duplicates_should_fail():
     """Check_column_names throws error when passed duplicates
     """
     columns_by_type = ColumnsByType(data_columns_by_type={"a": "bool", "b": str})
-    with raises(DuplicatedItemsError):
+    with pytest.raises(DuplicatedItemsError):
         columns_by_type.check_data_column_names(["a", "a", "b"])
 
 
@@ -64,7 +64,7 @@ def test__ColumnsByType__check_data_column_names__extra_columns_error():
     """Check_column_names throws error correctly naming extra columns
     """
     columns_by_type = ColumnsByType(data_columns_by_type={"a": "bool"})
-    with raises(DuplicatedItemsError) as excinfo:
+    with pytest.raises(DuplicatedItemsError) as excinfo:
         columns_by_type.check_data_column_names(["a", "b"])
     assert "Unexpected columns: {'b'}" in str(excinfo.value)
 
@@ -73,7 +73,7 @@ def test__ColumnsByType__check_data_column_names__missing_columns_error():
     """Check_column_names throws error correctly naming extra columns
     """
     columns_by_type = ColumnsByType(data_columns_by_type={"a": "bool", "b": str})
-    with raises(DuplicatedItemsError) as excinfo:
+    with pytest.raises(DuplicatedItemsError) as excinfo:
         columns_by_type.check_data_column_names(["a"])
     assert "Missing columns: {'b'}" in str(excinfo.value)
 
