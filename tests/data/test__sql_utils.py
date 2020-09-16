@@ -25,7 +25,11 @@ def test__sqlserver_engine():
     engine = sqlserver_engine(server, database)
 
     assert engine.dialect.name == "mssql"
-    assert engine.connect() == True
+    try:
+        engine.connect()
+        assert True
+    except:
+        assert False
 
 
 def test__sqlite_engine(tmpdir):

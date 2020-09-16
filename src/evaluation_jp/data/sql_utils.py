@@ -26,25 +26,25 @@ def sqlserver_engine(
         "DATABASE": database,
         "TRUSTED_CONNECTION": "YES",
     }
-    formatted_odbc_params = parse.quote_plus(
-        ";".join(f"{key}={value}" for key, value in odbc_params.items())
-    )
-    engine = sa.create_engine(
-        f"mssql+pyodbc:///?odbc_connect={formatted_odbc_params}", fast_executemany=True
-    )
     try:
+        formatted_odbc_params = parse.quote_plus(
+            ";".join(f"{key}={value}" for key, value in odbc_params.items())
+        )
+        engine = sa.create_engine(
+            f"mssql+pyodbc:///?odbc_connect={formatted_odbc_params}",
+            fast_executemany=True,
+        )
         engine.connect()
-    except pyodbc.InterfaceError: # Need to add the right error type here
+    except pyodbc.InterfaceError:  # Need to add the right error type here
         odbc_params["DRIVER"] = "{SQL Server}"
         formatted_odbc_params = parse.quote_plus(
             ";".join(f"{key}={value}" for key, value in odbc_params.items())
         )
         engine = sa.create_engine(
-            f"mssql+pyodbc:///?odbc_connect={formatted_odbc_params}", fast_executemany=True
+            f"mssql+pyodbc:///?odbc_connect={formatted_odbc_params}",
+            fast_executemany=True,
         )
     return engine
-
-
 
 
 def sqlite_engine(
@@ -188,7 +188,10 @@ def get_sql_data_id(data_id=None):
     """Create id column for each element of a data_id, to allow SQL queries to find data with that ID.
     """
     if data_id is not None:
-        return {f"data_id_{k}": sql_format(v) for k, v in data_id.as_flattened_dict().items()}
+        return {
+            f"data_id_{k}": sql_format(v)
+            for k, v in data_id.as_flattened_dict().items()
+        }
     else:
         return {}
 
