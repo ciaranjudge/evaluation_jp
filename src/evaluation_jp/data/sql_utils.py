@@ -19,6 +19,7 @@ def sqlserver_engine(
     https://docs.microsoft.com/en-us/sql/connect/odbc/microsoft-odbc-driver-for-sql-server
     "TRUSTED_CONNECTION" set to "YES" to allow Active Directory authentication.
     """
+
     odbc_params = {
         "DRIVER": "{ODBC Driver 17 for SQL Server}",
         "SERVER": server,
@@ -28,9 +29,22 @@ def sqlserver_engine(
     formatted_odbc_params = parse.quote_plus(
         ";".join(f"{key}={value}" for key, value in odbc_params.items())
     )
-    return sa.create_engine(
+    engine = sa.create_engine(
         f"mssql+pyodbc:///?odbc_connect={formatted_odbc_params}", fast_executemany=True
     )
+    try:
+        engine.connect()
+    except: # Need to add the right error type here
+        odbc_params["DRIVER"] = "{SQL Server}"
+        formatted_odbc_params = parse.quote_plus(
+            ";".join(f"{key}={value}" for key, value in odbc_params.items())
+        )
+        engine = sa.create_engine(
+            f"mssql+pyodbc:///?odbc_connect={formatted_odbc_params}", fast_executemany=True
+        )
+    return engine
+
+
 
 
 def sqlite_engine(
@@ -52,6 +66,7 @@ def temp_table_connection(
     """Context manager to add temp table `frame` to temp `table` in `connectable` 
     `connectable` can be either an Engine or an existing Connection.
     If using with MSSQL, connectable must point to tempdb, with executemany=True.
+    And with MSSQL, table name must start with '##'!!!
     """
 
     # Set up connection from connectable - needed if it's an Engine
