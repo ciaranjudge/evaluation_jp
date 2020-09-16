@@ -42,7 +42,7 @@ def sqlserver_engine(
         )
         engine = sa.create_engine(
             f"mssql+pyodbc:///?odbc_connect={formatted_odbc_params}",
-            fast_executemany=True,
+            fast_executemany=False,
         )
     return engine
 

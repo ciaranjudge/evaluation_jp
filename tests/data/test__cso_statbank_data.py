@@ -20,7 +20,7 @@ def test__cso_statbank_data__LRM02():
         & (data["Sex"] == "Both sexes")
         & (data["Statistic"] == "Persons on the Live Register (Number)")
     ]
-    assert int(results["Value"]) == total_live_register
+    assert int(results["value"]) == total_live_register
 
 
 def test__cso_statbank_data__QLF18():
@@ -46,4 +46,4 @@ def test__cso_statbank_data__QLF18():
         )
     ]
     # Multiply by 1,000 here to match the number on CSO release
-    assert int(results["Value"] * 1_000) == total_labour_force
+    assert int(results["value"] * 1_000) == total_labour_force

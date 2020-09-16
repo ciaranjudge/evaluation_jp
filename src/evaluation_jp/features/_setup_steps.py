@@ -87,9 +87,6 @@ class LiveRegisterPopulation(SetupStep):
                 data_id.reference_date(),
                 columns=self.lookup_columns_by_type.data_columns,
             )
-            live_register_population = self.lookup_columns_by_type.set_datatypes(
-                live_register_population.drop(["lr_flag"], axis="columns")
-            )
             live_register_population["on_live_register"] = True
             data = pd.merge(
                 data,
@@ -98,6 +95,10 @@ class LiveRegisterPopulation(SetupStep):
                 left_index=True,
                 right_index=True,
             )
+        data = self.lookup_columns_by_type.set_datatypes(
+            data.drop(["lr_flag"], axis="columns")
+        )
+
         return data
 
 

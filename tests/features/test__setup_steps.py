@@ -78,6 +78,7 @@ def test__LiveRegisterPopulation(live_register_population, population_slice_id):
     """Check that number of people on LR == official total per CSO, and correct columns generated
     """
     results = live_register_population.run(data_id=population_slice_id)
+    print(results.describe(include="all").T)
     assert results.shape == (321373, 5)
 
 

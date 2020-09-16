@@ -9,7 +9,6 @@ from evaluation_jp import (
     get_vital_statistics,
     get_les_data,
     get_jobpath_data,
-    get_earnings,
     get_sw_payments,
 )
 
@@ -194,20 +193,20 @@ def test__get_jobpath_data():
     assert results.equals(expected)
 
 
-def test__get_earnings():
-    columns = ["ppsn", "NO_OF_CONS", "EARNINGS_AMT",]
-    test_ids = pd.Index(
-        ["6892436U", "5051366B", "6049367W", "5092934S", "8420262S",]
-    )
-    results = get_earnings(ids=test_ids, columns=columns)
-    assert set(results.columns) == set(columns) 
-    # Manually look up how many records there should be per earnings SQL table
-    assert len(results) > 0 
+# def test__get_earnings():
+#     columns = ["ppsn", "NO_OF_CONS", "EARNINGS_AMT",]
+#     test_ids = pd.Index(
+#         ["6892436U", "5051366B", "6049367W", "5092934S", "8420262S",]
+#     )
+#     results = get_earnings(ids=test_ids, columns=columns)
+#     assert set(results.columns) == set(columns) 
+#     # Manually look up how many records there should be per earnings SQL table
+#     assert len(results) > 0 
 
 
 def test__get_sw_payments():
     columns = ["ppsn", "SCHEME_TYPE", "AMOUNT",]
-    test_ids = pd.Index(
+    test_ids = pd.Series(
         ["6892436U", "5051366B", "6049367W", "5092934S", "8420262S",]
     )
     results = get_sw_payments(ids=test_ids, columns=columns)
