@@ -35,7 +35,7 @@ def sqlserver_engine(
             fast_executemany=True,
         )
         engine.connect()
-    except pyodbc.InterfaceError:  # Need to add the right error type here
+    except sa.exc.InterfaceError:  # Need to add the right error type here
         odbc_params["DRIVER"] = "{SQL Server}"
         formatted_odbc_params = parse.quote_plus(
             ";".join(f"{key}={value}" for key, value in odbc_params.items())
