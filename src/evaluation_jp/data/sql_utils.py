@@ -36,14 +36,25 @@ def sqlserver_engine(
         )
         engine.connect()
     except sa.exc.InterfaceError:  # Need to add the right error type here
-        odbc_params["DRIVER"] = "{SQL Server}"
-        formatted_odbc_params = parse.quote_plus(
-            ";".join(f"{key}={value}" for key, value in odbc_params.items())
-        )
-        engine = sa.create_engine(
-            f"mssql+pyodbc:///?odbc_connect={formatted_odbc_params}",
-            fast_executemany=False,
-        )
+        try:
+            odbc_params["DRIVER"] = "{ODBC Driver 13 for SQL Server}"
+            formatted_odbc_params = parse.quote_plus(
+                ";".join(f"{key}={value}" for key, value in odbc_params.items())
+            )
+            engine = sa.create_engine(
+                f"mssql+pyodbc:///?odbc_connect={formatted_odbc_params}",
+                fast_executemany=True,
+            )
+            engine.connect()
+        except sa.exc.InterfaceError:  # Need to add the right error type here
+            odbc_params["DRIVER"] = "{SQL Server}"
+            formatted_odbc_params = parse.quote_plus(
+                ";".join(f"{key}={value}" for key, value in odbc_params.items())
+            )
+            engine = sa.create_engine(
+                f"mssql+pyodbc:///?odbc_connect={formatted_odbc_params}",
+                fast_executemany=False,
+            )
     return engine
 
 
