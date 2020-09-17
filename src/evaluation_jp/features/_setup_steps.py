@@ -459,25 +459,3 @@ class StartingPopulation(SetupStep):
         data = data.loc[data["starting_population"] == True, ["starting_population"]]
 
         return data
-
-
-
-# # Use setup steps as model, write function to estimate shares from population slice, taking DA recipiency x (param) months subsequent to:
-# # 1. start v referred and no start
-# # 2. Start v control (not referred)
-# # 3. Referred v control
-# start_ref=data['JobPath_start' data['JobPath_ref'] 1,0
-# start_ctrl=data['JobPath_start']1,0
-# ref_ctrl=data['JobPath_ref']1,0
-
-# def exit_to_da(df, interval, criteria):
-# """function to establish DA recipiency at some interval, comparing this share for mutually exclusive cohorts""" 
-#         df: input df(starting_population)
-#         interval: number of weeks to check status 
-#         criteria: 1/0 values for  two cohorts from three interim cols (start_ref, start_ctrl, ref_ctrl)
-#     read df(population slice ID),
-#     df=df.apply(criteria)
-#     share=df ['sw_pay_status']=='illness and disability ' /len(df),
-#     for df in all population slices, print share
-# return (df)
-
