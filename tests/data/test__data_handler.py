@@ -154,6 +154,7 @@ def test__DataHandler__write_new(tmpdir, sql_dialect, data_params, data_id):
     assert_frame_equal(data.describe(include="all"), results.describe(include="all"))
 
 # //TODO Parametrize this like the one above - or even better, make number of iterations a parameter!
+@pytest.mark.skip
 @pytest.mark.parametrize("sql_dialect", ["sqlite", "mssql"])
 def test__DataHandler__write_overwrite__PopulationSlice__with_data_id__no_index(
     tmpdir, sql_dialect

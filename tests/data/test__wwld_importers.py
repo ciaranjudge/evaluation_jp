@@ -199,20 +199,23 @@ def test__get_jobpath_data():
 #         ["6892436U", "5051366B", "6049367W", "5092934S", "8420262S",]
 #     )
 #     results = get_earnings(ids=test_ids, columns=columns)
-#     assert set(results.columns) == set(columns) 
+#     assert set(results.columns) == set(columns)
 #     # Manually look up how many records there should be per earnings SQL table
-#     assert len(results) > 0 
+#     assert len(results) > 0
 
 
 def test__get_sw_payments():
-    columns = ["ppsn", "SCHEME_TYPE", "AMOUNT",]
-    test_ids = pd.Series(
-        ["6892436U", "5051366B", "6049367W", "5092934S", "8420262S",]
+    columns = [
+        "ppsn",
+        "SCHEME_TYPE",
+        "AMOUNT",
+    ]
+    test_ids = pd.DataFrame(
+        ["6892436U", "5051366B", "6049367W", "5092934S", "8420262S"], columns=["ppsn"]
     )
     results = get_sw_payments(ids=test_ids, columns=columns)
-    assert set(results.columns) == set(columns) 
+    assert set(results.columns) == set(columns)
     # Manually look up how many records there should be per sw_payments SQL table
     print(results)
     assert len(results) > 0
-
 
