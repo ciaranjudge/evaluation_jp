@@ -11,6 +11,41 @@ import pyodbc
 import sqlalchemy as sa
 
 
+def is_number(s):
+    try:
+        float(str(s))
+        return True
+    except ValueError:
+        return False
+
+
+def sql_format(thing):
+    if isinstance(thing, tuple):
+        return(tuple([sql_format(item) for item in thing]))
+    elif is_number(thing):
+        return thing
+    elif isinstance(thing, datetime):
+        return f"'{thing.date()}'"
+    else:
+        return f"'{str(thing)}'"
+
+
+def sql_where_clause_from_dict(dictionary):
+    where_clause = ""
+    first = True
+    for key, value in dictionary.items():
+        if first:
+            where_clause += f"WHERE {key} = {sql_format(value)}"
+        else:
+            where_clause += f"\n    AND {key} = {sql_format(value)}"
+        first = False
+    return where_clause
+
+
+def unpack(listlike):
+    return ", ".join([str(i) for i in listlike])
+
+
 def sqlserver_engine(
     server: str, database: str,
 ):
@@ -84,9 +119,19 @@ def temp_table_connection(
     with connectable.connect() as con:
         # Setup
         if con.dialect.name == "sqlite":
-            rows = ", ".join(
-                [str(row) for row in frame.to_records(index=False).tolist()]
-            )
+            if isinstance(frame, pd.Series):
+                row_list = [f"({sql_format(i)})" for i in list(frame)]
+            elif isinstance(frame, pd.DataFrame):
+                if len(frame.columns) == 1:
+                    row_list = [f"({sql_format(i)})" for i in list(frame.squeeze())]
+                else:
+                    print("multi column df")
+                    row_list = [
+                        sql_format(i) for i in frame.to_records(index=False).tolist()
+                    ]
+            else:
+                row_list = frame
+            rows = unpack([row for row in row_list])
             queries = [
                 f"DROP TABLE IF EXISTS {table}",
                 f"CREATE TEMP TABLE {table}({', '.join(frame.columns)})",
@@ -120,10 +165,6 @@ def get_col_list(engine, table_name, columns=None, required_columns=None):
     return [col for col in ok_columns if col not in ["index", "id"]]
 
 
-def unpack(listlike):
-    return ", ".join([str(i) for i in listlike])
-
-
 def get_parameterized_query(query_text, ids=None):
     params = {}
     if ids is not None:
@@ -148,42 +189,6 @@ def datetime_cols(engine, table_name) -> List:
         if type(col["type"]) == sa.sql.sqltypes.DATETIME
     ]
     return datetime_cols
-
-
-def is_number(s):
-    try:
-        float(str(s))
-        return True
-    except ValueError:
-        return False
-
-
-def sql_format(thing):
-    if is_number(thing):
-        return thing
-    elif isinstance(thing, datetime):
-        return thing.date()
-    else:
-        return str(thing)
-
-
-def sql_clause_format(thing):
-    if is_number(thing):
-        return thing
-    else:
-        return f"'{sql_format(thing)}'"
-
-
-def sql_where_clause_from_dict(dictionary):
-    where_clause = ""
-    first = True
-    for key, value in dictionary.items():
-        if first:
-            where_clause += f"WHERE {key} = {sql_clause_format(value)}"
-        else:
-            where_clause += f"\n    AND {key} = {sql_clause_format(value)}"
-        first = False
-    return where_clause
 
 
 def where_and():

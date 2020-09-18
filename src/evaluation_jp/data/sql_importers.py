@@ -31,8 +31,8 @@ def get_edw_customer_details(
             FROM    ppsn_table
                     INNER JOIN {edw_database}.{edw_schema}.dim_customer_details AS edw
                             ON ppsn_table.{ppsn_column_name} = edw.pps_no 
-            WHERE   edw.scd_start_date <= {sql_clause_format(reference_date)}
-            AND     {sql_clause_format(reference_date)} <= edw.scd_end_date
+            WHERE   edw.scd_start_date <= {sql_format(reference_date)}
+            AND     {sql_format(reference_date)} <= edw.scd_end_date
         """
         return pd.read_sql(edw_table_query, temp_table_con)
 

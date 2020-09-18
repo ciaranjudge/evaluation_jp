@@ -207,20 +207,21 @@ def get_jobpath_data(
 # %%
 def get_sw_payments(
     ids: Optional[pd.Series] = None,
+    id_col: Optional[str] = "ppsn",
     period: Optional[pd.Period] = None,
     columns: Optional[List] = None,
 ) -> pd.DataFrame:
-    id_col = "ppsn"
-    required_columns = ["id_col"]
-    col_list = unpack(get_col_list(engine, "payments", columns, required_columns))
+    required_columns = [id_col]
+    col_list = get_col_list(engine, "payments", columns, required_columns)
+    print(f"Column list is: {col_list}")
 
     if ids is not None:
         with temp_table_connection(engine, ids, "ids") as con:
             query = f"""\
-                SELECT {col_list}
+                SELECT {unpack([f'payments.{col} AS {col}' for col in col_list])}
                 FROM payments 
                 INNER JOIN temp.ids
-                ON payments.{id_col} = temp.ids.id
+                ON payments.{id_col} = temp.ids.{id_col}
                 """
             if period:
                 query += f"""\
