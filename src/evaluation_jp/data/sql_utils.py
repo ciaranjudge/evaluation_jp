@@ -1,6 +1,6 @@
 # Standard library
 from datetime import datetime
-from typing import List
+from typing import List, Union
 from contextlib import contextmanager
 from pathlib import Path
 from urllib import parse
@@ -21,23 +21,26 @@ def is_number(s):
 
 def sql_format(thing):
     if isinstance(thing, tuple):
-        return(tuple([sql_format(item) for item in thing]))
+        return tuple([sql_format(item) for item in thing])
     elif is_number(thing):
         return thing
     elif isinstance(thing, datetime):
-        return f"'{thing.date()}'"
+        return f"{str(thing.date())}"
     else:
-        return f"'{str(thing)}'"
+        return f"{str(thing)}"
 
 
 def sql_where_clause_from_dict(dictionary):
+    """Generate WHERE or AND SQL clause from a dictionary.
+    Assumes dictionary items are already in sql_format.
+    """
     where_clause = ""
     first = True
     for key, value in dictionary.items():
         if first:
-            where_clause += f"WHERE {key} = {sql_format(value)}"
+            where_clause += f"WHERE {key} = {value}"
         else:
-            where_clause += f"\n    AND {key} = {sql_format(value)}"
+            where_clause += f"\n    AND {key} = {value}"
         first = False
     return where_clause
 
@@ -61,36 +64,30 @@ def sqlserver_engine(
         "DATABASE": database,
         "TRUSTED_CONNECTION": "YES",
     }
-    try:
-        formatted_odbc_params = parse.quote_plus(
-            ";".join(f"{key}={value}" for key, value in odbc_params.items())
-        )
-        engine = sa.create_engine(
-            f"mssql+pyodbc:///?odbc_connect={formatted_odbc_params}",
-            fast_executemany=True,
-        )
-        engine.connect()
-    except sa.exc.InterfaceError:  # Need to add the right error type here
+    best_to_worst_driver_fast_executemany_combos = [
+        ("{ODBC Driver 17 for SQL Server}", True), 
+        ("{ODBC Driver 13 for SQL Server}", True), 
+        ("{ODBC Driver 11 for SQL Server}", True), 
+        ("{SQL Server}", False)
+    ]
+    for driver, fast_executemany in best_to_worst_driver_fast_executemany_combos:
         try:
-            odbc_params["DRIVER"] = "{ODBC Driver 13 for SQL Server}"
+            odbc_params["DRIVER"] = driver
             formatted_odbc_params = parse.quote_plus(
                 ";".join(f"{key}={value}" for key, value in odbc_params.items())
             )
             engine = sa.create_engine(
                 f"mssql+pyodbc:///?odbc_connect={formatted_odbc_params}",
-                fast_executemany=True,
+                fast_executemany=fast_executemany,
             )
             engine.connect()
-        except sa.exc.InterfaceError:  # Need to add the right error type here
-            odbc_params["DRIVER"] = "{SQL Server}"
-            formatted_odbc_params = parse.quote_plus(
-                ";".join(f"{key}={value}" for key, value in odbc_params.items())
-            )
-            engine = sa.create_engine(
-                f"mssql+pyodbc:///?odbc_connect={formatted_odbc_params}",
-                fast_executemany=False,
-            )
-    return engine
+            return engine
+        except sa.exc.InterfaceError as e:  
+            if driver == "{SQL Server}":
+                raise ValueError("Couldn't get this connection to work with any driver :(")
+            else:
+                pass
+
 
 
 def sqlite_engine(
@@ -111,6 +108,7 @@ def temp_table_connection(
 ):
     """Context manager to add temp table `frame` to temp `table` in `connectable` 
     `connectable` can be either an Engine or an existing Connection.
+    `frame` must be either a pandas DataFrame or a pandas Series.
     If using with MSSQL, connectable must point to tempdb, with executemany=True.
     And with MSSQL, table name must start with '##'!!!
     """
@@ -130,7 +128,9 @@ def temp_table_connection(
                         sql_format(i) for i in frame.to_records(index=False).tolist()
                     ]
             else:
-                row_list = frame
+                raise ValueError(
+                    f"Expected a DataFrame or Series but got a {type(frame)}!"
+                )
             rows = unpack([row for row in row_list])
             queries = [
                 f"DROP TABLE IF EXISTS {table}",
@@ -141,13 +141,34 @@ def temp_table_connection(
                 con.execute(query)
 
         elif con.dialect.name == "mssql":
+            # Relies on pandas to_sql() so need a DataFrame or Series 
+            if not (isinstance(frame, pd.Series) or isinstance(frame, pd.DataFrame)):
+                raise ValueError(
+                    f"Expected a DataFrame or Series but got a {type(frame)}!"
+                )
+            # Should only work with a connection where the database is "tempdb"
+            if not "tempdb" in str(con.engine):
+                raise ValueError(
+                    "Temp connections in SQL Server only work with tempdb as database!"
+                )
+            # Need table name to start with ##.
+            # Theoretically should also work with a single # table name (or no hash)
+            # ...this is working when testing against SQL Server 15 'Stats1' database
+            # ...but seems to be broken when testing against SQL Server 14 'PA1' database
+            # ...so stick to ## names to be on the safe side.
+            if not table.startswith("##"):
+                raise ValueError("Table name must start with '##' in SQL Server tempdb!")
+
             insp = sa.inspect(con)
             if table in insp.get_table_names(schema="dbo"):
                 con.execute(f"DROP TABLE {table}")
             frame.to_sql(
                 table, con=con, schema=schema, if_exists="replace", index=False,
             )
-
+        else:
+            raise ValueError(
+                f"This function is only implemented for mssql and sqlite, not {con.dialect.name}"
+            )
         yield con
 
         # Cleanup

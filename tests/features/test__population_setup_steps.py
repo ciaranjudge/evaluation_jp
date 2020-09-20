@@ -6,6 +6,7 @@ from evaluation_jp import (
     SetupStep,
     SetupSteps,
     LiveRegisterPopulation,
+    CustomerDetails,
     AgeEligible,
     ClaimCodeEligible,
     ClaimDurationEligible,
@@ -21,36 +22,9 @@ from evaluation_jp import (
     PopulationSliceDataParams,
     TreatmentPeriodID,
     TreatmentPeriodDataParams,
-    # EvaluationModel,
     DataHandler,
     SQLDataHandler,
 )
-
-
-# # TODO test__NearestKeyDict()
-
-
-def test__SetupStep(fixture__RandomPopulation):
-    results = fixture__RandomPopulation()
-    assert isinstance(results, SetupStep)
-
-
-def test__SetupSteps(fixture__RandomPopulation, fixture__SampleFromPopulation):
-    ss = SetupSteps([fixture__RandomPopulation(), fixture__SampleFromPopulation(0.1),])
-    results = ss.run()
-    assert results.shape == (10, 5)
-
-
-def test__SetupSteps_with_data_and_data_id(
-    fixture__random_date_range_df,
-    fixture__RandomPopulation,
-    fixture__SampleFromPopulation,
-):
-    ss = SetupSteps([fixture__RandomPopulation(), fixture__SampleFromPopulation(0.1),])
-    results = ss.run(
-        data_id={"date": pd.Timestamp("2016-04-01")}, data=fixture__random_date_range_df
-    )
-    assert results.shape == (10, 5)
 
 
 @pytest.fixture
@@ -83,6 +57,20 @@ def test__LiveRegisterPopulation(live_register_population, population_slice_id):
 
 
 # //TODO test__LiveRegisterPopulation__run_with_initial_data
+
+@pytest.mark.skip
+def test__CustomerDetails(live_register_population, population_slice_id):
+    customer_details = CustomerDetails(
+        lookup_columns=[
+            "client_gender",
+            "nationality_country_name",
+            "date_of_birth",
+            "entry_into_insurance_event_date",
+            "marriage_status_description",
+            "marriage_event_date",
+            "death_event_date",
+        ]
+    )
 
 
 @pytest.fixture

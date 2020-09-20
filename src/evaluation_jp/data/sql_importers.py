@@ -1,7 +1,8 @@
+from typing import List
+
 import pandas as pd
 
-
-from evaluation_jp.data.sql_utils import *
+from evaluation_jp.data.sql_utils import sqlserver_engine, temp_table_connection, unpack, sql_format
 
 
 def get_edw_customer_details(

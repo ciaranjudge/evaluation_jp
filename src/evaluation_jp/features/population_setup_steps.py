@@ -1,67 +1,20 @@
 # %%
-import abc
-from dataclasses import dataclass, field
-from typing import ClassVar, List, Set, Dict, Tuple, Optional
+from dataclasses import dataclass
+from typing import List, Dict
 
 import numpy as np
 import pandas as pd
-from tqdm import tqdm
-
-from evaluation_jp import get_ists_claims, get_les_data, get_jobpath_data, ColumnsByType
 
 
-def dates_between_durations(
-    dates: pd.Series,
-    ref_date: pd.Timestamp,
-    min_duration: pd.DateOffset = None,
-    max_duration: pd.DateOffset = None,
-) -> pd.Series:
-    """Return boolean series for records with dates between specified limits.
-    True if `min_duration` < (`ref_date` - `date`) < `max_duration`, False otherwise.
-    Assume all dates are in the past.
-    """
-    if min_duration:
-        latest_possible_date = ref_date - min_duration
-        # If duration is longer, date must be earlier!
-        ge_min_duration = dates <= latest_possible_date
-    else:
-        ge_min_duration = pd.Series(data=True, index=dates.index)
-
-    if max_duration:
-        earliest_possible_date = ref_date - max_duration
-        # If duration is longer, date must be earlier!
-        lt_max_duration = earliest_possible_date < dates
-    else:
-        lt_max_duration = pd.Series(data=True, index=dates.index)
-
-    return ge_min_duration & lt_max_duration
-
-
-@dataclass
-class SetupStep(abc.ABC):
-    # Parameters
-
-    # Setup method
-    @abc.abstractmethod
-    def run(self, data_id=None, data=None):
-        """Do something and return data"""
-        pass
-
-
-# //TODO Check if should inherit from SetupStep
-@dataclass
-class SetupSteps:
-    """Ordered sequence of setup steps, each represented by a dataclass
-    Each dataclass should have a run(data) method
-    """
-
-    steps: List[SetupStep]
-
-    def run(self, data_id=None, data: pd.DataFrame = None):
-        for step in self.steps:
-            data = step.run(data_id, data=data)
-
-        return data
+from evaluation_jp import (
+    ColumnsByType,
+    SetupStep,
+    dates_between_durations,
+    get_ists_claims,
+    get_les_data,
+    get_jobpath_data,
+    get_edw_customer_details,
+)
 
 
 @dataclass
@@ -100,6 +53,20 @@ class LiveRegisterPopulation(SetupStep):
         )
 
         return data
+
+
+@dataclass
+class CustomerDetails(SetupStep):
+    lookup_columns: List = None
+
+    def run(self, data_id, data):
+
+        customer_details = get_edw_customer_details(
+            ppsns_to_lookup=data.index.to_series(),
+            lookup_columns=self.lookup_columns,
+            reference_date=data_id.reference_date(),
+        )
+        return customer_details
 
 
 @dataclass
@@ -210,7 +177,7 @@ class OnLES(SetupStep):
     """Given a data_id and data, return True for every record on LES on data_id reference date
     """
 
-    assumed_episode_length: Dict[str, int] 
+    assumed_episode_length: Dict[str, int]
     how: str = None  # Can be "start" or "end" for periods. Leave as None for slices.
 
     def run(self, data_id, data):
