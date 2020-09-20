@@ -84,6 +84,20 @@ def get_earnings_contributions_data(
 # //TODO Data cleaning for earnings data 
 
 
+# earn = pd.read_csv('\\\\cskma0294\\F\\HC\\anon_earn_sample.zip') 
+
+
+# #Exclude less than 2 working weeks per year and less than 500/year income 
+# earn = earn[earn['NO_OF_CONS'] >= 2] 
+# earn = earn[earn['EARNINGS_AMT'] > 500] 
+
+# #If numer of contriubtions is greater than 53, set equal to 53, exclude class S and M 
+# earn.loc[earn['NO_OF_CONS'] > 53, 'NO_OF_CONS'] = 53 
+# earn = earn[~earn['CONS_CLASS_CODE'].str.contains('S')] 
+# earn = earn[~earn['CONS_CLASS_CODE']]
+
+
+
 # * Separately look up deceased status from SCD table
 # death_event_date
 
