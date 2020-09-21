@@ -176,7 +176,7 @@ class SQLDataHandler(DataHandler):
             raise EmptyDataError
 
         if use_index:
-            sqldata.reset_index()
+            sqldata = sqldata.reset_index()
 
         for col in data.columns:
             if "period" in str(data[col].dtype):
