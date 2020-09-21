@@ -7,7 +7,6 @@ from urllib import parse
 
 # External packages
 import pandas as pd
-import pyodbc
 import sqlalchemy as sa
 
 
@@ -18,29 +17,30 @@ def is_number(s):
     except ValueError:
         return False
 
-
 def sql_format(thing):
-    if isinstance(thing, tuple):
-        return tuple([sql_format(item) for item in thing])
-    elif is_number(thing):
+    if is_number(thing):
         return thing
     elif isinstance(thing, datetime):
-        return f"{str(thing.date())}"
+        return thing.date()
     else:
-        return f"{str(thing)}"
+        return str(thing)
+
+
+def sql_clause_format(thing):
+    if is_number(thing):
+        return thing
+    else:
+        return f"'{thing}'"
 
 
 def sql_where_clause_from_dict(dictionary):
-    """Generate WHERE or AND SQL clause from a dictionary.
-    Assumes dictionary items are already in sql_format.
-    """
     where_clause = ""
     first = True
     for key, value in dictionary.items():
         if first:
-            where_clause += f"WHERE {key} = {value}"
+            where_clause += f"WHERE {key} = {sql_clause_format(value)}"
         else:
-            where_clause += f"\n    AND {key} = {value}"
+            where_clause += f"\n    AND {key} = {sql_clause_format(value)}"
         first = False
     return where_clause
 
@@ -65,10 +65,10 @@ def sqlserver_engine(
         "TRUSTED_CONNECTION": "YES",
     }
     best_to_worst_driver_fast_executemany_combos = [
-        ("{ODBC Driver 17 for SQL Server}", True), 
-        ("{ODBC Driver 13 for SQL Server}", True), 
-        ("{ODBC Driver 11 for SQL Server}", True), 
-        ("{SQL Server}", False)
+        ("{ODBC Driver 17 for SQL Server}", True),
+        ("{ODBC Driver 13 for SQL Server}", True),
+        ("{ODBC Driver 11 for SQL Server}", True),
+        ("{SQL Server}", False),
     ]
     for driver, fast_executemany in best_to_worst_driver_fast_executemany_combos:
         try:
@@ -82,12 +82,13 @@ def sqlserver_engine(
             )
             engine.connect()
             return engine
-        except sa.exc.InterfaceError as e:  
+        except sa.exc.InterfaceError as e:
             if driver == "{SQL Server}":
-                raise ValueError("Couldn't get this connection to work with any driver :(")
+                raise ValueError(
+                    "Couldn't get this connection to work with any driver :("
+                )
             else:
                 pass
-
 
 
 def sqlite_engine(
@@ -141,7 +142,7 @@ def temp_table_connection(
                 con.execute(query)
 
         elif con.dialect.name == "mssql":
-            # Relies on pandas to_sql() so need a DataFrame or Series 
+            # Relies on pandas to_sql() so need a DataFrame or Series
             if not (isinstance(frame, pd.Series) or isinstance(frame, pd.DataFrame)):
                 raise ValueError(
                     f"Expected a DataFrame or Series but got a {type(frame)}!"
@@ -157,7 +158,9 @@ def temp_table_connection(
             # ...but seems to be broken when testing against SQL Server 14 'PA1' database
             # ...so stick to ## names to be on the safe side.
             if not table.startswith("##"):
-                raise ValueError("Table name must start with '##' in SQL Server tempdb!")
+                raise ValueError(
+                    "Table name must start with '##' in SQL Server tempdb!"
+                )
 
             insp = sa.inspect(con)
             if table in insp.get_table_names(schema="dbo"):

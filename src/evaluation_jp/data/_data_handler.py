@@ -8,8 +8,7 @@ from pathlib import Path
 # External packages
 import pandas as pd
 from pandas.errors import EmptyDataError
-
-# import pyodbc
+import pysnooper
 import sqlalchemy as sa
 
 # Local packages
@@ -121,7 +120,8 @@ class SQLDataHandler(DataHandler):
                 raise DataNotFoundError
         else:
             raise TableNotFoundError
-
+    
+    @pysnooper.snoop()
     def _delete(self, table_name, sql_data_id=None):
         # If the table exists, delete any previous rows with this data_id
         if self.table_exists(table_name):
