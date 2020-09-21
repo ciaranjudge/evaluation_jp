@@ -36,7 +36,6 @@ def live_register_population():
                 "clm_comm_date": "datetime64",
                 "JobPath_Flag": "boolean",
                 "JobPathHold": "boolean",
-                "date_of_birth": "datetime64",
             },
             index_columns_by_type={"ppsn": str},
         )
@@ -53,13 +52,16 @@ def test__LiveRegisterPopulation(live_register_population, population_slice_id):
     """
     results = live_register_population.run(data_id=population_slice_id)
     print(results.describe(include="all").T)
-    assert results.shape == (321373, 5)
+    assert results.shape == (321373, 4)
 
 
 # //TODO test__LiveRegisterPopulation__run_with_initial_data
 
-@pytest.mark.skip
+
 def test__CustomerDetails(live_register_population, population_slice_id):
+
+    data = live_register_population.run(data_id=population_slice_id)
+
     customer_details = CustomerDetails(
         lookup_columns=[
             "client_gender",
@@ -69,8 +71,22 @@ def test__CustomerDetails(live_register_population, population_slice_id):
             "marriage_status_description",
             "marriage_event_date",
             "death_event_date",
-        ]
+        ],
+        data_not_found_col="customer_data_not_found",
     )
+    results = customer_details.run(
+        data_id=PopulationSliceID(date=pd.Timestamp("2016-01-01")), data=data
+    )
+
+    assert set(results.columns) == (
+        set(data.columns)
+        | set(customer_details.lookup_columns)
+        | set([customer_details.data_not_found_col,])
+    )
+    assert dict(results[customer_details.data_not_found_col].value_counts()) == {
+        False: 321338,
+        True: 35,
+    }
 
 
 @pytest.fixture
@@ -135,7 +151,7 @@ def test__OnLES(live_register_population, population_slice_id):
         data=live_register_population.run(population_slice_id),
     )
     # Only 1 person in Dec 2015 LR is on the LES file for start of 2016!
-    assert results.loc[results["on_les"]].shape == (1, 6)
+    assert results.loc[results["on_les"]].shape == (1, 5)
 
 
 def test__OnJobPath(live_register_population):
@@ -145,7 +161,7 @@ def test__OnJobPath(live_register_population):
     psid = PopulationSliceID(date=pd.Timestamp("2016-02-01"))
     results = eligible.run(data_id=psid, data=live_register_population.run(psid))
     # Manually check number of people on JobPath at start of Feb 2016 == 1441
-    assert results.loc[results["on_jobpath"]].shape == (1441, 6)
+    assert results.loc[results["on_jobpath"]].shape == (1441, 5)
 
 
 # //TODO Add test__OnJobPath__ists_only

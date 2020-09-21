@@ -10,6 +10,7 @@ from evaluation_jp import (
     ColumnsByType,
     SetupStep,
     dates_between_durations,
+    get_edw_customer_details,
     get_ists_claims,
     get_les_data,
     get_jobpath_data,
@@ -58,6 +59,7 @@ class LiveRegisterPopulation(SetupStep):
 @dataclass
 class CustomerDetails(SetupStep):
     lookup_columns: List = None
+    data_not_found_col: str = "customer_data_not_found"
 
     def run(self, data_id, data):
 
@@ -66,7 +68,19 @@ class CustomerDetails(SetupStep):
             lookup_columns=self.lookup_columns,
             reference_date=data_id.reference_date(),
         )
-        return customer_details
+        # Merge data with customer_details - make sure index is still ok
+        augmented_data = pd.merge(
+            data,
+            customer_details.set_index("ppsn"),
+            how="left",
+            left_index=True,
+            right_index=True,
+        )
+        # Find missing EDW records and add "insufficient_data" flag
+        augmented_data[self.data_not_found_col] = np.where(
+            augmented_data["client_gender"].isnull(), True, False
+        )
+        return augmented_data
 
 
 @dataclass

@@ -1,6 +1,6 @@
 # Standard library
 from datetime import datetime
-from typing import List, Union
+from typing import List
 from contextlib import contextmanager
 from pathlib import Path
 from urllib import parse
@@ -17,7 +17,11 @@ def is_number(s):
     except ValueError:
         return False
 
+
 def sql_format(thing):
+    """Tiny function to create SQL-friendly versions of objects.
+    Use in conjunction with sql_quote() if passing sql_format()-ed objects to queries!
+    """
     if is_number(thing):
         return thing
     elif isinstance(thing, datetime):
@@ -26,7 +30,9 @@ def sql_format(thing):
         return str(thing)
 
 
-def sql_clause_format(thing):
+def sql_quote(thing):
+    """Tiny function to ensure that non-numeric variables get put in quotes inside SQL query strings.
+    """
     if is_number(thing):
         return thing
     else:
@@ -38,9 +44,9 @@ def sql_where_clause_from_dict(dictionary):
     first = True
     for key, value in dictionary.items():
         if first:
-            where_clause += f"WHERE {key} = {sql_clause_format(value)}"
+            where_clause += f"WHERE {key} = {sql_quote(value)}"
         else:
-            where_clause += f"\n    AND {key} = {sql_clause_format(value)}"
+            where_clause += f"\n    AND {key} = {sql_quote(value)}"
         first = False
     return where_clause
 
@@ -82,7 +88,7 @@ def sqlserver_engine(
             )
             engine.connect()
             return engine
-        except sa.exc.InterfaceError as e:
+        except sa.exc.InterfaceError:
             if driver == "{SQL Server}":
                 raise ValueError(
                     "Couldn't get this connection to work with any driver :("
@@ -119,14 +125,17 @@ def temp_table_connection(
         # Setup
         if con.dialect.name == "sqlite":
             if isinstance(frame, pd.Series):
-                row_list = [f"({sql_format(i)})" for i in list(frame)]
+                row_list = [f"({sql_quote(sql_format(i))})" for i in list(frame)]
             elif isinstance(frame, pd.DataFrame):
                 if len(frame.columns) == 1:
-                    row_list = [f"({sql_format(i)})" for i in list(frame.squeeze())]
+                    row_list = [
+                        f"({sql_quote(sql_format(i))})" for i in list(frame.squeeze())
+                    ]
                 else:
                     print("multi column df")
                     row_list = [
-                        sql_format(i) for i in frame.to_records(index=False).tolist()
+                        sql_quote(sql_format(i))
+                        for i in frame.to_records(index=False).tolist()
                     ]
             else:
                 raise ValueError(

@@ -10,6 +10,4 @@ from .data._wwld_importers import *
 
 from .features.population_setup_steps import *
 
-from .models._evaluation_model import *
-
 
