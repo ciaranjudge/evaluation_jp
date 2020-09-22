@@ -15,6 +15,7 @@ from evaluation_jp import (
     JobPathStartedEndedSamePeriod,
     EligiblePopulation,
     JobPathStarts,
+    JobPathReferrals,
     EvaluationGroup,
     StartingPopulation,
     ColumnsByType,
@@ -327,6 +328,18 @@ def test__JobPathStarts(population_slice_data_params):
     # Apparently 1336 people started JobPath in Jan 2016
     assert len(results[results["jobpath_starts"]]) == 1336
 
+def test__JobPathReferrals(population_slice_data_params):
+    population_slice_id = PopulationSliceID(date=pd.Timestamp("2016-01-01"))
+    population_slice_data = population_slice_data_params.setup_steps(
+        population_slice_id
+    ).run(population_slice_id)
+    treatment_period_id = TreatmentPeriodID(
+        population_slice=population_slice_id, time_period=pd.Period("2016-01")
+    )
+    jobpath_referrals = JobPathReferrals()
+    results = jobpath_referrals.run(treatment_period_id, population_slice_data)
+    print(results['jobpath_referral'].value_counts())
+    assert len(results[results["jobpath_referral"]]) < 3522
 
 def test__EvaluationGroup():
     data = pd.DataFrame(
