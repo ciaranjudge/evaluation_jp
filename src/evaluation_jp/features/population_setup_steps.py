@@ -117,8 +117,7 @@ class AgeEligible(SetupStep):
 
 @dataclass
 class ClaimCodeEligible(SetupStep):
-    """Add bool "claim_code_eligible" col to `data`. True if `code_col` in `eligible codes`, False otherwise
-    """
+    """Add bool "claim_code_eligible" col to `data`. True if `code_col` in `eligible codes`, False otherwise"""
 
     code_col: str
     eligible_codes: list = None
@@ -171,8 +170,7 @@ def open_episodes_on_ref_date(
     end_date_col="end_date",
     id_cols=None,
 ):
-    """Given dataframe of `episodes`, return boolean series for all episodes open on ref_date
-    """
+    """Given dataframe of `episodes`, return boolean series for all episodes open on ref_date"""
     episodes["open_on_ref_date"] = (episodes[start_date_col] <= ref_date) & (
         ref_date <= episodes[end_date_col]
     )
@@ -188,8 +186,7 @@ def open_episodes_on_ref_date(
 
 @dataclass
 class OnLES(SetupStep):
-    """Given a data_id and data, return True for every record on LES on data_id reference date
-    """
+    """Given a data_id and data, return True for every record on LES on data_id reference date"""
 
     assumed_episode_length: Dict[str, int]
     how: str = None  # Can be "start" or "end" for periods. Leave as None for slices.
@@ -200,7 +197,9 @@ class OnLES(SetupStep):
             **self.assumed_episode_length
         )
         open_episodes = open_episodes_on_ref_date(
-            episodes=les, ref_date=data_id.reference_date(self.how), id_cols="ppsn",
+            episodes=les,
+            ref_date=data_id.reference_date(self.how),
+            id_cols="ppsn",
         )
         out_colname = f"on_les_at_{self.how}" if self.how else "on_les"
         data[out_colname] = (
@@ -404,15 +403,21 @@ class JobPathStarts(SetupStep):
             data["jobpath_starts"] = operational_jobpath_starts | ists_jobpath_starts
 
         return data
+
+
 # //TODO add test for JobPath referral
 @dataclass
 class JobPathReferrals(SetupStep):
-    
+    time_since_referral: pd.DateOffset = pd.DateOffset(months=1)
+    started_after_referral:
+
     def run(self, data_id, data):
         start = data_id.reference_date(how="start")
         end = data_id.reference_date(how="end")
 
-        jobpath_operational = get_jobpath_data(columns=["referral_date"])
+        jobpath_operational = get_jobpath_data(
+            columns=["referral_date", "jobpath_start_date"]
+        )
         referred = jobpath_operational[
             jobpath_operational["referral_date"].between(start, end)
         ]
@@ -428,11 +433,9 @@ class JobPathReferrals(SetupStep):
             .reindex(data.index)
             .fillna(False)
         )
-    
+
         data["jobpath_referral"] = operational_jobpath_referrals
         return data
-
-
 
 
 @dataclass
