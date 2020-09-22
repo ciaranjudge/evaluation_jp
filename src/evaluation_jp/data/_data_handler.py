@@ -8,7 +8,6 @@ from pathlib import Path
 # External packages
 import pandas as pd
 from pandas.errors import EmptyDataError
-import pysnooper
 import sqlalchemy as sa
 
 # Local packages
@@ -111,8 +110,8 @@ class SQLDataHandler(DataHandler):
             data = pd.read_sql(
                 query,
                 con=self.engine,
-                parse_dates=data_params.columns_by_type.datetime_all_columns,
-                index_col=data_params.columns_by_type.index_columns,
+                parse_dates=list(data_params.columns_by_type.datetime_all_columns),
+                index_col=list(data_params.columns_by_type.index_columns),
             ).drop(list(sql_data_id), axis="columns")
             if not data.empty:
                 return data_params.columns_by_type.set_datatypes(data)
@@ -121,7 +120,6 @@ class SQLDataHandler(DataHandler):
         else:
             raise TableNotFoundError
     
-    @pysnooper.snoop()
     def _delete(self, table_name, sql_data_id=None):
         # If the table exists, delete any previous rows with this data_id
         if self.table_exists(table_name):

@@ -5,6 +5,9 @@ import pandas as pd
 from evaluation_jp.data.sql_utils import sql_quote, sqlserver_engine, temp_table_connection, unpack, sql_format
 
 
+# //TODO If can't find record for ppsn on specific date, try searching through all records for a match
+# Need to then also use the discovered customer_id to look up needed customer details on reference date
+
 def get_edw_customer_details(
     ppsns_to_lookup: pd.Series,
     ppsn_column_name: str = "ppsn",

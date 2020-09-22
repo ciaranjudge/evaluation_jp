@@ -22,8 +22,6 @@ from evaluation_jp import (
     PopulationSliceDataParams,
     TreatmentPeriodID,
     TreatmentPeriodDataParams,
-    DataHandler,
-    SQLDataHandler,
 )
 
 
@@ -198,7 +196,13 @@ def population_slice_data_params():
                 "JobPath_Flag": "boolean",
                 "clm_comm_date": "datetime64",
                 "lr_code": "category",
+                "client_gender": "category",
+                "nationality_country_name": "category",
                 "date_of_birth": "datetime64",
+                "entry_into_insurance_event_date": "datetime64",
+                "marriage_status_description": "category",
+                "marriage_event_date": "datetime64",
+                "death_event_date": "datetime64",
                 "age_eligible": "boolean",
                 "claim_code_eligible": "boolean",
                 "claim_duration_eligible": "boolean",
@@ -217,11 +221,22 @@ def population_slice_data_params():
                                 "lr_code": "category",
                                 "clm_comm_date": "datetime64",
                                 "JobPath_Flag": "boolean",
-                                "date_of_birth": "datetime64",
                                 "sex": "category",
                             },
                             index_columns_by_type={"ppsn": str},
                         )
+                    ),
+                    CustomerDetails(
+                        lookup_columns=[
+                            "client_gender",
+                            "nationality_country_name",
+                            "date_of_birth",
+                            "entry_into_insurance_event_date",
+                            "marriage_status_description",
+                            "marriage_event_date",
+                            "death_event_date",
+                        ],
+                        data_not_found_col="customer_data_not_found",
                     ),
                     AgeEligible(
                         date_of_birth_col="date_of_birth", max_eligible={"years": 60}
@@ -258,7 +273,7 @@ def test__all_SetupSteps__PopulationSlice(population_slice_data_params):
     )
     # Manually check how many people are on LR and eligible for June 2016
     assert len(results) == 315654
-    assert len(results[results["eligible_population"]]) == 86240
+    assert len(results[results["eligible_population"]]) == 86227
 
 
 # # def test__all_SetupSteps_for_EvaluationModel_population_slices(

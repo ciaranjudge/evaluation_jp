@@ -10,6 +10,11 @@ import pandas as pd
 import sqlalchemy as sa
 
 
+
+def unpack(listlike):
+    return ", ".join([str(i) for i in listlike])
+
+
 def is_number(s):
     try:
         float(str(s))
@@ -22,7 +27,9 @@ def sql_format(thing):
     """Tiny function to create SQL-friendly versions of objects.
     Use in conjunction with sql_quote() if passing sql_format()-ed objects to queries!
     """
-    if is_number(thing):
+    if isinstance(thing, tuple):
+        return tuple(sql_format(item) for item in thing)
+    elif is_number(thing):
         return thing
     elif isinstance(thing, datetime):
         return thing.date()
@@ -33,7 +40,9 @@ def sql_format(thing):
 def sql_quote(thing):
     """Tiny function to ensure that non-numeric variables get put in quotes inside SQL query strings.
     """
-    if is_number(thing):
+    if isinstance(thing, tuple):
+        return f"({', '.join([str(sql_quote(item)) for item in thing])})"
+    elif is_number(thing):
         return thing
     else:
         return f"'{thing}'"
@@ -51,8 +60,19 @@ def sql_where_clause_from_dict(dictionary):
     return where_clause
 
 
-def unpack(listlike):
-    return ", ".join([str(i) for i in listlike])
+
+
+def get_sql_data_id(data_id=None):
+    """Create id column for each element of a data_id, to allow SQL queries to find data with that ID.
+    """
+    if data_id is not None:
+        return {
+            f"data_id_{k}": sql_format(v)
+            for k, v in data_id.as_flattened_dict().items()
+        }
+    else:
+        return {}
+
 
 
 def sqlserver_engine(
@@ -233,14 +253,4 @@ def where_and():
             yield "AND"
 
 
-def get_sql_data_id(data_id=None):
-    """Create id column for each element of a data_id, to allow SQL queries to find data with that ID.
-    """
-    if data_id is not None:
-        return {
-            f"data_id_{k}": sql_format(v)
-            for k, v in data_id.as_flattened_dict().items()
-        }
-    else:
-        return {}
 

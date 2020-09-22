@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import List
 
 import pandas as pd
+from tqdm.autonotebook import tqdm
 
 @dataclass
 class SetupStep(abc.ABC):
@@ -26,7 +27,7 @@ class SetupSteps:
     steps: List[SetupStep]
 
     def run(self, data_id=None, data: pd.DataFrame = None):
-        for step in self.steps:
+        for step in tqdm(self.steps):
             data = step.run(data_id, data=data)
 
         return data
