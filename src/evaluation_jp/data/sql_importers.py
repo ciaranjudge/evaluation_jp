@@ -1,7 +1,8 @@
+from typing import List
+
 import pandas as pd
 
-
-from evaluation_jp.data.sql_utils import *
+from evaluation_jp.data.sql_utils import sql_quote, sqlserver_engine, temp_table_connection, unpack, sql_format
 
 
 def get_edw_customer_details(
@@ -19,7 +20,7 @@ def get_edw_customer_details(
     edw_schema = "edw"
     tempdb_engine = sqlserver_engine("CSKMA0400\\STATS1", "tempdb")
     with temp_table_connection(
-        tempdb_engine, ppsns_to_lookup, "ppsn_table"
+        tempdb_engine, ppsns_to_lookup, "##ppsn_table"
     ) as temp_table_con:
         query_columns = (
             unpack([f"edw.{col}" for col in lookup_columns])
@@ -27,12 +28,12 @@ def get_edw_customer_details(
             else "edw.*"
         )
         edw_table_query = f"""\
-            SELECT  ppsn_table.{ppsn_column_name}, {query_columns}
-            FROM    ppsn_table
+            SELECT  ##ppsn_table.{ppsn_column_name}, {query_columns}
+            FROM    ##ppsn_table
                     INNER JOIN {edw_database}.{edw_schema}.dim_customer_details AS edw
-                            ON ppsn_table.{ppsn_column_name} = edw.pps_no 
-            WHERE   edw.scd_start_date <= {sql_clause_format(reference_date)}
-            AND     {sql_clause_format(reference_date)} <= edw.scd_end_date
+                            ON ##ppsn_table.{ppsn_column_name} = edw.pps_no 
+            WHERE   edw.scd_start_date <= {sql_quote(sql_format(reference_date))}
+            AND     {sql_quote(sql_format(reference_date))} <= edw.scd_end_date
         """
         return pd.read_sql(edw_table_query, temp_table_con)
 
@@ -72,7 +73,7 @@ def get_earnings_contributions_data(
                         ON abstract_cons.contribution_year_id = concrete_cons.contribution_year_id
             WHERE   ##id_table.customer_id IS NOT NULL
             AND     concrete_cons.valid_return = 1
-            {f'AND  {start_year} <= abstract_cons.year' if start_year is not None else ''}
+            {f'AND  {(start_year)} <= abstract_cons.year' if start_year is not None else ''}
             {f'AND  abstract_cons.year <=  {end_year}' if end_year is not None else ''}
             AND     concrete_cons.valid_return = 1
             ORDER BY {ppsn_column_name}, year  
@@ -81,6 +82,20 @@ def get_earnings_contributions_data(
 
 
 # //TODO Data cleaning for earnings data 
+
+
+# earn = pd.read_csv('\\\\cskma0294\\F\\HC\\anon_earn_sample.zip') 
+
+
+# #Exclude less than 2 working weeks per year and less than 500/year income 
+# earn = earn[earn['NO_OF_CONS'] >= 2] 
+# earn = earn[earn['EARNINGS_AMT'] > 500] 
+
+# #If numer of contriubtions is greater than 53, set equal to 53, exclude class S and M 
+# earn.loc[earn['NO_OF_CONS'] > 53, 'NO_OF_CONS'] = 53 
+# earn = earn[~earn['CONS_CLASS_CODE'].str.contains('S')] 
+# earn = earn[~earn['CONS_CLASS_CODE']]
+
 
 
 # * Separately look up deceased status from SCD table

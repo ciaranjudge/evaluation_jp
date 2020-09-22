@@ -77,8 +77,9 @@ def test__temp_table_connection__sqlserver_small(tmpdir, df_100_x_4):
 
     df = df_100_x_4
 
-    with temp_table_connection(engine, df, "test_table") as con:
-        results = pd.read_sql_table("test_table", con)
+    with temp_table_connection(engine, df, "##test_table") as con:
+        query = """select * from ##test_table"""
+        results = pd.read_sql(query, con)
     
     assert_frame_equal(df.describe(), results.describe())
 
@@ -92,15 +93,16 @@ def test__temp_table_connection__sqlserver_big(tmpdir, df_100000_x_4):
 
     df = df_100000_x_4
 
-    with temp_table_connection(engine, df, "test_table") as con:
-        results = pd.read_sql_table("test_table", con)
+    with temp_table_connection(engine, df, "##test_table") as con:
+        query = """select * from ##test_table"""
+        results = pd.read_sql(query, con)
     
     print(results.describe())
     print(df.describe())
     assert_frame_equal(df.describe(), results.describe())
 
 
-def test__temp_table_connection__sqlserver_small_sql_query(tmpdir, df_100_x_4):
+def test__temp_table_connection__sqlserver_small_PA1(tmpdir, df_100_x_4):
     server = "CSGPC-BPRD-SQ06\\PA1"
     database = "tempdb"
 

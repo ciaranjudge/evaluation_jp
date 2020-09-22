@@ -6,13 +6,16 @@ from IPython.display import display
 import numpy as np
 import pandas as pd
 from pandas.testing import assert_frame_equal
-import pyodbc
+import pysnooper
 import pytest
 import sqlalchemy as sa
 
 from evaluation_jp import (
     ColumnsByType,
+    NearestKeyDict,
     DataParams,
+    sqlite_engine,
+    sqlserver_engine,
     SQLDataHandler,
     populate,
     NearestKeyDict,
@@ -23,8 +26,8 @@ from evaluation_jp import (
     TreatmentPeriodID,
     TreatmentPeriodDataParams,
 )
-from evaluation_jp.data.sql_utils import *
-from evaluation_jp.features.nearest_key_dict import NearestKeyDict
+
+
 
 
 class NoIndexTestStep(SetupStep):
@@ -94,8 +97,10 @@ def test__SQLDataHandler__init(tmpdir, sql_dialect):
     """
     if sql_dialect == "sqlite":
         engine = sqlite_engine(tmpdir, "test_db")
-    if sql_dialect == "mssql":
+    elif sql_dialect == "mssql":
         engine = sqlserver_engine("CSKMA0400\\STATS1", "tempdb")
+    else:
+        raise ValueError("Test only implemented for sqlite and mssql!")
 
     data_handler = SQLDataHandler(engine=engine, model_schema="test_schema")
 
@@ -128,10 +133,12 @@ def test__DataHandler__write_new(tmpdir, sql_dialect, data_params, data_id):
         engine = sqlite_engine(tmpdir, "test")
         sql_table_name = f"{schema}.{data_params.table_name}"
         sql_schema = "main"
-    if sql_dialect == "mssql":
+    elif sql_dialect == "mssql":
         engine = sqlserver_engine("CSKMA0400\\STATS1", "tempdb")
         sql_table_name = data_params.table_name
         sql_schema = schema
+    else:
+        raise ValueError("Test only implemented for sqlite and mssql!")
 
     with engine.connect() as con:
         # Setup
@@ -170,10 +177,12 @@ def test__DataHandler__write_overwrite__PopulationSlice__with_data_id__no_index(
         engine = sqlite_engine(tmpdir, "test")
         sql_table_name = f"{schema}.{data_params.table_name}"
         sql_schema = "main"
-    if sql_dialect == "mssql":
+    elif sql_dialect == "mssql":
         engine = sqlserver_engine("CSKMA0400\\STATS1", "tempdb")
         sql_table_name = data_params.table_name
         sql_schema = schema
+    else:
+        raise ValueError("Test only implemented for sqlite and mssql!")
 
     with engine.connect() as con:
         # Setup data_handler
@@ -215,8 +224,10 @@ def test__DataHandler__read_existing__PopulationSlice__with_data_id__no_index(
 
     if sql_dialect == "sqlite":
         engine = sqlite_engine(tmpdir, "test")
-    if sql_dialect == "mssql":
+    elif sql_dialect == "mssql":
         engine = sqlserver_engine("CSKMA0400\\STATS1", "tempdb")
+    else:
+        raise ValueError("Test only implemented for sqlite and mssql!")
 
     with engine.connect() as con:
         # Setup
@@ -250,6 +261,7 @@ def test__populate__no_data_handler():
 # @pytest.mark.parametrize("data_params", "data_id", "init_data")
 # @pytest.mark.parametrize("rebuild", [True, False])
 # @pytest.mark.parametrize("overwrites")
+@pytest.mark.skip
 @pytest.mark.parametrize("sql_dialect", ["sqlite", "mssql", "no_database"])
 def test__populate(tmpdir, sql_dialect):
     data_params = population_slice_data_params
