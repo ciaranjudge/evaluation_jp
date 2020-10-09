@@ -6,6 +6,7 @@ from evaluation_jp import (
     SetupStep,
     SetupSteps,
     LiveRegisterPopulation,
+    CustomerDetails,
     AgeEligible,
     ClaimCodeEligible,
     ClaimDurationEligible,
@@ -21,36 +22,7 @@ from evaluation_jp import (
     PopulationSliceDataParams,
     TreatmentPeriodID,
     TreatmentPeriodDataParams,
-    # EvaluationModel,
-    DataHandler,
-    SQLDataHandler,
 )
-
-
-# # TODO test__NearestKeyDict()
-
-
-def test__SetupStep(fixture__RandomPopulation):
-    results = fixture__RandomPopulation()
-    assert isinstance(results, SetupStep)
-
-
-def test__SetupSteps(fixture__RandomPopulation, fixture__SampleFromPopulation):
-    ss = SetupSteps([fixture__RandomPopulation(), fixture__SampleFromPopulation(0.1),])
-    results = ss.run()
-    assert results.shape == (10, 5)
-
-
-def test__SetupSteps_with_data_and_data_id(
-    fixture__random_date_range_df,
-    fixture__RandomPopulation,
-    fixture__SampleFromPopulation,
-):
-    ss = SetupSteps([fixture__RandomPopulation(), fixture__SampleFromPopulation(0.1),])
-    results = ss.run(
-        data_id={"date": pd.Timestamp("2016-04-01")}, data=fixture__random_date_range_df
-    )
-    assert results.shape == (10, 5)
 
 
 @pytest.fixture
@@ -62,7 +34,6 @@ def live_register_population():
                 "clm_comm_date": "datetime64",
                 "JobPath_Flag": "boolean",
                 "JobPathHold": "boolean",
-                "date_of_birth": "datetime64",
             },
             index_columns_by_type={"ppsn": str},
         )
@@ -79,10 +50,41 @@ def test__LiveRegisterPopulation(live_register_population, population_slice_id):
     """
     results = live_register_population.run(data_id=population_slice_id)
     print(results.describe(include="all").T)
-    assert results.shape == (321373, 5)
+    assert results.shape == (321373, 4)
 
 
 # //TODO test__LiveRegisterPopulation__run_with_initial_data
+
+
+def test__CustomerDetails(live_register_population, population_slice_id):
+
+    data = live_register_population.run(data_id=population_slice_id)
+
+    customer_details = CustomerDetails(
+        lookup_columns=[
+            "client_gender",
+            "nationality_country_name",
+            "date_of_birth",
+            "entry_into_insurance_event_date",
+            "marriage_status_description",
+            "marriage_event_date",
+            "death_event_date",
+        ],
+        data_not_found_col="customer_data_not_found",
+    )
+    results = customer_details.run(
+        data_id=PopulationSliceID(date=pd.Timestamp("2016-01-01")), data=data
+    )
+
+    assert set(results.columns) == (
+        set(data.columns)
+        | set(customer_details.lookup_columns)
+        | set([customer_details.data_not_found_col,])
+    )
+    assert dict(results[customer_details.data_not_found_col].value_counts()) == {
+        False: 321338,
+        True: 35,
+    }
 
 
 @pytest.fixture
@@ -147,7 +149,7 @@ def test__OnLES(live_register_population, population_slice_id):
         data=live_register_population.run(population_slice_id),
     )
     # Only 1 person in Dec 2015 LR is on the LES file for start of 2016!
-    assert results.loc[results["on_les"]].shape == (1, 6)
+    assert results.loc[results["on_les"]].shape == (1, 5)
 
 
 def test__OnJobPath(live_register_population):
@@ -157,7 +159,7 @@ def test__OnJobPath(live_register_population):
     psid = PopulationSliceID(date=pd.Timestamp("2016-02-01"))
     results = eligible.run(data_id=psid, data=live_register_population.run(psid))
     # Manually check number of people on JobPath at start of Feb 2016 == 1441
-    assert results.loc[results["on_jobpath"]].shape == (1441, 6)
+    assert results.loc[results["on_jobpath"]].shape == (1441, 5)
 
 
 # //TODO Add test__OnJobPath__ists_only
@@ -194,7 +196,13 @@ def population_slice_data_params():
                 "JobPath_Flag": "boolean",
                 "clm_comm_date": "datetime64",
                 "lr_code": "category",
+                "client_gender": "category",
+                "nationality_country_name": "category",
                 "date_of_birth": "datetime64",
+                "entry_into_insurance_event_date": "datetime64",
+                "marriage_status_description": "category",
+                "marriage_event_date": "datetime64",
+                "death_event_date": "datetime64",
                 "age_eligible": "boolean",
                 "claim_code_eligible": "boolean",
                 "claim_duration_eligible": "boolean",
@@ -213,11 +221,22 @@ def population_slice_data_params():
                                 "lr_code": "category",
                                 "clm_comm_date": "datetime64",
                                 "JobPath_Flag": "boolean",
-                                "date_of_birth": "datetime64",
                                 "sex": "category",
                             },
                             index_columns_by_type={"ppsn": str},
                         )
+                    ),
+                    CustomerDetails(
+                        lookup_columns=[
+                            "client_gender",
+                            "nationality_country_name",
+                            "date_of_birth",
+                            "entry_into_insurance_event_date",
+                            "marriage_status_description",
+                            "marriage_event_date",
+                            "death_event_date",
+                        ],
+                        data_not_found_col="customer_data_not_found",
                     ),
                     AgeEligible(
                         date_of_birth_col="date_of_birth", max_eligible={"years": 60}
@@ -254,7 +273,7 @@ def test__all_SetupSteps__PopulationSlice(population_slice_data_params):
     )
     # Manually check how many people are on LR and eligible for June 2016
     assert len(results) == 315654
-    assert len(results[results["eligible_population"]]) == 86240
+    assert len(results[results["eligible_population"]]) == 86227
 
 
 # # def test__all_SetupSteps_for_EvaluationModel_population_slices(

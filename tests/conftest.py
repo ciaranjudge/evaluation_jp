@@ -1,3 +1,4 @@
+# Standard library
 from dataclasses import dataclass
 
 import numpy as np
@@ -7,17 +8,6 @@ import pytest
 from evaluation_jp import (
     SetupStep,
     SetupSteps,
-    LiveRegisterPopulation,
-    AgeEligible,
-    ClaimCodeEligible,
-    ClaimDurationEligible,
-    OnLES,
-    OnJobPath,
-    JobPathStartedEndedSamePeriod,
-    EligiblePopulation,
-    JobPathStarts,
-    EvaluationGroup,
-    StartingPopulation,
     PopulationSliceID,
     # PopulationSliceGenerator,
     # TreatmentPeriodGenerator,

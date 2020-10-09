@@ -7,7 +7,7 @@ import abc
 import pandas as pd
 
 # Local packages
-from evaluation_jp.features.nearest_key_dict import NearestKeyDict
+from evaluation_jp import NearestKeyDict
 
 
 def duplicated(item_list):
@@ -96,7 +96,6 @@ class ColumnsByType:
         return check_columns(set(self.index_columns), column_names)    
 
     def set_datatypes(self, data: pd.DataFrame):
-        self.check_data_column_names(data.columns)
         if not data.empty:
             for col, dtype in self.data_columns_by_type.items():
                 data[col] = data[col].astype(dtype)

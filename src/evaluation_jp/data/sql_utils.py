@@ -7,8 +7,72 @@ from urllib import parse
 
 # External packages
 import pandas as pd
-import pyodbc
 import sqlalchemy as sa
+
+
+
+def unpack(listlike):
+    return ", ".join([str(i) for i in listlike])
+
+
+def is_number(s):
+    try:
+        float(str(s))
+        return True
+    except ValueError:
+        return False
+
+
+def sql_format(thing):
+    """Tiny function to create SQL-friendly versions of objects.
+    Use in conjunction with sql_quote() if passing sql_format()-ed objects to queries!
+    """
+    if isinstance(thing, tuple):
+        return tuple(sql_format(item) for item in thing)
+    elif is_number(thing):
+        return thing
+    elif isinstance(thing, datetime):
+        return thing.date()
+    else:
+        return str(thing)
+
+
+def sql_quote(thing):
+    """Tiny function to ensure that non-numeric variables get put in quotes inside SQL query strings.
+    """
+    if isinstance(thing, tuple):
+        return f"({', '.join([str(sql_quote(item)) for item in thing])})"
+    elif is_number(thing):
+        return thing
+    else:
+        return f"'{thing}'"
+
+
+def sql_where_clause_from_dict(dictionary):
+    where_clause = ""
+    first = True
+    for key, value in dictionary.items():
+        if first:
+            where_clause += f"WHERE {key} = {sql_quote(value)}"
+        else:
+            where_clause += f"\n    AND {key} = {sql_quote(value)}"
+        first = False
+    return where_clause
+
+
+
+
+def get_sql_data_id(data_id=None):
+    """Create id column for each element of a data_id, to allow SQL queries to find data with that ID.
+    """
+    if data_id is not None:
+        return {
+            f"data_id_{k}": sql_format(v)
+            for k, v in data_id.as_flattened_dict().items()
+        }
+    else:
+        return {}
+
 
 
 def sqlserver_engine(
@@ -26,36 +90,31 @@ def sqlserver_engine(
         "DATABASE": database,
         "TRUSTED_CONNECTION": "YES",
     }
-    try:
-        formatted_odbc_params = parse.quote_plus(
-            ";".join(f"{key}={value}" for key, value in odbc_params.items())
-        )
-        engine = sa.create_engine(
-            f"mssql+pyodbc:///?odbc_connect={formatted_odbc_params}",
-            fast_executemany=True,
-        )
-        engine.connect()
-    except sa.exc.InterfaceError:  # Need to add the right error type here
+    best_to_worst_driver_fast_executemany_combos = [
+        ("{ODBC Driver 17 for SQL Server}", True),
+        ("{ODBC Driver 13 for SQL Server}", True),
+        ("{ODBC Driver 11 for SQL Server}", True),
+        ("{SQL Server}", False),
+    ]
+    for driver, fast_executemany in best_to_worst_driver_fast_executemany_combos:
         try:
-            odbc_params["DRIVER"] = "{ODBC Driver 13 for SQL Server}"
+            odbc_params["DRIVER"] = driver
             formatted_odbc_params = parse.quote_plus(
                 ";".join(f"{key}={value}" for key, value in odbc_params.items())
             )
             engine = sa.create_engine(
                 f"mssql+pyodbc:///?odbc_connect={formatted_odbc_params}",
-                fast_executemany=True,
+                fast_executemany=fast_executemany,
             )
             engine.connect()
-        except sa.exc.InterfaceError:  # Need to add the right error type here
-            odbc_params["DRIVER"] = "{SQL Server}"
-            formatted_odbc_params = parse.quote_plus(
-                ";".join(f"{key}={value}" for key, value in odbc_params.items())
-            )
-            engine = sa.create_engine(
-                f"mssql+pyodbc:///?odbc_connect={formatted_odbc_params}",
-                fast_executemany=False,
-            )
-    return engine
+            return engine
+        except sa.exc.InterfaceError:
+            if driver == "{SQL Server}":
+                raise ValueError(
+                    "Couldn't get this connection to work with any driver :("
+                )
+            else:
+                pass
 
 
 def sqlite_engine(
@@ -76,6 +135,7 @@ def temp_table_connection(
 ):
     """Context manager to add temp table `frame` to temp `table` in `connectable` 
     `connectable` can be either an Engine or an existing Connection.
+    `frame` must be either a pandas DataFrame or a pandas Series.
     If using with MSSQL, connectable must point to tempdb, with executemany=True.
     And with MSSQL, table name must start with '##'!!!
     """
@@ -84,9 +144,24 @@ def temp_table_connection(
     with connectable.connect() as con:
         # Setup
         if con.dialect.name == "sqlite":
-            rows = ", ".join(
-                [str(row) for row in frame.to_records(index=False).tolist()]
-            )
+            if isinstance(frame, pd.Series):
+                row_list = [f"({sql_quote(sql_format(i))})" for i in list(frame)]
+            elif isinstance(frame, pd.DataFrame):
+                if len(frame.columns) == 1:
+                    row_list = [
+                        f"({sql_quote(sql_format(i))})" for i in list(frame.squeeze())
+                    ]
+                else:
+                    print("multi column df")
+                    row_list = [
+                        sql_quote(sql_format(i))
+                        for i in frame.to_records(index=False).tolist()
+                    ]
+            else:
+                raise ValueError(
+                    f"Expected a DataFrame or Series but got a {type(frame)}!"
+                )
+            rows = unpack([row for row in row_list])
             queries = [
                 f"DROP TABLE IF EXISTS {table}",
                 f"CREATE TEMP TABLE {table}({', '.join(frame.columns)})",
@@ -96,13 +171,36 @@ def temp_table_connection(
                 con.execute(query)
 
         elif con.dialect.name == "mssql":
+            # Relies on pandas to_sql() so need a DataFrame or Series
+            if not (isinstance(frame, pd.Series) or isinstance(frame, pd.DataFrame)):
+                raise ValueError(
+                    f"Expected a DataFrame or Series but got a {type(frame)}!"
+                )
+            # Should only work with a connection where the database is "tempdb"
+            if not "tempdb" in str(con.engine):
+                raise ValueError(
+                    "Temp connections in SQL Server only work with tempdb as database!"
+                )
+            # Need table name to start with ##.
+            # Theoretically should also work with a single # table name (or no hash)
+            # ...this is working when testing against SQL Server 15 'Stats1' database
+            # ...but seems to be broken when testing against SQL Server 14 'PA1' database
+            # ...so stick to ## names to be on the safe side.
+            if not table.startswith("##"):
+                raise ValueError(
+                    "Table name must start with '##' in SQL Server tempdb!"
+                )
+
             insp = sa.inspect(con)
             if table in insp.get_table_names(schema="dbo"):
                 con.execute(f"DROP TABLE {table}")
             frame.to_sql(
                 table, con=con, schema=schema, if_exists="replace", index=False,
             )
-
+        else:
+            raise ValueError(
+                f"This function is only implemented for mssql and sqlite, not {con.dialect.name}"
+            )
         yield con
 
         # Cleanup
@@ -118,10 +216,6 @@ def get_col_list(engine, table_name, columns=None, required_columns=None):
     else:
         ok_columns = table_columns
     return [col for col in ok_columns if col not in ["index", "id"]]
-
-
-def unpack(listlike):
-    return ", ".join([str(i) for i in listlike])
 
 
 def get_parameterized_query(query_text, ids=None):
@@ -150,42 +244,6 @@ def datetime_cols(engine, table_name) -> List:
     return datetime_cols
 
 
-def is_number(s):
-    try:
-        float(str(s))
-        return True
-    except ValueError:
-        return False
-
-
-def sql_format(thing):
-    if is_number(thing):
-        return thing
-    elif isinstance(thing, datetime):
-        return thing.date()
-    else:
-        return str(thing)
-
-
-def sql_clause_format(thing):
-    if is_number(thing):
-        return thing
-    else:
-        return f"'{sql_format(thing)}'"
-
-
-def sql_where_clause_from_dict(dictionary):
-    where_clause = ""
-    first = True
-    for key, value in dictionary.items():
-        if first:
-            where_clause += f"WHERE {key} = {sql_clause_format(value)}"
-        else:
-            where_clause += f"\n    AND {key} = {sql_clause_format(value)}"
-        first = False
-    return where_clause
-
-
 def where_and():
     first = True
     while True:
@@ -195,14 +253,4 @@ def where_and():
             yield "AND"
 
 
-def get_sql_data_id(data_id=None):
-    """Create id column for each element of a data_id, to allow SQL queries to find data with that ID.
-    """
-    if data_id is not None:
-        return {
-            f"data_id_{k}": sql_format(v)
-            for k, v in data_id.as_flattened_dict().items()
-        }
-    else:
-        return {}
 
