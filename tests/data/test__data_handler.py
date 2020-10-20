@@ -78,8 +78,8 @@ class DummyDataParams(DataParams):
     table_name: ClassVar[str] = "dummy_data"
     setup_steps_by_date: NearestKeyDict
 
-    def setup_steps(self):
-        return self.setup_steps
+    def get_setup_steps(self):
+        return self.setup_steps_by_date(pd.Timestamp("2016-01-01"))
 
 
 dummy_data_params = DummyDataParams(

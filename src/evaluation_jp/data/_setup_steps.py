@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import List
 
 import pandas as pd
-from tqdm.autonotebook import tqdm
+from tqdm.notebook import tqdm
 
 @dataclass
 class SetupStep(abc.ABC):

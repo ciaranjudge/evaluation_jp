@@ -1,10 +1,11 @@
 # %%
 import calendar
+import collections
 import datetime as dt
 
 import dateutil.relativedelta as rd
-
 import pandas as pd
+
 
 # %%
 def nearest_lr_date(date: pd.Timestamp, how: str="previous") -> pd.Timestamp:
@@ -115,3 +116,112 @@ def lr_reporting_date(date: pd.Timestamp) -> dt.datetime:
 
     return reporting_date
 
+
+
+ # //TODO SW code list to SQL table
+ # Create pandas df from dict
+ # Write to SQL using df.to_sql()
+long_code_dict = {
+    "JA": "unemployment",
+    "SWAER": "other",
+    "CB": "family_children",
+    "BSCFA": "family_children",
+    "OPFP1": "family_children",
+    "JB": "unemployment",
+    "TLA": "education_training",
+    "SWA": "other",
+    "DA": "illness_disability",
+    "IB": "illness_disability",
+    "CARER": "family_children",
+    "BTW": "employment_supports",
+    "SLO": "education_training",
+    "FIS": "family_children",
+    "HHB": "other",
+    "INTN": "employment_supports",
+    "BTWFD": "family_children",
+    "DCA": "illness_disability",
+    "RCG": "other",
+    "WCG": "other",
+    "MAT": "family_children",
+    "DSBLP": "other",
+    "DPA": "other",
+    "INVP": "illness_disability",
+    "PRSI": "other",
+    "FARMA": "employment_supports",
+    "OIB": "illness_disability",
+    "PTJA": "employment_supports",
+    "GPC": "other",
+    "REDUN": "other",
+    "HHB1": "other",
+    "WCP": "other",
+    "GPNC": "other",
+    "PAT": "family_children",
+    "CARB": "other",
+    "WNCP": "other",
+    "SPC": "other",
+    "ABI": "other",
+    "SPNCP": "other",
+    "BPP": "other",
+    "OPFP2": "other",
+    "ECS": "other",
+    "DSBLG": "other",
+    "JOBSP": "other",
+    "HSB": "other",
+    "DRASC": "other",
+    "HAID": "other",
+    "PCB": "employment_supports",
+    "DWB": "other",
+    "WPG": "other",
+    "FF": "other",
+    "RA": "other",
+    "WPGNC": "other",
+    "DRASI": "other",
+    "MCS": "other",
+    "MEDC": "other",
+    "INSOL": "other",
+    "YESS": "employment_supports",
+    "DENB": "other",
+    "DB": "illness_disability",
+    "WSS": "employment_supports",
+    "DWA": "other",
+    "DRASD": "other",
+    "APB": "other",
+    "MEDSB": "other",
+    "UnkSc": "other",
+    "BG": "other",
+    "OPTB": "other",
+    "DRASN": "other",
+}
+
+
+
+
+
+def invert_long_dict(long_dict):
+    """Given a dictionary where values may not be unique, 
+    create a reversed dictionary where each unique original value is a new key,
+    and original keys are added to a list of values for each new key.
+    ! Will not work if original values can't be dictionary keys !
+    """
+    output_dict = {v: list() for v in set(long_dict.values())}
+    for k, v in long_dict.items():
+        output_dict[v].append(k)
+    return output_dict
+
+
+def invert_dict_of_lists(dict_of_lists):
+    """Given a dict where values may be listlike,
+    create a reversed dictionary where each element of each original value becomes a new key,
+    and the original keys become the new values.
+    """
+    output_dict = {}
+    for k, v in dict_of_lists.items():
+        if isinstance(v, collections.Iterable) and not isinstance(v, str ):
+            for item in v:
+                output_dict[item] = k
+        else:
+            output_dict[v] = k
+    return output_dict
+
+code_dict = invert_long_dict(long_code_dict)
+reversed_code_dict = invert_dict_of_lists(code_dict)

@@ -1,6 +1,6 @@
 # Standard library
 from dataclasses import dataclass
-from typing import ClassVar
+from typing import ClassVar, TYPE_CHECKING
 import abc
 
 # External packages
@@ -8,6 +8,9 @@ import pandas as pd
 
 # Local packages
 from evaluation_jp import NearestKeyDict
+
+if TYPE_CHECKING:
+    from evaluation_jp import SetupSteps
 
 
 def duplicated(item_list):
@@ -116,33 +119,51 @@ class DataParams(abc.ABC):
     columns_by_type: ColumnsByType
 
     @abc.abstractmethod
-    def setup_steps(self, data_id=None):
+    def get_setup_steps(self, data_id=None):
         pass
 
 
 @dataclass
 class PopulationSliceDataParams(DataParams):
 
-    table_name: ClassVar[str] = "population_slice"
+    table_name: ClassVar[str] = "population_slices"
     setup_steps_by_date: NearestKeyDict = None
 
     def __post_init__(self):
         self.setup_steps_by_date = NearestKeyDict(self.setup_steps_by_date)
 
-    def setup_steps(self, data_id):
+    def get_setup_steps(self, data_id):
         return self.setup_steps_by_date[data_id.reference_date()]
 
 
 @dataclass
 class TreatmentPeriodDataParams(DataParams):
 
-    table_name: ClassVar[str] = "treatment_period"
+    table_name: ClassVar[str] = "treatment_periods"
     setup_steps_by_date: NearestKeyDict = None
 
     def __post_init__(self):
         self.setup_steps_by_date = NearestKeyDict(self.setup_steps_by_date)
 
-    def setup_steps(self, data_id, how="start"):
+    def get_setup_steps(self, data_id, how="start"):
         return self.setup_steps_by_date[data_id.reference_date(how)]
 
 
+@dataclass
+class SWPaymentsDataParams(DataParams):
+
+    table_name: ClassVar[str] = "sw_payments"
+    setup_steps: list
+
+    def get_setup_steps(self):
+        return self.setup_steps
+
+
+@dataclass
+class EarningsDataParams(DataParams):
+
+    table_name: ClassVar[str] = "earnings"
+    setup_steps: list
+
+    def get_setup_steps(self):
+        return self.setup_steps

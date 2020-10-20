@@ -7,6 +7,7 @@ from urllib import parse
 
 # External packages
 import pandas as pd
+from pandas.core.frame import DataFrame
 import sqlalchemy as sa
 
 
@@ -162,9 +163,10 @@ def temp_table_connection(
                     f"Expected a DataFrame or Series but got a {type(frame)}!"
                 )
             rows = unpack([row for row in row_list])
+            columns = frame.columns if isinstance(frame, pd.DataFrame) else [frame.name]
             queries = [
                 f"DROP TABLE IF EXISTS {table}",
-                f"CREATE TEMP TABLE {table}({', '.join(frame.columns)})",
+                f"CREATE TEMP TABLE {table}({', '.join(columns)})",
                 f"INSERT INTO {table} VALUES {rows}",
             ]
             for query in queries:
@@ -186,10 +188,10 @@ def temp_table_connection(
             # ...this is working when testing against SQL Server 15 'Stats1' database
             # ...but seems to be broken when testing against SQL Server 14 'PA1' database
             # ...so stick to ## names to be on the safe side.
-            if not table.startswith("##"):
-                raise ValueError(
-                    "Table name must start with '##' in SQL Server tempdb!"
-                )
+            # if not table.startswith("##"):
+            #     raise ValueError(
+            #         "Table name must start with '##' in SQL Server tempdb!"
+            #     )
 
             insp = sa.inspect(con)
             if table in insp.get_table_names(schema="dbo"):

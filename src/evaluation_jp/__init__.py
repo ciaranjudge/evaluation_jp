@@ -9,5 +9,6 @@ from .data.sql_importers import *
 from .data._wwld_importers import *
 
 from .features.population_setup_steps import *
+from .features._longitudinal_data_setup_steps import *
 
 

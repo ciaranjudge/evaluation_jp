@@ -154,11 +154,11 @@ def test__PopulationSliceDataParams():
     )
 
     ps_id_1 = PopulationSliceID(date=pd.Timestamp("2016-01-01"))
-    results_1 = ps_data_params.setup_steps(ps_id_1)
+    results_1 = ps_data_params.get_setup_steps(ps_id_1)
     assert results_1.run() == "Dummy step 1"
 
     ps_id_2 = PopulationSliceID(date=pd.Timestamp("2018-01-01"))
-    results_2 = ps_data_params.setup_steps(ps_id_2)
+    results_2 = ps_data_params.get_setup_steps(ps_id_2)
     assert results_2.run() == "Dummy step 2"
 
     assert ps_data_params.columns_by_type.check_data_column_names(list("ABCD"))
@@ -177,7 +177,7 @@ def test__TreatmentPeriodDataParams():
         population_slice=PopulationSliceID(date=pd.Timestamp("2016-01-01")),
         time_period=pd.Period("2016-01"),
     )
-    results_1 = tp_data_params.setup_steps(tp_id_1)
+    results_1 = tp_data_params.get_setup_steps(tp_id_1)
     assert results_1.run() == "Dummy step 1"
 
     tp_id_2 = TreatmentPeriodID(

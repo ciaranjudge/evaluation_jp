@@ -107,19 +107,25 @@ class SQLDataHandler(DataHandler):
             if sql_data_id := get_sql_data_id(data_id):
                 query += sql_where_clause_from_dict(sql_data_id)
 
+            if data_params.columns_by_type.index_columns:
+                index_col = list(data_params.columns_by_type.index_columns)
+            else:
+                index_col = None
+
             data = pd.read_sql(
                 query,
                 con=self.engine,
                 parse_dates=list(data_params.columns_by_type.datetime_all_columns),
-                index_col=list(data_params.columns_by_type.index_columns),
+                index_col=index_col,
             ).drop(list(sql_data_id), axis="columns")
+
             if not data.empty:
                 return data_params.columns_by_type.set_datatypes(data)
             else:
                 raise DataNotFoundError
         else:
             raise TableNotFoundError
-    
+
     def _delete(self, table_name, sql_data_id=None):
         # If the table exists, delete any previous rows with this data_id
         if self.table_exists(table_name):
@@ -225,7 +231,12 @@ def populate(
         except DataHandlerError:
             rebuild = True
     if data_handler is None or rebuild:
-        data = data_params.setup_steps(data_id).run(data_id=data_id, data=initial_data)
+        setup_steps = (
+            data_params.get_setup_steps(data_id)
+            if data_id is not None
+            else data_params.get_setup_steps()
+        )
+        data = setup_steps.run(data_id=data_id, data=initial_data)
         data = data_params.columns_by_type.set_datatypes(data)
         if data_handler is not None:
             data_handler.write(

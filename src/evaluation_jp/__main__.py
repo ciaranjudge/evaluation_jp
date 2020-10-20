@@ -4,40 +4,41 @@ from dataclasses import dataclass
 
 # External packages
 import pandas as pd
-from tqdm.autonotebook import tqdm 
+from tqdm.notebook import tqdm
 
 # Local packages
 from evaluation_jp import (
-    DataHandler,
-    SQLDataHandler,
-    populate,
-    ColumnsByType,
-    PopulationSliceDataParams,
-    PopulationSliceID,
-    PopulationSliceIDGenerator,
-    TreatmentPeriodDataParams,
-    TreatmentPeriodID,
-    TreatmentPeriodIDGenerator,
-    sqlserver_engine,
-    SetupSteps,
-    LiveRegisterPopulation,
-    CustomerDetails,
     AgeEligible,
     ClaimCodeEligible,
     ClaimDurationEligible,
-    OnLES,
-    OnJobPath,
-    JobPathStartedEndedSamePeriod,
+    ColumnsByType,
+    CustomerDetails,
+    DataHandler,
+    EarningsByIDYearClass,
+    EarningsDataParams,
     EligiblePopulation,
-    JobPathStarts,
     EvaluationGroup,
-    StartingPopulation,
-    PopulationSliceID,
+    JobPathStartedEndedSamePeriod,
+    JobPathStarts,
+    LiveRegisterPopulation,
+    OnJobPath,
+    OnLES,
     PopulationSliceDataParams,
-    TreatmentPeriodID,
+    PopulationSliceID,
+    PopulationSliceIDGenerator,
+    SetupSteps,
+    SQLDataHandler,
+    StartingPopulation,
     TreatmentPeriodDataParams,
+    TreatmentPeriodID,
+    TreatmentPeriodIDGenerator,
+    populate,
+    sqlserver_engine,
+    QuarterlySWPayments,
+    SWPaymentsDataParams,
 )
 
+# %%
 
 # //TODO Read EvaluationModel parameters from yml file
 @dataclass
@@ -47,6 +48,9 @@ class EvaluationModel:
     population_slice_data_params: PopulationSliceDataParams
     population_slice_id_generator: PopulationSliceIDGenerator
 
+    sw_payments_data_params: SWPaymentsDataParams
+    earnings_data_params: EarningsDataParams
+
     treatment_period_data_params: TreatmentPeriodDataParams
     treatment_period_id_generator: TreatmentPeriodIDGenerator
 
@@ -55,8 +59,9 @@ class EvaluationModel:
     data_handler: DataHandler = None
 
     # Attributes - set up post init
-    # longitudinal_data: pd.DataFrame = None
     population_slices: dict = None
+    sw_payments: pd.DataFrame = None
+    earnings: pd.DataFrame = None
     treatment_periods: dict = None
 
     def add_population_slices(self, rebuild: bool = False):
@@ -73,7 +78,7 @@ class EvaluationModel:
     def total_population(self):
         return set().union(
             *(
-                population_slice.data.index
+                population_slice.index
                 for population_slice in self.population_slices.values()
             )
         )
@@ -82,30 +87,26 @@ class EvaluationModel:
     def total_eligible_population(self):
         return set().union(
             *(
-                population_slice.data[
-                    population_slice.data["eligible_population"] == True
-                ].index
+                population_slice[population_slice["eligible_population"] == True].index
                 for population_slice in self.population_slices.values()
             )
         )
 
-    def add_longitudinal_data(self):
-        # try:
-        #     self.longitudinal_data = self.data_handler.read(
-        #         data_type="longitudinal_data", index_col=["ppsn", "quarter"],
-        #     )
-        # except DataHandlerError:
-        #     self.longitudinal_data = pd.merge(
-        #         quarterly_earnings(self.total_eligible_population),
-        #         quarterly_sw_payments(self.total_eligible_population),
-        #         how="outer",
-        #         left_index=True,
-        #         right_index=True,
-        #     )
-        #     self.data_handler.write(
-        #         data_type="longitudinal_data", data=self.longitudinal_data, index=True
-        #     )
-        pass
+    def add_sw_payments_data(self, rebuild):
+        self.sw_payments = populate(
+            data_params=self.sw_payments_data_params,
+            data_handler=self.data_handler,
+            initial_data=pd.Series(list(self.total_population), name="ppsn"),
+            rebuild=rebuild,
+        )
+
+    def add_earnings_data(self, rebuild):
+        self.earnings = populate(
+            data_params=self.earnings_data_params,
+            data_handler=self.data_handler,
+            initial_data=pd.Series(list(self.total_population), name="ppsn"),
+            rebuild=rebuild,
+        )
 
     def add_treatment_periods(self, rebuild=False):
         self.treatment_periods = {}
@@ -152,7 +153,7 @@ if __name__ == "__main__":
                                 "clm_comm_date": "datetime64",
                                 "JobPath_Flag": "boolean",
                                 "JobPathHold": "boolean",
-                                "date_of_birth": "datetime64"
+                                "date_of_birth": "datetime64",
                             },
                             index_columns_by_type={"ppsn": str},
                         )
@@ -215,7 +216,50 @@ if __name__ == "__main__":
     )
 
     population_slice_id_generator = PopulationSliceIDGenerator(
-        start=pd.Timestamp("2016-01-01"), end=pd.Timestamp("2017-12-31"), freq="Q"
+        start=pd.Timestamp("2016-01-01"), end=pd.Timestamp("2017-12-31"), freq="QS"
+    )
+
+    sw_payments_data_params = SWPaymentsDataParams(
+        setup_steps=SetupSteps(steps=[QuarterlySWPayments()]),
+        columns_by_type=ColumnsByType(
+            {
+                "ppsn": "string",
+                "quarter": "period[Q-DEC]",
+                "function": "category",
+                "value": "float32",
+            }
+        ),
+    )
+
+    earnings_data_params = EarningsDataParams(
+        setup_steps=SetupSteps(
+            steps=[
+                EarningsByIDYearClass(
+                    columns=[
+                        "contribution_class",
+                        "wies",
+                        "earnings_amount",
+                        "employee_prsi_amount",
+                        "total_prsi_amount",
+                    ],
+                    start_year=2013,
+                    end_year=2019,
+                )
+            ]
+        ),
+        columns_by_type=ColumnsByType(
+            {
+                "ppsn": "string",
+                "year": "int32",
+                "contribution_class": "category",
+                "wies": "int32",
+                "earnings_amount": "float64",
+                "total_prsi_amount": "float64",
+                "employee_prsi_amount": "float64",
+                "employments": "int32",
+                "earnings_per_week": "float64",
+            }
+        ),
     )
 
     treatment_period_data_params = TreatmentPeriodDataParams(
@@ -292,6 +336,8 @@ if __name__ == "__main__":
     evaluation_model = EvaluationModel(
         population_slice_data_params=population_slice_data_params,
         population_slice_id_generator=population_slice_id_generator,
+        sw_payments_data_params=sw_payments_data_params,
+        earnings_data_params=earnings_data_params,
         treatment_period_data_params=treatment_period_data_params,
         treatment_period_id_generator=treatment_period_id_generator,
         # outcome_generator = OutcomeGenerator(
@@ -301,6 +347,20 @@ if __name__ == "__main__":
         data_handler=data_handler,
     )
 
-    evaluation_model.add_population_slices(rebuild=True)
+    evaluation_model.add_population_slices(rebuild=False)
+    evaluation_model.add_sw_payments_data(rebuild=False)
+    evaluation_model.add_earnings_data(rebuild=False)
+
+    # %%
+    # e = populate(
+    #         data_params=evaluation_model.earnings_data_params,
+    #         data_handler=evaluation_model.data_handler,
+    #         initial_data=pd.Series(list(self.total_population), name="ppsn"),
+    #         rebuild=rebuild,
+    #     )
+
+# # %%
+# sw_payments_data_params.get_setup_steps()
 
 # %%
+

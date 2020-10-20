@@ -205,15 +205,11 @@ def test__get_jobpath_data():
 
 
 def test__get_sw_payments():
-    columns = [
-        "SCHEME_TYPE",
-        "AMOUNT",
-    ]
+    columns = ["SCHEME_TYPE", "AMOUNT", "QTR"]
     test_ids = pd.DataFrame(
         ["6892436U", "5051366B", "6049367W", "5092934S", "8420262S"], columns=["ppsn"]
     )
     results = get_sw_payments(ids=test_ids, id_col="ppsn", columns=columns)
     assert set(results.columns) == set(columns + ["ppsn"])
     # Manually look up how many records there should be per sw_payments SQL table
-
 
