@@ -404,6 +404,35 @@ class JobPathStarts(SetupStep):
             data["jobpath_starts"] = operational_jobpath_starts | ists_jobpath_starts
 
         return data
+# //TODO add test for JobPath referral
+@dataclass
+class JobPathReferrals(SetupStep):
+    
+    def run(self, data_id, data):
+        start = data_id.reference_date(how="start")
+        end = data_id.reference_date(how="end")
+
+        jobpath_operational = get_jobpath_data(columns=["referral_date"])
+        referred = jobpath_operational[
+            jobpath_operational["referral_date"].between(start, end)
+        ]
+        referrals_by_id = (
+            pd.pivot_table(
+                referred, values="referral_date", index="ppsn", aggfunc=np.any
+            )
+            .squeeze(axis="columns")
+            .astype(bool)
+        )
+        operational_jobpath_referrals = (
+            referrals_by_id.loc[referrals_by_id.index.intersection(data.index)]
+            .reindex(data.index)
+            .fillna(False)
+        )
+    
+        data["jobpath_referral"] = operational_jobpath_referrals
+        return data
+
+
 
 
 @dataclass
