@@ -347,8 +347,13 @@ if __name__ == "__main__":
         data_handler=data_handler,
     )
 
+    # %%
     evaluation_model.add_population_slices(rebuild=False)
+
+    # %%
     evaluation_model.add_sw_payments_data(rebuild=False)
+
+    # %%
     evaluation_model.add_earnings_data(rebuild=False)
 
     # %%
@@ -363,4 +368,7 @@ if __name__ == "__main__":
 # sw_payments_data_params.get_setup_steps()
 
 # %%
+all_earnings = evaluation_model.earnings
+print([f"|{i}|" for i in all_earnings.head()["ppsn"]])
 
+# %%

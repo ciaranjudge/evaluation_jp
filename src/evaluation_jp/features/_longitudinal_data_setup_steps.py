@@ -225,12 +225,10 @@ class EarningsByIDYearClass(SetupStep):
 
         # TODO Use history for outlier detection
 
-        # * Transform to earnings_by_id_year_class        
+        # * Transform to earnings_by_id_year_class
         # Assume an employment exists for each record where earnings > 0
         # Use this for counting employments per person in groupby below
-        earnings["employments"] = np.where(
-            earnings["earnings_amount"] > 1, 1, 0
-        )
+        earnings["employments"] = np.where(earnings["earnings_amount"] > 1, 1, 0)
         earnings_by_id_year_class = (
             earnings.groupby(["ppsn", "year", "contribution_class"])
             .agg(
@@ -254,7 +252,9 @@ class EarningsByIDYearClass(SetupStep):
         # *Calculate earnings per week worked
         earnings_by_id_year_class["earnings_per_week"] = 0
         # Avoid dividing by zero
-        earnings_by_id_year_class.loc[earnings_by_id_year_class["wies"] > 0, "earnings_per_week"] = (
+        earnings_by_id_year_class.loc[
+            earnings_by_id_year_class["wies"] > 0, "earnings_per_week"
+        ] = (
             earnings_by_id_year_class["earnings_amount"]
             / earnings_by_id_year_class["wies"]
         )
@@ -262,17 +262,66 @@ class EarningsByIDYearClass(SetupStep):
         return earnings_by_id_year_class
 
 
-        # //TODO Defeat outliers! Add feature scaling!
+def annualise_sw_payments(sw_payments):
+    pass
 
-        # *Total income distribution
-        # *Share of each income type
-        # *Slope of income change
 
-        # pd.Index(q.array).asfreq("Y")
+def features_from_earnings_sw_payments(
+    eligible_population: pd.Series,
+    all_earnings: pd.DataFrame,
+    all_sw_payments: pd.DataFrame,
+) -> pd.DataFrame:
+    """Create features suitable for IPW (before SKL preprocessing) from earnings and payments data 
+    For each person:
+    - log(total_income) over 3 to 5 years before treatment period (or ranking)
+    - for each year in that period, difference from average income over whole period
+    - share of total income by type (earnings A, S, O; sw_payment broad functional categories)
+    - for each year in overall period, difference from average income share by income share type
+    """
+
+    # *Restrict to eligible population
+    eligible_population = (
+        eligible_population.to_frame(name="ppsn")
+        if isinstance(eligible_population, pd.Series)
+        else eligible_population
+    )
+    earnings = pd.merge(
+        all_earnings, eligible_population, how="inner", left_on="ppsn", right_on="ppsn"
+    )
+    sw_payments = pd.merge(
+        all_sw_payments,
+        eligible_population,
+        how="inner",
+        left_on="ppsn",
+        right_on="ppsn",
+    )
+
+    # *Annualise payments data
+    sw_payments["year"] = sw_payments["quarter"].dt.year
+
+
+    # *Standardise columns for payments to ["ppsn", "year", "type", "value"] {"function": "type"}
+
+    # *Standardise columns for earnings in same way {"earnings_amount": "value", "contribution_class": "type"}
+
+    # *Pivot table to create total income series by person by year
+
+    # *Broadcast total income by person by year to each person-year-type, and use to construct income shares
+
+    # *Pivot income share column to make one column for each type by person-year
+
+    # *Merge total income and income share dataframes
+
+    # *
+
+    # *Total income distribution
+    # *Share of each income type
+    # *Slope of income change
+
+    # pd.Index(q.array).asfreq("Y")
 
 
 # # %%
-
 
 
 # data = pd.Series(list(evaluation_model.total_population), name="ppsn")
@@ -292,3 +341,12 @@ class EarningsByIDYearClass(SetupStep):
 
 
 # # %%
+# evaluation_model.sw_payments.head()
+
+# # %%
+# evaluation_model.earnings.head()
+
+# %%
+eligible_population = pd.Series(list(evaluation_model.total_eligible_population), name="ppsn")
+eligible_population
+# %%
